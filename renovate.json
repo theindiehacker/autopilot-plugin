@@ -17,6 +17,16 @@
       "matchStrings": ["uvx (?<depName>[a-zA-Z0-9._-]+)@(?<currentValue>[^\\s\"]+)"],
       "datasourceTemplate": "pypi",
       "versioningTemplate": "pep440"
+    },
+    {
+      "description": ".claude-plugin/marketplace.json の git-subdir で固定した外部のプラグインの sha を、ref のブランチの最新のコミットに更新する",
+      "customType": "regex",
+      "managerFilePatterns": ["/^\\.claude-plugin/marketplace\\.json$/"],
+      "matchStrings": [
+        "\"url\": *\"(?<packageName>https://github\\.com/[^\"]+\\.git)\",\\s*\"path\": *\"[^\"]*\",\\s*\"ref\": *\"(?<currentValue>[^\"]+)\",\\s*\"sha\": *\"(?<currentDigest>[0-9a-f]{40})\""
+      ],
+      "depNameTemplate": "{{{packageName}}}",
+      "datasourceTemplate": "git-refs"
     }
   ],
   "packageRules": [

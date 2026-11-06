@@ -10,6 +10,20 @@
     {
       "name": "session",
       "source": "./plugins/session"
+    },
+    {
+      "name": "security-audit",
+      "description": "Cloudflare のセキュリティ監査スキル。偵察・網羅的な探索・独立した検証で、コードベースの脆弱性を見つけて報告する",
+      "source": {
+        "source": "git-subdir",
+        "url": "https://github.com/cloudflare/security-audit-skill.git",
+        "path": "skills",
+        "ref": "main",
+        "sha": "c1c8a8c1471069fb0e188eeaff69b8e8db6564a8"
+      },
+      "strict": false,
+      "skills": ["./security-audit"],
+      "homepage": "https://github.com/cloudflare/security-audit-skill"
     }
   ]
 }
