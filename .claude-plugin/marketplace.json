@@ -12,6 +12,14 @@
       "source": "./plugins/cloud"
     },
     {
+      "name": "dev",
+      "source": "./plugins/dev"
+    },
+    {
+      "name": "frontend",
+      "source": "./plugins/frontend"
+    },
+    {
       "name": "security-audit",
       "description": "Cloudflare のセキュリティ監査スキル。偵察・網羅的な探索・独立した検証で、コードベースの脆弱性を見つけて報告する",
       "source": {
@@ -24,6 +32,20 @@
       "strict": false,
       "skills": ["./security-audit"],
       "homepage": "https://github.com/cloudflare/security-audit-skill"
+    },
+    {
+      "name": "shadcn",
+      "description": "shadcn/ui 公式スキル。コンポーネントの追加・検索・修正・スタイリングと、プロジェクトの情報・ドキュメントの参照を支援する",
+      "source": {
+        "source": "git-subdir",
+        "url": "https://github.com/shadcn-ui/ui.git",
+        "path": "skills",
+        "ref": "main",
+        "sha": "4233ed1caded8c38f4bc14b14afe1f93ebcaf966"
+      },
+      "strict": false,
+      "skills": ["./shadcn"],
+      "homepage": "https://github.com/shadcn-ui/ui"
     }
   ]
 }
