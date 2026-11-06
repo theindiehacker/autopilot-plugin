@@ -12,10 +12,6 @@
       "source": "./plugins/cloud"
     },
     {
-      "name": "dev",
-      "source": "./plugins/dev"
-    },
-    {
       "name": "frontend",
       "source": "./plugins/frontend"
     },
