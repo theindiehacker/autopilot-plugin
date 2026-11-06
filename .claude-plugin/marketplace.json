@@ -1,0 +1,11 @@
+{
+  "name": "indiehacker",
+  "description": "Indie Hacker の AI 開発で使う Claude Code プラグイン",
+  "owner": {
+    "name": "gtaiyou24",
+    "url": "https://github.com/theindiehacker"
+  },
+  "allowCrossMarketplaceDependenciesOn": ["claude-plugins-official"],
+  "plugins": [
+  ]
+}
