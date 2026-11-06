@@ -10,7 +10,7 @@ COMPOSE=""
 for f in compose.yaml compose.yml docker-compose.yaml docker-compose.yml; do
   [ -f "$f" ] && COMPOSE=$f && break
 done
-[ -n "$COMPOSE" ] && command -v docker > /dev/null || exit 0
+[ -n "$COMPOSE" ] || exit 0
 
 # 🐳 Docker を起動する
 if ! docker info > /dev/null 2>&1; then
