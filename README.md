@@ -32,11 +32,19 @@ Claude Code on the web は、`.claude/settings.json` の `enabledPlugins` では
 
 </details>
 
-<details><summary><b>クラウド環境のネットワーク</b></summary>
+<details><summary><b>クラウド環境のネットワーク (<code>semgrep.dev</code> を許可する)</b></summary>
 
-semgrep は検査のルールを `semgrep.dev` から取得します。既定のネットワーク (Limited) では取得できないため、環境の設定の **Network access** で、**Allowed domains** に `semgrep.dev` を足してください (**Allow package managers** は付けたまま)。手順は [Claude Code のドキュメント](https://code.claude.com/docs/en/cloud-environments#network-access) にあります。
+semgrep は検査のルールを `semgrep.dev` から取得します。既定のネットワーク (Limited) では `semgrep.dev` に届かないため、クラウド環境ごとに次の手順で許可してください。
 
-足さないと semgrep の検査は動きません。push は止めず、作業を終えるときに確かめていないことを Claude に 1 回伝えます。gitleaks・trivy は既定のネットワークで動きます。
+1. セッションのタイトルバーにあるクラウド環境のメニューを開き、使う環境の **Edit** を押す
+2. **Network access** を **Limited** のままにする
+3. **Allowed domains** に `semgrep.dev` を足す
+4. **Allow package managers** のチェックは付けたままにする (semgrep を PyPI から入れるのに使う)
+5. 保存する
+
+手順の詳細は [Claude Code のドキュメント](https://code.claude.com/docs/en/cloud-environments#network-access) にあります。
+
+許可しないと、semgrep の検査は動きません。push は止めませんが、コードを変えるたびに、作業を終えるときの検査で semgrep の接続の失敗を約 100 秒待ちます。gitleaks・trivy は既定のネットワークで動きます。
 
 </details>
 
