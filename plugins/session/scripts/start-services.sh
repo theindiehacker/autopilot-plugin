@@ -12,11 +12,6 @@ for f in compose.yaml compose.yml docker-compose.yaml docker-compose.yml; do
 done
 [ -n "$COMPOSE" ] || exit 0
 
-# 🐳 Docker デーモンが止まっていれば起動する (新しいセッションでは止まっていて、再開では動いたままのことがある)
-if ! docker info > /dev/null 2>&1; then
-  dockerd --registry-mirror=https://mirror.gcr.io > /tmp/dockerd.log 2>&1 &
-fi
-
 # 🔐 ビルドにプロキシの CA を secret の ca-certificates で渡す
 DIR="$PWD/.claude/session"
 FILES="$PWD/$COMPOSE"

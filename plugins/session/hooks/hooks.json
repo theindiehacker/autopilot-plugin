@@ -6,6 +6,10 @@
         "hooks": [
           {
             "type": "command",
+            "command": "[ \"$CLAUDE_CODE_REMOTE\" = true ] && dockerd --registry-mirror=https://mirror.gcr.io >> /tmp/dockerd.log 2>&1 &"
+          },
+          {
+            "type": "command",
             "command": "bash \"${CLAUDE_PLUGIN_ROOT}/scripts/setup.sh\"",
             "timeout": 600
           }
