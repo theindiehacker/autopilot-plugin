@@ -1,0 +1,29 @@
+{
+  "$schema": "https://docs.renovatebot.com/renovate-schema.json",
+  "customManagers": [
+    {
+      "description": "plugins/*/scripts/*.sh で入れるツールの VERSION と SHA256 を更新する (SHA256 は release アセットの digest から算出される。VERSION には GitHub release のタグ名そのものを書く)",
+      "customType": "regex",
+      "managerFilePatterns": ["/^plugins/[^/]+/scripts/[^/]+\\.sh$/"],
+      "matchStrings": [
+        "# renovate: datasource=(?<datasource>[a-zA-Z0-9-._]+?) depName=(?<depName>[^\\s]+?)\\s+[A-Z0-9_]*VERSION=\"(?<currentValue>[^\"]+)\"\\s+[A-Z0-9_]*SHA256=\"(?<currentDigest>[^\"]+)\"\\s"
+      ],
+      "versioningTemplate": "semver"
+    },
+    {
+      "description": "plugins/*/scripts/*.sh で uvx に版を固定した PyPI のツール (semgrep など) を更新する",
+      "customType": "regex",
+      "managerFilePatterns": ["/^plugins/[^/]+/scripts/[^/]+\\.sh$/"],
+      "matchStrings": ["uvx (?<depName>[a-zA-Z0-9._-]+)@(?<currentValue>[^\\s\"]+)"],
+      "datasourceTemplate": "pypi",
+      "versioningTemplate": "pep440"
+    }
+  ],
+  "packageRules": [
+    {
+      "description": "公開から 7 日たった版だけを取り込む。乗っ取られて悪意のあるコードを入れられた版は、公開から数日で見つかり取り下げられることが多い",
+      "matchDatasources": ["pypi"],
+      "minimumReleaseAge": "7 days"
+    }
+  ]
+}
