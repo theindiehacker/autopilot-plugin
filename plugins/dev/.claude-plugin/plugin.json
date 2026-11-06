@@ -1,0 +1,12 @@
+{
+  "name": "dev",
+  "displayName": "dev@indiehacker",
+  "version": "0.3.0",
+  "description": "全プラグインで利用する標準プラグイン",
+  "repository": "https://github.com/theindiehacker/dev-plugins",
+  "dependencies": [
+    "security-guidance@claude-plugins-official",
+    "superpowers@claude-plugins-official",
+    "security-audit"
+  ]
+}
