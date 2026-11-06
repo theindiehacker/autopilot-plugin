@@ -19,19 +19,19 @@
           {
             "type": "command",
             "if": "Bash(*git*commit*)",
-            "command": "gitleaks dir . --redact --verbose --ignore-gitleaks-allow --exit-code 2 1>&2",
+            "command": "cd \"$CLAUDE_PROJECT_DIR\" && gitleaks dir . --redact --verbose --ignore-gitleaks-allow --exit-code 2 1>&2",
             "timeout": 120
           },
           {
             "type": "command",
             "if": "Bash(*git*push*)",
-            "command": "semgrep scan --config p/owasp-top-ten --metrics off --error 1>&2 || [ $? -ne 1 ] || exit 2",
+            "command": "cd \"$CLAUDE_PROJECT_DIR\" && semgrep scan --config p/owasp-top-ten --metrics off --error --disable-nosem 1>&2 || [ $? -ne 1 ] || exit 2",
             "timeout": 300
           },
           {
             "type": "command",
             "if": "Bash(*git*push*)",
-            "command": "trivy fs --severity HIGH,CRITICAL --ignore-unfixed --exit-code 2 . 1>&2",
+            "command": "cd \"$CLAUDE_PROJECT_DIR\" && trivy fs --scanners vuln,misconfig,secret --severity HIGH,CRITICAL --ignore-unfixed --exit-code 2 . 1>&2",
             "timeout": 300
           }
         ]

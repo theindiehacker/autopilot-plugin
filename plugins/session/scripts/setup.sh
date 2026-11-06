@@ -12,12 +12,14 @@ curl -sSfL --connect-timeout 10 --max-time 120 https://github.com/gitleaks/gitle
 curl -sSfL --connect-timeout 10 --max-time 120 https://github.com/aquasecurity/trivy/releases/download/v0.76.2/trivy_0.76.2_Linux-64bit.tar.gz \
   | tar -xzf - -C /usr/local/bin trivy &
 
-# 🧰 mise.toml があれば、リポジトリが決めたツールを入れる。mise の本体は大きいため、同じ版なら取得し直さない
+# 🧰 mise.toml があれば、インストールする
 if [ -f mise.toml ]; then
+  # mise で入れたツールをコマンド名だけで呼べるようにする
   SHIMS="${MISE_DATA_DIR:-$HOME/.local/share/mise}/shims"
   export PATH="$SHIMS:$PATH"
   [ -z "${CLAUDE_ENV_FILE:-}" ] || echo "export PATH=\"$SHIMS:\$PATH\"" >> "$CLAUDE_ENV_FILE"
-  { [ "$(mise --version 2> /dev/null | cut -d' ' -f1)" = "2026.10.17" ] ||
+
+  { mise --version > /dev/null 2>&1 ||
     { curl -sSfL --connect-timeout 10 --max-time 240 -o /usr/local/bin/mise https://github.com/jdx/mise/releases/download/v2026.10.17/mise-v2026.10.17-linux-x64 &&
       chmod +x /usr/local/bin/mise; }; } &&
     mise trust . > /dev/null && timeout 300 mise install --yes >&2 || echo "⚠️ mise のツールを入れられませんでした。ユーザーに伝えてください"
