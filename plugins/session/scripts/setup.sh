@@ -53,13 +53,16 @@ done
 [ -n "$COMPOSE" ] || exit 0
 
 DIR="$PWD/.claude/session"
-if [ -z "$(git ls-files compose.override.yml compose.override.yaml docker-compose.override.yml docker-compose.override.yaml)" ] &&
-  mkdir -p "$DIR" && cp -r "$(dirname "$0")/session/." "$DIR" && cp "${SSL_CERT_FILE:-}" "$DIR/proxy-ca.crt" &&
-  COMPOSE_PROFILES='*' docker compose -f "$COMPOSE" config --format json |
-  python3 "$(dirname "$0")/compose-proxy-ca.py" > "$DIR/compose.override.yml" &&
-  mv "$DIR/compose.override.yml" compose.override.yml; then
-  EXCLUDE=$(git rev-parse --git-path info/exclude)
-  grep -qxF /compose.override.yml "$EXCLUDE" 2> /dev/null || echo /compose.override.yml >> "$EXCLUDE"
+FILES="$PWD/$COMPOSE"
+for f in compose.override.yaml compose.override.yml docker-compose.override.yaml docker-compose.override.yml; do
+  [ -f "$f" ] && FILES="$FILES:$PWD/$f" && break
+done
+if mkdir -p "$DIR" && cp -r "$(dirname "$0")/session/." "$DIR" && cp "${SSL_CERT_FILE:-}" "$DIR/proxy-ca.crt" &&
+  COMPOSE_FILE="$FILES" COMPOSE_PROFILES='*' docker compose config --format json |
+  python3 "$(dirname "$0")/compose-proxy-ca.py" > "$DIR/compose.proxy-ca.yaml"; then
+  export COMPOSE_FILE="$FILES:$DIR/compose.proxy-ca.yaml"
+  LINE="export COMPOSE_FILE=\"$COMPOSE_FILE\""
+  [ -z "${CLAUDE_ENV_FILE:-}" ] || grep -qxF "$LINE" "$CLAUDE_ENV_FILE" 2> /dev/null || echo "$LINE" >> "$CLAUDE_ENV_FILE"
 else
   echo "⚠️ ビルドにプロキシの CA を渡せませんでした" >&2
 fi
