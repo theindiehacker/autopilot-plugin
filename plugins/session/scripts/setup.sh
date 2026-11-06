@@ -52,6 +52,7 @@ for f in compose.yaml compose.yml docker-compose.yaml docker-compose.yml; do
 done
 [ -n "$COMPOSE" ] || exit 0
 
+# Docker ビルドできるように compose.proxy-ca.yaml 作成
 DIR="$PWD/.claude/session"
 FILES="$PWD/$COMPOSE"
 for f in compose.override.yaml compose.override.yml docker-compose.override.yaml docker-compose.override.yml; do
