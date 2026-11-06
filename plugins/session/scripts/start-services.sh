@@ -18,18 +18,21 @@ for f in compose.yaml compose.yml docker-compose.yaml docker-compose.yml; do
 done
 [ -n "$compose" ] && command -v docker > /dev/null || exit 0
 
+# Web の VM では Docker デーモンが止まっている。セッションの再開では、デーモンが動いたままのことがある
+if ! docker info > /dev/null 2>&1; then
+  # Docker Hub の匿名の取得回数の上限 (429) に当たらないよう、Google のミラーから取得する (ミラーに無ければ Docker Hub から取る)
+  dockerd --registry-mirror=https://mirror.gcr.io > /tmp/dockerd.log 2>&1 &
+fi
+
 # Web のプロキシは TLS を検査するため、イメージのビルドにプロキシの CA を渡す。
 # build のあるサービスに secret の ca-certificates を足す compose ファイルを作り、COMPOSE_FILE で重ねる。
 # Dockerfile は RUN --mount=type=secret,id=ca-certificates,... で受け取る (受け取らなければ何も変わらない)。
 # Web の Compose はビルドに Bake を使い、Bake は作業ディレクトリの外のファイルを読むときに許可 (--allow=fs.read) を求めて止まる。
 # そのため CA をプロジェクトの中 (.claude/session/) にコピーし、git には info/exclude で無視させる。docker compose はリポジトリのルートで実行する
-add_proxy_ca() {
-  local dir="$PWD/.claude/session" base files exclude f
-  if [ -z "${SSL_CERT_FILE:-}" ] || ! command -v jq > /dev/null; then
-    echo "⚠️ start-services: SSL_CERT_FILE か jq が無いため、ビルドにプロキシの CA を渡しません" >&2
-    return 0
-  fi
-  mkdir -p "$dir" && cp "$SSL_CERT_FILE" "$dir/proxy-ca.crt" || return 0
+dir="$PWD/.claude/session"
+if [ -z "${SSL_CERT_FILE:-}" ] || ! command -v jq > /dev/null; then
+  echo "⚠️ start-services: SSL_CERT_FILE か jq が無いため、ビルドにプロキシの CA を渡しません" >&2
+elif mkdir -p "$dir" && cp "$SSL_CERT_FILE" "$dir/proxy-ca.crt"; then
   exclude=$(git rev-parse --git-path info/exclude 2> /dev/null) &&
     ! grep -qxF /.claude/session/ "$exclude" 2> /dev/null &&
     mkdir -p "$(dirname "$exclude")" && echo /.claude/session/ >> "$exclude"
@@ -64,24 +67,17 @@ add_proxy_ca() {
     }' > "$dir/compose.proxy-ca.yaml.tmp"; then
     rm -f "$dir/compose.proxy-ca.yaml.tmp"
     echo "⚠️ start-services: compose の設定を読めないため、ビルドにプロキシの CA を渡しません" >&2
-    return 0
-  fi
-  mv "$dir/compose.proxy-ca.yaml.tmp" "$dir/compose.proxy-ca.yaml"
+  else
+    mv "$dir/compose.proxy-ca.yaml.tmp" "$dir/compose.proxy-ca.yaml"
 
-  export COMPOSE_FILE="$files:$dir/compose.proxy-ca.yaml"
-  # Claude が実行する docker compose・task にも効くよう、後続の Bash に渡す。セッションの再開でも実行されるため、同じ行を重ねて書かない
-  local line="export COMPOSE_FILE=\"$COMPOSE_FILE\""
-  if [ -n "${CLAUDE_ENV_FILE:-}" ] && ! grep -qxF "$line" "$CLAUDE_ENV_FILE" 2> /dev/null; then
-    echo "$line" >> "$CLAUDE_ENV_FILE"
+    export COMPOSE_FILE="$files:$dir/compose.proxy-ca.yaml"
+    # Claude が実行する docker compose・task にも効くよう、後続の Bash に渡す。セッションの再開でも実行されるため、同じ行を重ねて書かない
+    line="export COMPOSE_FILE=\"$COMPOSE_FILE\""
+    if [ -n "${CLAUDE_ENV_FILE:-}" ] && ! grep -qxF "$line" "$CLAUDE_ENV_FILE" 2> /dev/null; then
+      echo "$line" >> "$CLAUDE_ENV_FILE"
+    fi
   fi
-}
-
-# Web の VM では Docker デーモンが止まっている。セッションの再開では、デーモンが動いたままのことがある
-if ! docker info > /dev/null 2>&1; then
-  # Docker Hub の匿名の取得回数の上限 (429) に当たらないよう、Google のミラーから取得する (ミラーに無ければ Docker Hub から取る)
-  dockerd --registry-mirror=https://mirror.gcr.io > /tmp/dockerd.log 2>&1 &
 fi
-add_proxy_ca
 
 # デーモンが応答するまで 30 秒まで待つ
 for _ in $(seq 30); do docker info > /dev/null 2>&1 && break; sleep 1; done
