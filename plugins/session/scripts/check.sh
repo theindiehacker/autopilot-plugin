@@ -2,7 +2,7 @@
 # git push の前と Claude が作業を終える前に、変更がシークレット (gitleaks)、依存の脆弱性・IaC の設定ミス (trivy)、コードの脆弱性 (semgrep) を含まないか確かめる。
 # 見つかれば exit 2 で結果 (stderr) を Claude に返し、push を止めるか、作業を続けて直させる。
 # session プラグインの PreToolUse・Stop hook (hooks/hooks.json) と、session-start.sh が Web で置く pre-push から実行する。
-# gitleaks・trivy・uvx (semgrep を動かす) が動かなければ、その検査は飛ばし、そのことをセッションごとに 1 回 Claude に伝える
+# gitleaks・trivy・uvx (semgrep を動かす) が動かないか失敗すれば、その検査は飛ばし、そのことをセッションごとに 1 回 Claude に伝える (失敗は作業を終えるときだけ)
 set -uo pipefail
 
 input=$(cat)
@@ -64,28 +64,42 @@ for ref in refs/remotes/origin/HEAD refs/remotes/origin/main refs/remotes/origin
 done
 commits=""
 [ -n "$base" ] && [ "$base" != "$(git rev-parse HEAD 2> /dev/null)" ] && commits="$base..HEAD"
+# デフォルトブランチの ref が無い clone (作業ブランチだけを取った Web のセッションなど) では、どのリモートの ref にも無いコミット (まだ push していないもの) を見る。
+# push 済みのものは push の前の検査を通っている。リモートの ref が 1 つも無く、最初のコミットまで push していないときは、空の tree から見る
+if [ -z "$base" ] && git rev-parse -q --verify HEAD > /dev/null; then
+  first=$(git rev-list --reverse HEAD --not --remotes 2> /dev/null | head -n 1)
+  if [ -z "$first" ]; then
+    base=$(git rev-parse HEAD)
+  elif base=$(git rev-parse -q --verify "${first}^" 2> /dev/null); then
+    commits="$base..HEAD"
+  else
+    base=$(git hash-object -t tree /dev/null)
+    commits="HEAD"
+  fi
+fi
 
-# base (無ければ HEAD) からの変更と、新しいファイル (消したファイルを除く)。質問に答えただけのときは何もしない。
+# base (無ければ HEAD) からの変更と、新しいファイル (消したファイルを除く)。作業を終えるときは、質問に答えただけなら何もしない。
+# push の前は、変更が見えなくても確かめる (origin/HEAD などが無い clone では、コミット済みの変更が見えないため。semgrep はリポジトリ全体を見る)
 # 日本語などのパスがエスケープされないよう、core.quotePath を切る
 changed=$({
   git -c core.quotePath=false diff --name-only --diff-filter=d "${base:-HEAD}" 2> /dev/null
   git -c core.quotePath=false ls-files --others --exclude-standard
 } | sort -u)
-[ -n "$changed" ] || exit 0
+[ -n "$changed" ] || [ -n "$on_push" ] || exit 0
 
 # CLAUDE_ENV_FILE の PATH は Bash にしか効かないため、Web で session-start.sh が入れた道具をここで使えるようにする。
 # mise の shim は、そのリポジトリで設定されていないと失敗するため、session-start.sh が直接入れた BIN_DIR を先に探す
 export PATH="${HOME}/.local/bin:${MISE_DATA_DIR:-${HOME}/.local/share/mise}/shims:${PATH}"
 
 # trivy は変更した lock ファイルと IaC のファイルだけを確かめる (元からある問題まで直させない)。
-# semgrep は起動とルールの取得に時間がかかるため、コード以外 (文書・画像・lock など) だけを変えたときは動かさない
+# semgrep は起動とルールの取得に時間がかかるため、作業を終えるときは、コード以外 (文書・画像・lock など) だけを変えたなら動かさない。push の前はいつも動かす
 targets=$(grep -E '(^|/)(bun\.lockb?|package-lock\.json|yarn\.lock|pnpm-lock\.yaml|uv\.lock|poetry\.lock|requirements[^/]*\.txt|go\.mod|go\.sum|Cargo\.lock|Gemfile\.lock|Dockerfile[^/]*|[^/]*\.tf|(docker-)?compose[^/]*\.ya?ml)$' <<< "$changed")
 code=$(grep -Ev '\.(md|mdx|txt|rst|png|jpe?g|gif|svg|ico|webp|pdf|csv|lock|lockb|woff2?|ttf|eot|mp4|mov|zip|gz)$' <<< "$changed")
 
 # 変更に関係する道具のうち、動かないものを調べる。mise の shim は、そのリポジトリで設定されていないと失敗するため、実際に動かして確かめる
 missing=""
 [ -z "$targets" ] || trivy --version > /dev/null 2>&1 || missing="$missing trivy"
-[ -z "$code" ] || uvx --version > /dev/null 2>&1 || missing="$missing uvx"
+{ [ -z "$code" ] && [ -z "$on_push" ]; } || uvx --version > /dev/null 2>&1 || missing="$missing uvx"
 gitleaks version > /dev/null 2>&1 || missing="$missing gitleaks"
 works() { [[ " $missing " != *" $1 "* ]]; }
 
@@ -111,11 +125,18 @@ warn() {
   incomplete=1
   echo "⚠️ check: $*" >&2
 }
+# 道具が失敗した検査。push は止めない (外部の障害で push できなくなるため) が、作業を終えるときにセッションごとに 1 回 Claude に伝える
+failed=""
+fail() { # <道具> <理由>
+  [[ " $failed " == *" $1 "* ]] || failed="$failed $1"
+  warn "$2"
+}
 
 report=$(mktemp)
 out=$(mktemp)
+err=$(mktemp)
 index=$(mktemp)
-trap 'rm -f "$report" "$out" "$index"' EXIT
+trap 'rm -f "$report" "$out" "$err" "$index"' EXIT
 
 # 検出したときの終了コード。道具そのものの失敗 (1 など) と分け、失敗では直させない
 FOUND=3
@@ -136,26 +157,26 @@ if [ -n "$targets" ] && works trivy; then
       case $? in
         0) ;;
         "$FOUND") { echo "### ${f}: trivy fs"; head -n 100 "$out"; echo; } >> "$report" ;;
-        *) warn "trivy で ${f} を確かめられませんでした: $(tail -n 1 "$out")" ;;
+        *) fail trivy "trivy で ${f} を確かめられませんでした: $(tail -n 1 "$out")" ;;
       esac
     done <<< "$targets"
   else
-    warn "trivy の脆弱性 DB を取得できなかったため、確かめません: $(tail -n 1 "$out")"
+    fail trivy "trivy の脆弱性 DB を取得できなかったため、確かめません: $(tail -n 1 "$out")"
   fi
 fi
 
-# コードの脆弱性 (SAST): semgrep。変更したファイルだけを確かめる。版は Renovate が上げる (renovate.json)。
+# コードの脆弱性 (SAST): semgrep。変更したファイルだけでなく、リポジトリ全体 (git が追跡するファイルと、無視されていない新しいファイル) を確かめる。版は Renovate が上げる (renovate.json)。
 # 検知レベルは org の必須ワークフローにそろえる。抑制は .semgrepignore だけで行い、インラインの nosemgrep は効かせない。
-if [ -n "$code" ] && works uvx && [ "$(left)" -gt 0 ]; then
-  files=()
-  while IFS= read -r f; do files+=("$f"); done <<< "$code"
-  # semgrep は --error のとき、検出で 1 を返し、ルールを取得できないなどの失敗では 2 以上を返す
+if { [ -n "$code" ] || [ -n "$on_push" ]; } && works uvx && [ "$(left)" -gt 0 ]; then
+  # semgrep は --error のとき、検出で 1 を返し、ルールを取得できないなどの失敗では 2 以上を返す。
+  # ルールは semgrep.dev から取得する (Web では環境のネットワークで許可が要る)。
+  # --quiet は失敗の理由まで消すため付けない。検出は stdout に、進捗・uv の出力・失敗の理由は stderr に出るため、分けて受け取る
   timeout -k 10 "$(left)" uvx semgrep@1.181.0 scan --config p/default --severity ERROR --error --metrics off --disable-version-check \
-    --disable-nosem --quiet "${files[@]}" > "$out" 2>&1
+    --disable-nosem . > "$out" 2> "$err"
   case $? in
     0) ;;
     1) { echo "### semgrep scan"; head -n 100 "$out"; echo; } >> "$report" ;;
-    *) warn "semgrep で確かめられませんでした: $(tail -n 1 "$out")" ;;
+    *) fail semgrep "semgrep で確かめられませんでした: $(tail -n 1 "$err")" ;;
   esac
 fi
 
@@ -171,7 +192,7 @@ if works gitleaks && [ "$(left)" -gt 0 ]; then
     case $? in
       0) ;;
       "$FOUND") { echo "### gitleaks git (コミットしていない変更)"; head -n 100 "$out"; echo; } >> "$report" ;;
-      *) warn "gitleaks でコミットしていない変更を確かめられませんでした: $(tail -n 1 "$out")" ;;
+      *) fail gitleaks "gitleaks でコミットしていない変更を確かめられませんでした: $(tail -n 1 "$out")" ;;
     esac
   fi
   # コミット済みのものは、履歴を書き換えるまで毎回見つかる。作業を終えるときは、同じものでは止めないよう、このセッションで伝えた fingerprint を覚え、新しいものだけで止める。
@@ -194,22 +215,30 @@ if works gitleaks && [ "$(left)" -gt 0 ]; then
           warn "コミット済みのシークレット (このセッションで伝え済み) が、まだ履歴に残っています"
         fi
         ;;
-      *) warn "gitleaks でコミット済みの変更を確かめられませんでした: $(tail -n 1 "$out")" ;;
+      *) fail gitleaks "gitleaks でコミット済みの変更を確かめられませんでした: $(tail -n 1 "$out")" ;;
     esac
   fi
 fi
 
-# 動かない道具は、セッションごとに 1 回だけ Claude に伝える。exit 0 の stderr は Claude に届かないため、exit 2 で止める。
-# 覚えられないとき (session_id が無いなど) は毎回止めることになるため、警告だけにする
+# 動かない道具と、失敗した道具は、セッションごとに 1 回だけ Claude に伝える。exit 0 の stderr は Claude に届かないため、exit 2 で止める。
+# 覚えられないとき (session_id が無いなど) は毎回止めることになるため、警告だけにする。
+# 失敗した道具は push の前には伝えない (push を止めないため。pre-push の警告は git の出力で Claude に届く)
 new_missing=""
-if [ -n "$missing" ]; then
-  echo "⚠️ check: 道具が動かないため、確かめていません:$missing" >&2
-  if [ -n "$mark" ]; then
-    told="$state_dir/session-check-missing-$sid"
-    for tool in $missing; do
-      if ! grep -qxF "$tool" "$told" 2> /dev/null; then
-        new_missing="$new_missing $tool"
-        echo "$tool" >> "$told"
+new_failed=""
+[ -z "$missing" ] || echo "⚠️ check: 道具が動かないため、確かめていません:$missing" >&2
+if [ -n "$mark" ]; then
+  told="$state_dir/session-check-missing-$sid"
+  for tool in $missing; do
+    if ! grep -qxF "$tool" "$told" 2> /dev/null; then
+      new_missing="$new_missing $tool"
+      echo "$tool" >> "$told"
+    fi
+  done
+  if [ -z "$on_push" ]; then
+    for tool in $failed; do
+      if ! grep -qxF "failed:$tool" "$told" 2> /dev/null; then
+        new_failed="$new_failed $tool"
+        echo "failed:$tool" >> "$told"
       fi
     done
   fi
@@ -234,7 +263,22 @@ else
     echo "$state" > "$passed"
     echo "$state" > "$last_passed"
   fi
-  [ -n "$new_missing" ] || exit 0
+  [ -n "$new_missing$new_failed" ] || exit 0
+fi
+
+if [ -n "$new_failed" ]; then
+  {
+    echo
+    echo "道具が失敗したため、次の検査を確かめられませんでした (理由は ⚠️ の行にあります)。"
+    for tool in $new_failed; do
+      case $tool in
+        gitleaks) echo " - gitleaks: シークレット" ;;
+        trivy) echo " - trivy: 依存の脆弱性と IaC の設定ミス" ;;
+        semgrep) echo " - semgrep: コードの脆弱性 (ルールを semgrep.dev から取得します)" ;;
+      esac
+    done
+    echo "確かめていないことと理由をユーザーに伝えてください。ネットワークで止められているときは、環境のネットワークの許可リストに足すかをユーザーに聞いてください"
+  } >&2
 fi
 
 if [ -n "$new_missing" ]; then
