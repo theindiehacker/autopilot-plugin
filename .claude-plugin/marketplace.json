@@ -6,14 +6,13 @@
     "url": "https://github.com/theindiehacker"
   },
   "allowCrossMarketplaceDependenciesOn": ["claude-plugins-official"],
+  "renames": {
+    "dev": null
+  },
   "plugins": [
     {
       "name": "cloud",
       "source": "./plugins/cloud"
-    },
-    {
-      "name": "dev",
-      "source": "./plugins/dev"
     },
     {
       "name": "frontend",
