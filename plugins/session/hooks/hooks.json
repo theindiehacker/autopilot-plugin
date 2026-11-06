@@ -28,7 +28,11 @@
         "hooks": [
           {
             "type": "command",
-            "command": "bash \"${CLAUDE_PLUGIN_ROOT}/scripts/check.sh\""
+            "command": "semgrep scan --config p/owasp-top-ten --metrics off --error"
+          },
+          {
+            "type": "command",
+            "command": "trivy fs ."
           }
         ]
       }

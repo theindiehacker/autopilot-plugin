@@ -1,5 +1,5 @@
 #!/usr/bin/env bash
-# Claude Code on the web のセッション開始時に、検査の道具 (gitleaks・trivy)、mise・ツール・lefthook のフック、検査の pre-push と、リポジトリの依存を入れ、最後に compose のサービスを起動する。
+# Claude Code on the web のセッション開始時に、検査の道具 (gitleaks・trivy)、mise・ツール・lefthook のフックと、リポジトリの依存を入れ、最後に compose のサービスを起動する。
 # session プラグインの SessionStart hook (hooks/hooks.json) から実行する。
 # compose のビルドが、入れている途中の node_modules・.venv を読まないよう、起動 (start-services.sh) はこの後に順に行う
 # stdout は Claude のコンテキストに入るため、進捗の出力は stderr に回す
@@ -112,29 +112,6 @@ setup_mise() {
   fi
 }
 
-# スクリプトの中の git push やエイリアスも確かめるよう、check.sh を呼ぶ pre-push を置く。.git の中なのでリポジトリでは管理されない
-PRE_PUSH_MARK="# session プラグインが作った pre-push"
-install_pre_push() {
-  local hook
-  # husky などが core.hooksPath を設定しているリポジトリには置かない (そのときも PreToolUse の検査は効く)
-  [ -z "$(git config core.hooksPath)" ] || return 0
-  hook=$(git rev-parse --git-path hooks/pre-push 2>/dev/null) || return 0
-  # lefthook などの既存の pre-push は壊さない。自分で作ったものは、プラグインの更新で check.sh のパスが変わるため作り直す
-  if [ -e "$hook" ] && ! grep -qxF "$PRE_PUSH_MARK" "$hook"; then
-    return 0
-  fi
-  mkdir -p "$(dirname "$hook")" && {
-    echo '#!/usr/bin/env bash'
-    echo "$PRE_PUSH_MARK"
-    printf 'check=%q\n' "$(dirname "${BASH_SOURCE[0]}")/check.sh"
-    cat << 'EOF'
-# セッションの途中でプラグインが更新されて check.sh が無ければ、push は止めない (PreToolUse の検査は効く)
-[ -f "$check" ] || exit 0
-exec bash "$check" --pre-push
-EOF
-  } > "$hook" && chmod +x "$hook"
-}
-
 # stack プラグインの PostToolUse・Stop の hook が使う Biome・Ruff・Pyright などを、lock ファイルの版で入れる
 install_deps() {
   local lock dir
@@ -160,8 +137,6 @@ fi
 # trivy は数十 MB あるため、取得を待たずに依存を入れられるよう、裏で入れる
 install_scanners &
 setup_mise
-# mise の postinstall の lefthook install が既存の hook を動かさないよう、その後に置く
-install_pre_push || echo "⚠️ session-start: pre-push を置けませんでした。スクリプトの中の git push は確かめません" >&2
 install_deps
 wait
 SESSION_DEADLINE=$DEADLINE bash "$(dirname "${BASH_SOURCE[0]}")/start-services.sh"

@@ -1,49 +1,38 @@
 #!/usr/bin/env bash
 # git push の前と Claude が作業を終える前に、変更がシークレット (gitleaks)、依存の脆弱性・IaC の設定ミス (trivy)、コードの脆弱性 (semgrep) を含まないか確かめる。
 # 見つかれば exit 2 で結果 (stderr) を Claude に返し、push を止めるか、作業を続けて直させる。
-# session プラグインの PreToolUse・Stop hook (hooks/hooks.json) と、session-start.sh が Web で置く pre-push から実行する。
+# session プラグインの PreToolUse・Stop hook (hooks/hooks.json) から実行する。
 # gitleaks・trivy・uvx (semgrep を動かす) が動かないか失敗すれば、その検査は飛ばし、そのことをセッションごとに 1 回 Claude に伝える (失敗は作業を終えるときだけ)
 set -uo pipefail
 
 input=$(cat)
 
-# --pre-push は .git/hooks/pre-push から呼ばれる。PreToolUse に見えない、スクリプトの中の push やエイリアスも確かめるため
-pre_push=""
-[ "${1:-}" != "--pre-push" ] || pre_push=1
-on_push=$pre_push
+on_push=""
 
 # PreToolUse では、Bash のコマンドに git push があるときだけ確かめる。bash -c の中の push も見るため、hook の if では絞らない。
 # git と push の間は -C <dir> などのオプションだけを許す (git stash push を除くため)。文字列の中の "git push" でも動くが、確かめるだけなので害は無い
-if [ -z "$pre_push" ] && grep -Eq '"hook_event_name" *: *"PreToolUse"' <<< "$input"; then
+# コマンドの文字列に現れない push (スクリプトの中やエイリアス) は止められない。その変更は、作業を終えるときの Stop と PR の CI で確かめる
+if grep -Eq '"hook_event_name" *: *"PreToolUse"' <<< "$input"; then
   command=$(grep -Eo '"command" *: *"([^"\\]|\\.)*"' <<< "$input" | head -n 1)
   grep -Eq 'git( +-[^ ]+( +[^- ][^ ]*)?)* +push([^[:alnum:]_-]|$)' <<< "$command" || exit 0
   on_push=1
 fi
 
-# git は pre-push を push するリポジトリのルートで動かす。CLAUDE_PROJECT_DIR は別のリポジトリかもしれないため、使わない
-project=${CLAUDE_PROJECT_DIR:-.}
-[ -z "$pre_push" ] || project=.
-top=$(git -C "$project" rev-parse --show-toplevel 2> /dev/null) || exit 0
+top=$(git -C "${CLAUDE_PROJECT_DIR:-.}" rev-parse --show-toplevel 2> /dev/null) || exit 0
 cd "$top" || exit 0
 
 # 止めた印と、前回通った状態を、セッションごとに覚える。ほかのユーザーが書き換えられないよう、/tmp ではなく .git の中 (0700) に置く。
 # session_id が無いか想定外の文字を含むときは覚えない。jq が無い環境でも読めるよう、JSON は grep で見る
 sid=$(grep -o '"session_id" *: *"[^"]*"' <<< "$input" | sed 's/.*"\([^"]*\)"$/\1/')
 case $sid in '' | *[!A-Za-z0-9_-]*) sid="" ;; esac
-# pre-push は session_id を受け取れないため、1 つのセッションとして扱う
-[ -z "$pre_push" ] || sid="pre-push"
 mark=""
 passed=""
-last_passed=""
 state_dir=$(git rev-parse --git-path claude-hooks 2> /dev/null)
 # session と stack の Stop は同時に動くため、片方の mkdir が負けても、できた dir を使う
 if [ -n "$sid" ] && [ -n "$state_dir" ] && { mkdir -m 700 "$state_dir" 2> /dev/null || [ -d "$state_dir" ]; }; then
   find "$state_dir" -type f -mtime +7 -delete 2> /dev/null
   mark="$state_dir/session-check-blocked-$sid"
   passed="$state_dir/session-check-passed-$sid"
-  # PreToolUse を通した直後の pre-push で確かめ直さないよう、セッションによらず最後に通った状態を pre-push に渡す
-  last_passed="$state_dir/session-check-last-passed"
-  [ -z "$pre_push" ] || passed=$last_passed
 fi
 
 # 作業を続けさせた直後 (stop_hook_active) でも、続けさせたのが別の hook (stack の lint など) なら確かめる。
@@ -222,7 +211,7 @@ fi
 
 # 動かない道具と、失敗した道具は、セッションごとに 1 回だけ Claude に伝える。exit 0 の stderr は Claude に届かないため、exit 2 で止める。
 # 覚えられないとき (session_id が無いなど) は毎回止めることになるため、警告だけにする。
-# 失敗した道具は push の前には伝えない (push を止めないため。pre-push の警告は git の出力で Claude に届く)
+# 失敗した道具は push の前には伝えない (push を止めないため)
 new_missing=""
 new_failed=""
 [ -z "$missing" ] || echo "⚠️ check: 道具が動かないため、確かめていません:$missing" >&2
@@ -261,7 +250,6 @@ else
   [ -z "$mark" ] || rm -f "$mark"
   if [ -n "$passed" ] && [ -z "$incomplete" ]; then
     echo "$state" > "$passed"
-    echo "$state" > "$last_passed"
   fi
   [ -n "$new_missing$new_failed" ] || exit 0
 fi
