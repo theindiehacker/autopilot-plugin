@@ -32,6 +32,14 @@ Claude Code on the web は、`.claude/settings.json` の `enabledPlugins` では
 
 </details>
 
+<details><summary><b>クラウド環境のネットワーク</b></summary>
+
+semgrep は検査のルールを `semgrep.dev` から取得します。既定のネットワーク (Limited) では取得できないため、環境の設定の **Network access** で、**Allowed domains** に `semgrep.dev` を足してください (**Allow package managers** は付けたまま)。手順は [Claude Code のドキュメント](https://code.claude.com/docs/en/cloud-environments#network-access) にあります。
+
+足さないと semgrep の検査は動きません。push は止めず、作業を終えるときに確かめていないことを Claude に 1 回伝えます。gitleaks・trivy は既定のネットワークで動きます。
+
+</details>
+
 <details><summary><b><code>mise.toml</code> (任意)</b></summary>
 
 Claude Code on the web では、`mise.toml` があるリポジトリに限り、セッションの開始時に `mise install` も実行します。ツールは `mise.lock` の URL から入れるため、次の設定を足し、`mise install` の後に `mise lock` を実行して `mise.lock` もコミットしてください。

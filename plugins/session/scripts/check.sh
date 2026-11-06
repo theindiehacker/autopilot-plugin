@@ -2,7 +2,7 @@
 # git push の前と Claude が作業を終える前に、変更がシークレット (gitleaks)、依存の脆弱性・IaC の設定ミス (trivy)、コードの脆弱性 (semgrep) を含まないか確かめる。
 # 見つかれば exit 2 で結果 (stderr) を Claude に返し、push を止めるか、作業を続けて直させる。
 # session プラグインの PreToolUse・Stop hook (hooks/hooks.json) と、session-start.sh が Web で置く pre-push から実行する。
-# gitleaks・trivy・uvx (semgrep を動かす) が動かなければ、その検査は飛ばし、そのことをセッションごとに 1 回 Claude に伝える
+# gitleaks・trivy・uvx (semgrep を動かす) が動かないか失敗すれば、その検査は飛ばし、そのことをセッションごとに 1 回 Claude に伝える (失敗は作業を終えるときだけ)
 set -uo pipefail
 
 input=$(cat)
@@ -111,11 +111,18 @@ warn() {
   incomplete=1
   echo "⚠️ check: $*" >&2
 }
+# 道具が失敗した検査。push は止めない (外部の障害で push できなくなるため) が、作業を終えるときにセッションごとに 1 回 Claude に伝える
+failed=""
+fail() { # <道具> <理由>
+  [[ " $failed " == *" $1 "* ]] || failed="$failed $1"
+  warn "$2"
+}
 
 report=$(mktemp)
 out=$(mktemp)
+err=$(mktemp)
 index=$(mktemp)
-trap 'rm -f "$report" "$out" "$index"' EXIT
+trap 'rm -f "$report" "$out" "$err" "$index"' EXIT
 
 # 検出したときの終了コード。道具そのものの失敗 (1 など) と分け、失敗では直させない
 FOUND=3
@@ -136,11 +143,11 @@ if [ -n "$targets" ] && works trivy; then
       case $? in
         0) ;;
         "$FOUND") { echo "### ${f}: trivy fs"; head -n 100 "$out"; echo; } >> "$report" ;;
-        *) warn "trivy で ${f} を確かめられませんでした: $(tail -n 1 "$out")" ;;
+        *) fail trivy "trivy で ${f} を確かめられませんでした: $(tail -n 1 "$out")" ;;
       esac
     done <<< "$targets"
   else
-    warn "trivy の脆弱性 DB を取得できなかったため、確かめません: $(tail -n 1 "$out")"
+    fail trivy "trivy の脆弱性 DB を取得できなかったため、確かめません: $(tail -n 1 "$out")"
   fi
 fi
 
@@ -149,13 +156,15 @@ fi
 if [ -n "$code" ] && works uvx && [ "$(left)" -gt 0 ]; then
   files=()
   while IFS= read -r f; do files+=("$f"); done <<< "$code"
-  # semgrep は --error のとき、検出で 1 を返し、ルールを取得できないなどの失敗では 2 以上を返す
+  # semgrep は --error のとき、検出で 1 を返し、ルールを取得できないなどの失敗では 2 以上を返す。
+  # ルールは semgrep.dev から取得する (Web では環境のネットワークで許可が要る)。
+  # --quiet は失敗の理由まで消すため付けない。検出は stdout に、進捗・uv の出力・失敗の理由は stderr に出るため、分けて受け取る
   timeout -k 10 "$(left)" uvx semgrep@1.181.0 scan --config p/default --severity ERROR --error --metrics off --disable-version-check \
-    --disable-nosem --quiet "${files[@]}" > "$out" 2>&1
+    --disable-nosem "${files[@]}" > "$out" 2> "$err"
   case $? in
     0) ;;
     1) { echo "### semgrep scan"; head -n 100 "$out"; echo; } >> "$report" ;;
-    *) warn "semgrep で確かめられませんでした: $(tail -n 1 "$out")" ;;
+    *) fail semgrep "semgrep で確かめられませんでした: $(tail -n 1 "$err")" ;;
   esac
 fi
 
@@ -171,7 +180,7 @@ if works gitleaks && [ "$(left)" -gt 0 ]; then
     case $? in
       0) ;;
       "$FOUND") { echo "### gitleaks git (コミットしていない変更)"; head -n 100 "$out"; echo; } >> "$report" ;;
-      *) warn "gitleaks でコミットしていない変更を確かめられませんでした: $(tail -n 1 "$out")" ;;
+      *) fail gitleaks "gitleaks でコミットしていない変更を確かめられませんでした: $(tail -n 1 "$out")" ;;
     esac
   fi
   # コミット済みのものは、履歴を書き換えるまで毎回見つかる。作業を終えるときは、同じものでは止めないよう、このセッションで伝えた fingerprint を覚え、新しいものだけで止める。
@@ -194,22 +203,30 @@ if works gitleaks && [ "$(left)" -gt 0 ]; then
           warn "コミット済みのシークレット (このセッションで伝え済み) が、まだ履歴に残っています"
         fi
         ;;
-      *) warn "gitleaks でコミット済みの変更を確かめられませんでした: $(tail -n 1 "$out")" ;;
+      *) fail gitleaks "gitleaks でコミット済みの変更を確かめられませんでした: $(tail -n 1 "$out")" ;;
     esac
   fi
 fi
 
-# 動かない道具は、セッションごとに 1 回だけ Claude に伝える。exit 0 の stderr は Claude に届かないため、exit 2 で止める。
-# 覚えられないとき (session_id が無いなど) は毎回止めることになるため、警告だけにする
+# 動かない道具と、失敗した道具は、セッションごとに 1 回だけ Claude に伝える。exit 0 の stderr は Claude に届かないため、exit 2 で止める。
+# 覚えられないとき (session_id が無いなど) は毎回止めることになるため、警告だけにする。
+# 失敗した道具は push の前には伝えない (push を止めないため。pre-push の警告は git の出力で Claude に届く)
 new_missing=""
-if [ -n "$missing" ]; then
-  echo "⚠️ check: 道具が動かないため、確かめていません:$missing" >&2
-  if [ -n "$mark" ]; then
-    told="$state_dir/session-check-missing-$sid"
-    for tool in $missing; do
-      if ! grep -qxF "$tool" "$told" 2> /dev/null; then
-        new_missing="$new_missing $tool"
-        echo "$tool" >> "$told"
+new_failed=""
+[ -z "$missing" ] || echo "⚠️ check: 道具が動かないため、確かめていません:$missing" >&2
+if [ -n "$mark" ]; then
+  told="$state_dir/session-check-missing-$sid"
+  for tool in $missing; do
+    if ! grep -qxF "$tool" "$told" 2> /dev/null; then
+      new_missing="$new_missing $tool"
+      echo "$tool" >> "$told"
+    fi
+  done
+  if [ -z "$on_push" ]; then
+    for tool in $failed; do
+      if ! grep -qxF "failed:$tool" "$told" 2> /dev/null; then
+        new_failed="$new_failed $tool"
+        echo "failed:$tool" >> "$told"
       fi
     done
   fi
@@ -234,7 +251,22 @@ else
     echo "$state" > "$passed"
     echo "$state" > "$last_passed"
   fi
-  [ -n "$new_missing" ] || exit 0
+  [ -n "$new_missing$new_failed" ] || exit 0
+fi
+
+if [ -n "$new_failed" ]; then
+  {
+    echo
+    echo "道具が失敗したため、次の検査を確かめられませんでした (理由は ⚠️ の行にあります)。"
+    for tool in $new_failed; do
+      case $tool in
+        gitleaks) echo " - gitleaks: シークレット" ;;
+        trivy) echo " - trivy: 依存の脆弱性と IaC の設定ミス" ;;
+        semgrep) echo " - semgrep: コードの脆弱性 (ルールを semgrep.dev から取得します)" ;;
+      esac
+    done
+    echo "確かめていないことと理由をユーザーに伝えてください。ネットワークで止められているときは、環境のネットワークの許可リストに足すかをユーザーに聞いてください"
+  } >&2
 fi
 
 if [ -n "$new_missing" ]; then
