@@ -8,8 +8,7 @@ cd "${CLAUDE_PROJECT_DIR:-.}" || exit 0
 
 # 🛡️ セキュリティツール(Semgrep, Gitleaks, Trivy)をインストール
 if ! semgrep --version > /dev/null 2>&1; then
-  # 壊れた semgrep も上書きするよう、--force で入れ直す
-  timeout 180 env UV_TOOL_BIN_DIR=/usr/local/bin uv tool install semgrep==1.181.0 --force >&2 &
+  timeout 180 env UV_TOOL_BIN_DIR=/usr/local/bin uv tool install semgrep==1.181.0 >&2 &
 fi
 if ! gitleaks --version > /dev/null 2>&1; then
   curl -sSfL --connect-timeout 10 --max-time 120 \
@@ -24,21 +23,19 @@ fi
 
 # 🧰 mise.toml があれば、インストールする
 if [ -f mise.toml ]; then
-  # mise で入れたツールを、後続の Bash からコマンド名だけで呼べるようにする。再開でも同じ行を重ねない
+  # mise で入れたツールをコマンド名だけで呼べるようにする
   SHIMS="${MISE_DATA_DIR:-$HOME/.local/share/mise}/shims"
-  LINE="export PATH=\"$SHIMS:\$PATH\""
-  [ -z "${CLAUDE_ENV_FILE:-}" ] || grep -qxF "$LINE" "$CLAUDE_ENV_FILE" 2> /dev/null || echo "$LINE" >> "$CLAUDE_ENV_FILE"
+  export PATH="$SHIMS:$PATH"
+  [ -z "${CLAUDE_ENV_FILE:-}" ] || echo "export PATH=\"$SHIMS:\$PATH\"" >> "$CLAUDE_ENV_FILE"
 
-  # hook は 600 秒で打ち切られる。compose の起動 (約 340 秒) の時間を残すため、mise の取得と導入は合わせて 210 秒までにする
   if ! mise --version > /dev/null 2>&1; then
-    curl -sSfL --connect-timeout 10 --max-time 60 -o /usr/local/bin/mise \
+    curl -sSfL --connect-timeout 10 --max-time 240 -o /usr/local/bin/mise \
       https://github.com/jdx/mise/releases/download/v2026.10.17/mise-v2026.10.17-linux-x64 &&
       chmod +x /usr/local/bin/mise
   fi
-  # ツールは mise.toml で変わるため、mise があっても毎回確かめる。
-  # 最後の確認が検査の hook と同じ PATH で動くよう、shim は mise install にだけ渡す
+  # ツールは mise.toml で変わるため、mise があっても毎回確かめる
   mise trust . > /dev/null &&
-    PATH="$SHIMS:$PATH" timeout 150 mise install --yes >&2 ||
+    timeout 300 mise install --yes >&2 ||
     echo "⚠️ mise のツールを入れられませんでした。ユーザーに伝えてください"
 fi
 
