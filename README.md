@@ -44,7 +44,7 @@ semgrep は検査のルールを `semgrep.dev` から取得します。既定の
 
 手順の詳細は [Claude Code のドキュメント](https://code.claude.com/docs/en/cloud-environments#network-access) にあります。
 
-許可しないと、semgrep の検査は動きません。push は止めませんが、コードを変えるたびに、作業を終えるときの検査で semgrep の接続の失敗を約 100 秒待ちます。gitleaks・trivy は既定のネットワークで動きます。
+許可しないと、semgrep の検査は動きません。push は止めませんが、push のたびに semgrep の接続の失敗を約 100 秒待ちます。gitleaks・trivy は既定のネットワークで動きます。
 
 </details>
 

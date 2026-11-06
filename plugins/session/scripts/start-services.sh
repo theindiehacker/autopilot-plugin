@@ -1,6 +1,6 @@
 #!/usr/bin/env bash
 # Claude Code on the web のセッション開始時に、リポジトリ直下の compose ファイルのサービスを起動する。
-# session-start.sh が、ツールと依存を入れた後に実行する (締め切りは SESSION_DEADLINE で受け取る)。compose ファイルか docker が無ければ何もしない。
+# setup.sh が、ツールを入れた後に実行する。compose ファイルか docker が無ければ何もしない。
 # stdout は Claude のコンテキストに入るため、ビルドと起動の進捗は stderr に回し、起動できなかったことだけを伝える
 set -uo pipefail
 
@@ -17,10 +17,6 @@ for f in compose.yaml compose.yml docker-compose.yaml docker-compose.yml; do
   fi
 done
 [ -n "$compose" ] && command -v docker > /dev/null || exit 0
-
-# hook の上限 (600 秒) より前に終えるよう、締め切りまでの残りの時間で打ち切る
-DEADLINE=${SESSION_DEADLINE:-$(($(date +%s) + 570))}
-left() { echo $((DEADLINE - $(date +%s))); }
 
 # Web のプロキシは TLS を検査するため、イメージのビルドにプロキシの CA を渡す。
 # build のあるサービスに secret の ca-certificates を足す compose ファイルを作り、COMPOSE_FILE で重ねる。
@@ -90,9 +86,8 @@ add_proxy_ca
 # デーモンが応答するまで 30 秒まで待つ
 for _ in $(seq 30); do docker info > /dev/null 2>&1 && break; sleep 1; done
 
-# イメージの取得・ビルドが止まったり、ヘルスチェックが通らないままだったりしても、締め切りで打ち切り、起動できなかったことを伝える
-sec=$(left)
-if [ "$sec" -le 30 ] || ! timeout -k 10 "$sec" docker compose up --build -d --wait --wait-timeout "$((sec - 10))" >&2; then
+# イメージの取得・ビルドが止まったり、ヘルスチェックが通らないままだったりしても、300 秒で打ち切り、起動できなかったことを伝える
+if ! timeout -k 10 300 docker compose up --build -d --wait --wait-timeout 290 >&2; then
   echo "${compose} のサービスを起動できませんでした (時間切れを含む)。docker compose up --build -d --wait を実行し、エラーを確かめてください。"
 fi
 exit 0
