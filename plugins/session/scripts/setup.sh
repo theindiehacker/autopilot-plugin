@@ -57,7 +57,7 @@ FILES="$PWD/$COMPOSE"
 for f in compose.override.yaml compose.override.yml docker-compose.override.yaml docker-compose.override.yml; do
   [ -f "$f" ] && FILES="$FILES:$PWD/$f" && break
 done
-if mkdir -p "$DIR" && echo '*' > "$DIR/.gitignore" && cp "${SSL_CERT_FILE:-}" "$DIR/proxy-ca.crt" &&
+if mkdir -p "$DIR" && cp -r "$(dirname "$0")/session/." "$DIR" && cp "${SSL_CERT_FILE:-}" "$DIR/proxy-ca.crt" &&
   COMPOSE_FILE="$FILES" COMPOSE_PROFILES='*' docker compose config --format json |
   python3 "$(dirname "$0")/compose-proxy-ca.py" > "$DIR/compose.proxy-ca.yaml"; then
   export COMPOSE_FILE="$FILES:$DIR/compose.proxy-ca.yaml"
