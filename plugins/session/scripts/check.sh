@@ -64,6 +64,19 @@ for ref in refs/remotes/origin/HEAD refs/remotes/origin/main refs/remotes/origin
 done
 commits=""
 [ -n "$base" ] && [ "$base" != "$(git rev-parse HEAD 2> /dev/null)" ] && commits="$base..HEAD"
+# デフォルトブランチの ref が無い clone (作業ブランチだけを取った Web のセッションなど) では、どのリモートの ref にも無いコミット (まだ push していないもの) を見る。
+# push 済みのものは push の前の検査を通っている。リモートの ref が 1 つも無く、最初のコミットまで push していないときは、空の tree から見る
+if [ -z "$base" ] && git rev-parse -q --verify HEAD > /dev/null; then
+  first=$(git rev-list --reverse HEAD --not --remotes 2> /dev/null | head -n 1)
+  if [ -z "$first" ]; then
+    base=$(git rev-parse HEAD)
+  elif base=$(git rev-parse -q --verify "${first}^" 2> /dev/null); then
+    commits="$base..HEAD"
+  else
+    base=$(git hash-object -t tree /dev/null)
+    commits="HEAD"
+  fi
+fi
 
 # base (無ければ HEAD) からの変更と、新しいファイル (消したファイルを除く)。作業を終えるときは、質問に答えただけなら何もしない。
 # push の前は、変更が見えなくても確かめる (origin/HEAD などが無い clone では、コミット済みの変更が見えないため。semgrep はリポジトリ全体を見る)
