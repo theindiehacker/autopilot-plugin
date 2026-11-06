@@ -9,5 +9,5 @@ builds = {
     for name, service in services.items()
     if "build" in service
 }
-template = Path(__file__).parent / "session" / "compose.proxy-ca.yaml"
+template = Path(__file__).parent / "compose.override.yml"
 sys.stdout.write(Template(template.read_text()).substitute(services=json.dumps(builds)))
