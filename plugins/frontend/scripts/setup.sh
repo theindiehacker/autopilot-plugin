@@ -4,6 +4,12 @@ set -uo pipefail
 
 cd "${CLAUDE_PROJECT_DIR:-.}" || exit 0
 
+# 🎨 shadcn/ui の公式スキルはセッションのフォルダで設定を読むため、components.json の場所を Claude に伝える
+f=$(git ls-files -- components.json '*/components.json' 2> /dev/null | head -1)
+# フォルダ名が Claude への指示として読まれないよう、空白や記号を含むパスは伝えない
+case "$f" in *[!A-Za-z0-9._/@-]*) f= ;; esac
+[ -z "$f" ] || echo "shadcn/ui の components.json は $f にあります。shadcn の CLI はこのフォルダで実行してください"
+
 # bun を使わないリポジトリでは何もしない
 [ -n "$(git ls-files '*bun.lock' 2> /dev/null)" ] || exit 0
 
