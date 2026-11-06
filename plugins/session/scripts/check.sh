@@ -65,27 +65,28 @@ done
 commits=""
 [ -n "$base" ] && [ "$base" != "$(git rev-parse HEAD 2> /dev/null)" ] && commits="$base..HEAD"
 
-# base (無ければ HEAD) からの変更と、新しいファイル (消したファイルを除く)。質問に答えただけのときは何もしない。
+# base (無ければ HEAD) からの変更と、新しいファイル (消したファイルを除く)。作業を終えるときは、質問に答えただけなら何もしない。
+# push の前は、変更が見えなくても確かめる (origin/HEAD などが無い clone では、コミット済みの変更が見えないため。semgrep はリポジトリ全体を見る)
 # 日本語などのパスがエスケープされないよう、core.quotePath を切る
 changed=$({
   git -c core.quotePath=false diff --name-only --diff-filter=d "${base:-HEAD}" 2> /dev/null
   git -c core.quotePath=false ls-files --others --exclude-standard
 } | sort -u)
-[ -n "$changed" ] || exit 0
+[ -n "$changed" ] || [ -n "$on_push" ] || exit 0
 
 # CLAUDE_ENV_FILE の PATH は Bash にしか効かないため、Web で session-start.sh が入れた道具をここで使えるようにする。
 # mise の shim は、そのリポジトリで設定されていないと失敗するため、session-start.sh が直接入れた BIN_DIR を先に探す
 export PATH="${HOME}/.local/bin:${MISE_DATA_DIR:-${HOME}/.local/share/mise}/shims:${PATH}"
 
 # trivy は変更した lock ファイルと IaC のファイルだけを確かめる (元からある問題まで直させない)。
-# semgrep は起動とルールの取得に時間がかかるため、コード以外 (文書・画像・lock など) だけを変えたときは動かさない
+# semgrep は起動とルールの取得に時間がかかるため、作業を終えるときは、コード以外 (文書・画像・lock など) だけを変えたなら動かさない。push の前はいつも動かす
 targets=$(grep -E '(^|/)(bun\.lockb?|package-lock\.json|yarn\.lock|pnpm-lock\.yaml|uv\.lock|poetry\.lock|requirements[^/]*\.txt|go\.mod|go\.sum|Cargo\.lock|Gemfile\.lock|Dockerfile[^/]*|[^/]*\.tf|(docker-)?compose[^/]*\.ya?ml)$' <<< "$changed")
 code=$(grep -Ev '\.(md|mdx|txt|rst|png|jpe?g|gif|svg|ico|webp|pdf|csv|lock|lockb|woff2?|ttf|eot|mp4|mov|zip|gz)$' <<< "$changed")
 
 # 変更に関係する道具のうち、動かないものを調べる。mise の shim は、そのリポジトリで設定されていないと失敗するため、実際に動かして確かめる
 missing=""
 [ -z "$targets" ] || trivy --version > /dev/null 2>&1 || missing="$missing trivy"
-[ -z "$code" ] || uvx --version > /dev/null 2>&1 || missing="$missing uvx"
+{ [ -z "$code" ] && [ -z "$on_push" ]; } || uvx --version > /dev/null 2>&1 || missing="$missing uvx"
 gitleaks version > /dev/null 2>&1 || missing="$missing gitleaks"
 works() { [[ " $missing " != *" $1 "* ]]; }
 
@@ -151,16 +152,14 @@ if [ -n "$targets" ] && works trivy; then
   fi
 fi
 
-# コードの脆弱性 (SAST): semgrep。変更したファイルだけを確かめる。版は Renovate が上げる (renovate.json)。
+# コードの脆弱性 (SAST): semgrep。変更したファイルだけでなく、リポジトリ全体 (git が追跡するファイルと、無視されていない新しいファイル) を確かめる。版は Renovate が上げる (renovate.json)。
 # 検知レベルは org の必須ワークフローにそろえる。抑制は .semgrepignore だけで行い、インラインの nosemgrep は効かせない。
-if [ -n "$code" ] && works uvx && [ "$(left)" -gt 0 ]; then
-  files=()
-  while IFS= read -r f; do files+=("$f"); done <<< "$code"
+if { [ -n "$code" ] || [ -n "$on_push" ]; } && works uvx && [ "$(left)" -gt 0 ]; then
   # semgrep は --error のとき、検出で 1 を返し、ルールを取得できないなどの失敗では 2 以上を返す。
   # ルールは semgrep.dev から取得する (Web では環境のネットワークで許可が要る)。
   # --quiet は失敗の理由まで消すため付けない。検出は stdout に、進捗・uv の出力・失敗の理由は stderr に出るため、分けて受け取る
   timeout -k 10 "$(left)" uvx semgrep@1.181.0 scan --config p/default --severity ERROR --error --metrics off --disable-version-check \
-    --disable-nosem "${files[@]}" > "$out" 2> "$err"
+    --disable-nosem . > "$out" 2> "$err"
   case $? in
     0) ;;
     1) { echo "### semgrep scan"; head -n 100 "$out"; echo; } >> "$report" ;;
