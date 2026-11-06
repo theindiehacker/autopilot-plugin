@@ -1,15 +1,13 @@
 import json
 import sys
+from pathlib import Path
+from string import Template
 
 services = json.load(sys.stdin)["services"]
-json.dump(
-    {
-        "secrets": {"ca-certificates": {"file": ".claude/session/proxy-ca.crt"}},
-        "services": {
-            name: {"build": {"secrets": ["ca-certificates"]}}
-            for name, service in services.items()
-            if "build" in service
-        },
-    },
-    sys.stdout,
-)
+builds = {
+    name: {"build": {"secrets": ["ca-certificates"]}}
+    for name, service in services.items()
+    if "build" in service
+}
+template = Path(__file__).parent.parent / "templates" / "compose.proxy-ca.yaml"
+sys.stdout.write(Template(template.read_text()).substitute(services=json.dumps(builds)))
