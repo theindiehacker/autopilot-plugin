@@ -10,3 +10,7 @@ uv tool install semgrep
 GOBIN=/usr/local/bin go install github.com/zricethezav/gitleaks/v8@latest
 curl -sSfL https://github.com/aquasecurity/trivy/releases/download/v0.76.2/trivy_0.76.2_Linux-64bit.tar.gz \
   | tar -xzf - -C /usr/local/bin trivy
+
+# TODO: session-start.sh から移行
+
+exit 0
