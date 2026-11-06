@@ -8,8 +8,8 @@
   "allowCrossMarketplaceDependenciesOn": ["claude-plugins-official"],
   "plugins": [
     {
-      "name": "session",
-      "source": "./plugins/session"
+      "name": "cloud",
+      "source": "./plugins/cloud"
     },
     {
       "name": "security-audit",
