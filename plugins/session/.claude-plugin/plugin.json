@@ -1,7 +1,7 @@
 {
   "name": "session",
   "displayName": "session@indiehacker",
-  "version": "0.2.0",
+  "version": "0.3.0",
   "description": "Claude Code on the web のセッションの準備と作業を終える前のシークレット・脆弱性の検査 (gitleaks・trivy・semgrep)",
   "repository": "https://github.com/theindiehacker/dev-plugins",
   "dependencies": ["security-guidance@claude-plugins-official", "security-audit"]

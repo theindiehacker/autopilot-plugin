@@ -61,9 +61,18 @@ lockfile = true
 
 </details>
 
-<details><summary><b><code>Dockerfile</code></b></summary>
+<details><summary><b><code>Dockerfile</code> (変更は不要)</b></summary>
 
-Claude Code on the web のプロキシは TLS を検査します。`session` はリポジトリ直下の compose ファイルのサービスを起動するときに、プロキシの CA を build の secret `ca-certificates` で渡します。イメージのビルドで uv を使うなら、Dockerfile でこの secret を受け取ってください。この設定がないと、ビルドが失敗します。
+Claude Code on the web のプロキシは TLS を検査します。`session` はリポジトリ直下の compose ファイルのサービスを起動するときに、Dockerfile の `FROM` のイメージへプロキシの CA を足したイメージを作り、compose の `additional_contexts` で差し替えます。Dockerfile は変えないため、ローカル・CI・本番のビルドには影響しません。
+
+CA を足したイメージでは、システムの CA の束 (`/etc/ssl/certs/ca-certificates.crt`) をプロキシの CA を含むものに置き換え、環境変数 `SSL_CERT_FILE`・`REQUESTS_CA_BUNDLE`・`PIP_CERT`・`NODE_EXTRA_CA_CERTS`・`CURL_CA_BUNDLE` でも渡します。pip・uv・Node.js (npm・fetch)・curl は、Dockerfile を変えずにビルドできます。
+
+ - Claude Code on the web では、`docker compose` をリポジトリのルートで実行してください。サブディレクトリから実行すると、ビルドが CA の読み込みの許可待ちで止まります
+ - `ARG` を使う `FROM` (`FROM ${BASE}` など) は差し替えません
+ - セッションの途中で `FROM` のイメージを変えたときは、セッションを再開すると差し替えの対象に入ります
+ - Debian・Ubuntu・Alpine 系のイメージで確かめています
+
+上記の環境変数を読まないツールには、これまでどおり build の secret `ca-certificates` でも CA を渡せます。
 
 ```dockerfile
 # uv の通信を、uv 同梱の CA ではなくこのファイルで検証する。
@@ -73,8 +82,5 @@ ENV SSL_CERT_FILE=/etc/ssl/certs/ca-certificates.crt
 
 RUN --mount=type=secret,id=ca-certificates,target=/etc/ssl/certs/ca-certificates.crt uv sync
 ```
-
- - Claude Code on the web では、`docker compose` をリポジトリのルートで実行してください。サブディレクトリから実行すると、ビルドが CA の読み込みの許可待ちで止まります
- - uv 以外のツールは、CA の指定方法がツールごとに異なる場合があります
 
 </details>
