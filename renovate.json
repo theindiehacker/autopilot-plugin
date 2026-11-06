@@ -2,19 +2,21 @@
   "$schema": "https://docs.renovatebot.com/renovate-schema.json",
   "customManagers": [
     {
-      "description": "plugins/*/scripts/*.sh で入れるツールの VERSION と SHA256 を更新する (SHA256 は release アセットの digest から算出される。VERSION には GitHub release のタグ名そのものを書く)",
+      "description": "plugins/*/scripts/*.sh の GitHub Releases の URL の版を更新する (gitleaks・trivy・mise。タグとファイル名の両方の版を置き換える)",
       "customType": "regex",
       "managerFilePatterns": ["/^plugins/[^/]+/scripts/[^/]+\\.sh$/"],
       "matchStrings": [
-        "# renovate: datasource=(?<datasource>[a-zA-Z0-9-._]+?) depName=(?<depName>[^\\s]+?)\\s+[A-Z0-9_]*VERSION=\"(?<currentValue>[^\"]+)\"\\s+[A-Z0-9_]*SHA256=\"(?<currentDigest>[^\"]+)\"\\s"
+        "https://github\\.com/(?<depName>[^/\\s]+/[^/\\s]+)/releases/download/v(?<currentValue>[^/\\s]+)/\\S+"
       ],
+      "datasourceTemplate": "github-releases",
+      "extractVersionTemplate": "^v(?<version>.+)$",
       "versioningTemplate": "semver"
     },
     {
-      "description": "plugins/*/scripts/*.sh で uvx に版を固定した PyPI のツール (semgrep など) を更新する",
+      "description": "plugins/*/scripts/*.sh で uv tool install に版を固定した PyPI のツール (semgrep など) を更新する",
       "customType": "regex",
       "managerFilePatterns": ["/^plugins/[^/]+/scripts/[^/]+\\.sh$/"],
-      "matchStrings": ["uvx (?<depName>[a-zA-Z0-9._-]+)@(?<currentValue>[^\\s\"]+)"],
+      "matchStrings": ["uv tool install (?<depName>[a-zA-Z0-9._-]+)==(?<currentValue>[^\\s\"]+)"],
       "datasourceTemplate": "pypi",
       "versioningTemplate": "pep440"
     },
