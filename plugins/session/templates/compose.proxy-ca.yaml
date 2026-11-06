@@ -1,4 +1,0 @@
-secrets:
-  ca-certificates:
-    file: .claude/session/proxy-ca.crt
-services:
