@@ -1,0 +1,13 @@
+# jetbrain
+.idea/
+
+# VSCode
+.vscode/
+
+# credential
+.env
+
+.DS_Store
+
+# Python
+__pycache__/
