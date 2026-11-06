@@ -1,89 +1,44 @@
 #!/usr/bin/env bash
-# Claude Code on the web のセッション開始時に、リポジトリ直下の compose ファイルのサービスを起動する。
-# setup.sh が、ツールを入れた後に実行する。compose ファイルか docker が無ければ何もしない。
-# stdout は Claude のコンテキストに入るため、ビルドと起動の進捗は stderr に回し、起動できなかったことだけを伝える
+# compose のサービスを起動するスクリプト (setup.sh から実行される)
 set -uo pipefail
 
-# ローカルでは何もしない。プラグインの hook は開いたどのリポジトリでも動くため、信頼していないリポジトリのイメージを
-# ビルド・実行しないよう、ローカルでは docker compose up を自分で実行する
+# ローカルでは何もしない
 [ "${CLAUDE_CODE_REMOTE:-}" = "true" ] || exit 0
 cd "${CLAUDE_PROJECT_DIR:-.}" || exit 0
 
-compose=""
+COMPOSE=""
 for f in compose.yaml compose.yml docker-compose.yaml docker-compose.yml; do
-  if [ -f "$f" ]; then
-    compose=$f
-    break
-  fi
+  [ -f "$f" ] && COMPOSE=$f && break
 done
-[ -n "$compose" ] && command -v docker > /dev/null || exit 0
+[ -n "$COMPOSE" ] && command -v docker > /dev/null || exit 0
 
-# Web の VM では Docker デーモンが止まっている。セッションの再開では、デーモンが動いたままのことがある
+# 🐳 Docker を起動する
 if ! docker info > /dev/null 2>&1; then
-  # Docker Hub の匿名の取得回数の上限 (429) に当たらないよう、Google のミラーから取得する (ミラーに無ければ Docker Hub から取る)
   dockerd --registry-mirror=https://mirror.gcr.io > /tmp/dockerd.log 2>&1 &
 fi
 
-# Web のプロキシは TLS を検査するため、イメージのビルドにプロキシの CA を渡す。
-# build のあるサービスに secret の ca-certificates を足す compose ファイルを作り、COMPOSE_FILE で重ねる。
-# Dockerfile は RUN --mount=type=secret,id=ca-certificates,... で受け取る (受け取らなければ何も変わらない)。
-# Web の Compose はビルドに Bake を使い、Bake は作業ディレクトリの外のファイルを読むときに許可 (--allow=fs.read) を求めて止まる。
-# そのため CA をプロジェクトの中 (.claude/session/) にコピーし、git には info/exclude で無視させる。docker compose はリポジトリのルートで実行する
-dir="$PWD/.claude/session"
-if [ -z "${SSL_CERT_FILE:-}" ] || ! command -v jq > /dev/null; then
-  echo "⚠️ start-services: SSL_CERT_FILE か jq が無いため、ビルドにプロキシの CA を渡しません" >&2
-elif mkdir -p "$dir" && cp "$SSL_CERT_FILE" "$dir/proxy-ca.crt"; then
-  exclude=$(git rev-parse --git-path info/exclude 2> /dev/null) &&
-    ! grep -qxF /.claude/session/ "$exclude" 2> /dev/null &&
-    mkdir -p "$(dirname "$exclude")" && echo /.claude/session/ >> "$exclude"
-
-  # COMPOSE_FILE を設定すると、compose は既定のファイルを読まなくなる。そのため、compose が読むはずのファイルを先に並べる。
-  # 環境変数か .env の COMPOSE_FILE があればそれを、無ければ compose ファイルと、compose が選ぶ override (見つけた最初の 1 つ) を使う
-  base=${COMPOSE_FILE:-$(sed -n 's/^COMPOSE_FILE=//p' .env 2> /dev/null | tail -n 1 | tr -d "\"'")}
-  if [ -z "$base" ]; then
-    base=$compose
-    for f in compose.override.yaml compose.override.yml docker-compose.override.yaml docker-compose.override.yml; do
-      if [ -f "$f" ]; then
-        base="$base:$f"
-        break
-      fi
-    done
-  fi
-  # 後続の Bash がどの dir から実行しても同じファイルを読むよう絶対パスにし、前のセッション開始で足した overlay は除く
-  files=$(tr ':' '\n' <<< "$base" | grep -v '/\.claude/session/compose\.proxy-ca\.yaml$' |
-    while IFS= read -r f; do
-      case $f in
-        /*) echo "$f" ;;
-        ?*) echo "$PWD/$f" ;;
-      esac
-    done | paste -sd: -)
-
-  # profiles で分けたサービスも、docker compose run で名指ししてビルドするため含める
-  # 作るのに失敗したとき、前のセッション開始で作った overlay (COMPOSE_FILE が指す) を空にしないよう、一時ファイルに書いてから置き換える
-  if ! COMPOSE_FILE="$files" COMPOSE_PROFILES='*' docker compose config --format json 2> /dev/null |
-    jq --arg ca "$dir/proxy-ca.crt" '{
-      services: (.services | with_entries(select(.value.build) | .value = {build: {secrets: ["ca-certificates"]}})),
-      secrets: {"ca-certificates": {file: $ca}}
-    }' > "$dir/compose.proxy-ca.yaml.tmp"; then
-    rm -f "$dir/compose.proxy-ca.yaml.tmp"
-    echo "⚠️ start-services: compose の設定を読めないため、ビルドにプロキシの CA を渡しません" >&2
-  else
-    mv "$dir/compose.proxy-ca.yaml.tmp" "$dir/compose.proxy-ca.yaml"
-
-    export COMPOSE_FILE="$files:$dir/compose.proxy-ca.yaml"
-    # Claude が実行する docker compose・task にも効くよう、後続の Bash に渡す。セッションの再開でも実行されるため、同じ行を重ねて書かない
-    line="export COMPOSE_FILE=\"$COMPOSE_FILE\""
-    if [ -n "${CLAUDE_ENV_FILE:-}" ] && ! grep -qxF "$line" "$CLAUDE_ENV_FILE" 2> /dev/null; then
-      echo "$line" >> "$CLAUDE_ENV_FILE"
-    fi
-  fi
+# 🔐 ビルドにプロキシの CA を secret の ca-certificates で渡す
+DIR="$PWD/.claude/session"
+FILES="$PWD/$COMPOSE"
+for f in compose.override.yaml compose.override.yml docker-compose.override.yaml docker-compose.override.yml; do
+  [ -f "$f" ] && FILES="$FILES:$PWD/$f" && break
+done
+if mkdir -p "$DIR" && echo '*' > "$DIR/.gitignore" && cp "${SSL_CERT_FILE:-}" "$DIR/proxy-ca.crt" &&
+  COMPOSE_FILE="$FILES" COMPOSE_PROFILES='*' docker compose config --format json |
+  jq --arg ca "$DIR/proxy-ca.crt" '{
+    services: (.services | with_entries(select(.value.build) | .value = {build: {secrets: ["ca-certificates"]}})),
+    secrets: {"ca-certificates": {file: $ca}}
+  }' > "$DIR/compose.proxy-ca.yaml"; then
+  export COMPOSE_FILE="$FILES:$DIR/compose.proxy-ca.yaml"
+  LINE="export COMPOSE_FILE=\"$COMPOSE_FILE\""
+  [ -z "${CLAUDE_ENV_FILE:-}" ] || grep -qxF "$LINE" "$CLAUDE_ENV_FILE" 2> /dev/null || echo "$LINE" >> "$CLAUDE_ENV_FILE"
+else
+  echo "⚠️ ビルドにプロキシの CA を渡せませんでした" >&2
 fi
 
-# デーモンが応答するまで 30 秒まで待つ
+# 🚀 サービスを起動する
 for _ in $(seq 30); do docker info > /dev/null 2>&1 && break; sleep 1; done
+timeout -k 10 300 docker compose up --build -d --wait --wait-timeout 290 >&2 ||
+  echo "${COMPOSE} のサービスを起動できませんでした (時間切れを含む)。docker compose up --build -d --wait を実行し、エラーを確かめてください。"
 
-# イメージの取得・ビルドが止まったり、ヘルスチェックが通らないままだったりしても、300 秒で打ち切り、起動できなかったことを伝える
-if ! timeout -k 10 300 docker compose up --build -d --wait --wait-timeout 290 >&2; then
-  echo "${compose} のサービスを起動できませんでした (時間切れを含む)。docker compose up --build -d --wait を実行し、エラーを確かめてください。"
-fi
 exit 0
