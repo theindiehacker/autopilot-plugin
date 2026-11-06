@@ -24,7 +24,7 @@ Claude Code on the web は、`.claude/settings.json` の `enabledPlugins` では
 {
   claude plugin marketplace add anthropics/claude-plugins-official &&
   claude plugin marketplace add theindiehacker/dev-plugins &&
-  claude plugin install session@indiehacker
+  claude plugin install cloud@indiehacker
 } || echo "⚠️ indiehacker プラグインを入れられませんでした" >&2
 ```
 
@@ -63,11 +63,11 @@ lockfile = true
 
 <details><summary><b><code>Dockerfile</code></b></summary>
 
-Claude Code on the web のプロキシは TLS を検査します。`session` はリポジトリ直下の compose ファイルのサービスを起動するときに、プロキシの CA を build の secret `ca-certificates` で渡します。イメージのビルドで uv を使うなら、Dockerfile でこの secret を受け取ってください。この設定がないと、ビルドが失敗します。
+Claude Code on the web のプロキシは TLS を検査します。`cloud` はリポジトリ直下の compose ファイルのサービスを起動するときに、プロキシの CA を build の secret `ca-certificates` で渡します。イメージのビルドで uv を使うなら、Dockerfile でこの secret を受け取ってください。この設定がないと、ビルドが失敗します。
 
 ```dockerfile
 # uv の通信を、uv 同梱の CA ではなくこのファイルで検証する。
-# TLS を検査するプロキシ (Claude Code on the web) の内側では、session プラグインが secret の ca-certificates でプロキシの CA に差し替える。
+# TLS を検査するプロキシ (Claude Code on the web) の内側では、cloud プラグインが secret の ca-certificates でプロキシの CA に差し替える。
 # secret はその RUN の間だけマウントされ、イメージには残らない。渡さなければ (ローカル・CI) ベースイメージの CA のまま
 ENV SSL_CERT_FILE=/etc/ssl/certs/ca-certificates.crt
 
