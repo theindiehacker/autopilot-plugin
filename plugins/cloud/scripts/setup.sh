@@ -8,7 +8,7 @@ cd "${CLAUDE_PROJECT_DIR:-.}" || exit 0
 
 # 🛡️ セキュリティツール(Semgrep, Gitleaks, Trivy)をインストール
 if ! semgrep --version > /dev/null 2>&1; then
-  timeout 180 env UV_TOOL_BIN_DIR=/usr/local/bin uv tool install semgrep==1.181.0 >&2 &
+  timeout 180 env UV_TOOL_BIN_DIR=/usr/local/bin uv tool install semgrep==1.183.0 >&2 &
 fi
 if ! gitleaks --version > /dev/null 2>&1; then
   curl -sSfL --connect-timeout 10 --max-time 120 \
@@ -30,7 +30,7 @@ if [ -f mise.toml ]; then
 
   if ! mise --version > /dev/null 2>&1; then
     curl -sSfL --connect-timeout 10 --max-time 240 -o /usr/local/bin/mise \
-      https://github.com/jdx/mise/releases/download/v2026.10.17/mise-v2026.10.17-linux-x64 &&
+      https://github.com/jdx/mise/releases/download/v2026.11.0/mise-v2026.11.0-linux-x64 &&
       chmod +x /usr/local/bin/mise
   fi
   # ツールは mise.toml で変わるため、mise があっても毎回確かめる
