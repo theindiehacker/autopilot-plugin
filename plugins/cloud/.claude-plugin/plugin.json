@@ -1,7 +1,7 @@
 {
   "name": "cloud",
   "displayName": "cloud@indiehacker",
-  "version": "0.4.0",
+  "version": "0.4.1",
   "description": "Claude Code on the web のセッションの準備とコミットと push の前のシークレット・脆弱性の検査 (gitleaks・trivy・semgrep)",
   "repository": "https://github.com/theindiehacker/dev-plugins",
   "dependencies": ["security-guidance@claude-plugins-official", "security-audit"]
