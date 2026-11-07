@@ -23,6 +23,8 @@
 semgrep.dev
 mcp.context7.com
 pkg-containers.githubusercontent.com
+dl.google.com
+dl-cdn.alpinelinux.org
 ```
 ✅ [パッケージマネージャー](https://code.claude.com/docs/en/cloud-environments#default-allowed-domains)を許可
 
