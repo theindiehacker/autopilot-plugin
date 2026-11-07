@@ -29,7 +29,7 @@
           {
             "type": "command",
             "if": "Bash(*git*push*)",
-            "command": "cd \"$CLAUDE_PROJECT_DIR\" && semgrep scan --config p/owasp-top-ten --metrics off --severity ERROR --error --disable-nosem 1>&2 || [ $? -ne 1 ] || exit 2",
+            "command": "cd \"$CLAUDE_PROJECT_DIR\" && semgrep scan --config p/owasp-top-ten --metrics off --baseline-commit \"$(git merge-base HEAD origin/HEAD)\" --error --disable-nosem 1>&2 || [ $? -ne 1 ] || exit 2",
             "timeout": 300
           },
           {
