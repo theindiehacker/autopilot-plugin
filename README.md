@@ -21,7 +21,6 @@
 **ネットワークアクセス**: 「制限付き」
 ```
 semgrep.dev
-mcp.context7.com
 pkg-containers.githubusercontent.com
 dl.google.com
 dl-cdn.alpinelinux.org
