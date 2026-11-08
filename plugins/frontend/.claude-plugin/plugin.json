@@ -1,7 +1,7 @@
 {
   "name": "frontend",
   "displayName": "frontend@indiehacker",
-  "version": "0.5.0",
+  "version": "0.6.0",
   "description": "TypeScript・Next.js・shadcn/ui・Tailwind CSS・Playwright・Biome のフロントエンド開発で使うプラグイン",
   "repository": "https://github.com/theindiehacker/dev-plugins",
   "dependencies": [

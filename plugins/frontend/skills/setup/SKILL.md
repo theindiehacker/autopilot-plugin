@@ -17,6 +17,7 @@ argument-hint: "[フォルダ]"
 | Tailwind CSS | `tailwindcss` が依存にある | 無い、または CSS Modules・styled-components などで書いている |
 | shadcn/ui | `components.json` がある | 無い |
 | Playwright | `@playwright/test` が依存にある | 無い |
+| 型チェック | `package.json` の `scripts` に `typecheck` がある | 無い |
 
 揃っていない項目を一覧にして、項目ごとに行うかをユーザーに聞いてください。行わないと答えた項目は飛ばします。
 
@@ -49,6 +50,9 @@ argument-hint: "[フォルダ]"
 3. トップページが表示されることを確かめるテストを 1 つ書く
 4. `scripts` に `"test:e2e": "playwright test"` を足し、`.gitignore` に `/test-results/`・`/playwright-report/` を足す
 
+### 型チェック
+`package.json` の `scripts` に `"typecheck": "tsc --noEmit"` を足してください (commit の前に precommit.sh がこれを動かします)。Next.js では `next typegen && tsc --noEmit` (`next-env.d.ts` などの型を先に作るため)、`tsconfig.json` が `references` で分かれている (Vite など) なら `tsc -b` にします。`typescript` が依存に無ければ `bun add -d typescript` で入れてください。
+
 ## 3. 確かめる
 次がすべて通ることを確かめ、結果をユーザーに伝えてください。
 
@@ -62,6 +66,10 @@ bun run build
 
 ```bash
 bunx biome check .
+```
+
+```bash
+bun run typecheck
 ```
 
 ```bash
