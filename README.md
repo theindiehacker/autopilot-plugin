@@ -34,6 +34,7 @@ claude plugin marketplace add theindiehacker/dev-plugins
 claude plugin install cloud@indiehacker
 claude plugin install security@indiehacker
 claude plugin install frontend@indiehacker
+claude plugin install python@indiehacker
 ```
 
 </details>

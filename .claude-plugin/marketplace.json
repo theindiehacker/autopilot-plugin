@@ -16,6 +16,10 @@
       "source": "./plugins/frontend"
     },
     {
+      "name": "python",
+      "source": "./plugins/python"
+    },
+    {
       "name": "security",
       "source": "./plugins/security"
     },
