@@ -1,0 +1,4 @@
+#!/bin/sh
+# deptry はプロジェクトの .venv のパッケージ情報を読むため、プロジェクトの環境の上で動かす。
+# --no-sync: 依存はセッションの開始時に入れてある。uv.lock や .venv を書き換えない
+exec uv run --no-sync --with deptry==0.25.1 deptry "$@"
