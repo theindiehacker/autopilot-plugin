@@ -1,0 +1,41 @@
+{
+  "hooks": {
+    "SessionStart": [
+      {
+        "matcher": "startup|resume",
+        "hooks": [
+          {
+            "type": "command",
+            "command": "bash \"${CLAUDE_PLUGIN_ROOT}/scripts/setup.sh\"",
+            "timeout": 300
+          }
+        ]
+      }
+    ],
+    "PreToolUse": [
+      {
+        "matcher": "Bash",
+        "hooks": [
+          {
+            "type": "command",
+            "if": "Bash(*git*commit*)",
+            "command": "cd \"$CLAUDE_PROJECT_DIR\" && gitleaks dir . --redact --verbose --ignore-gitleaks-allow --exit-code 2 1>&2",
+            "timeout": 120
+          },
+          {
+            "type": "command",
+            "if": "Bash(*git*push*)",
+            "command": "cd \"$CLAUDE_PROJECT_DIR\" && semgrep scan --config p/owasp-top-ten --metrics off --severity ERROR --error --disable-nosem 1>&2 || [ $? -ne 1 ] || exit 2",
+            "timeout": 300
+          },
+          {
+            "type": "command",
+            "if": "Bash(*git*push*)",
+            "command": "cd \"$CLAUDE_PROJECT_DIR\" && trivy fs --scanners vuln,misconfig,secret --severity HIGH,CRITICAL --ignore-unfixed --exit-code 2 . 1>&2",
+            "timeout": 300
+          }
+        ]
+      }
+    ]
+  }
+}

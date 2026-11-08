@@ -32,6 +32,7 @@ dl-cdn.alpinelinux.org
 claude plugin marketplace add anthropics/claude-plugins-official
 claude plugin marketplace add theindiehacker/dev-plugins
 claude plugin install cloud@indiehacker
+claude plugin install security@indiehacker
 claude plugin install frontend@indiehacker
 ```
 
