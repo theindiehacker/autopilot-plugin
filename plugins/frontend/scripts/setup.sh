@@ -23,8 +23,19 @@ if [ -n "$(git ls-files -- '*package.json' 2> /dev/null)" ]; then
 - UI は shadcn/ui のコンポーネント (bunx shadcn@latest add) を使う。shadcn/ui に無いものだけ、shadcn/ui を組み合わせて作る
 - スタイルは Tailwind CSS のクラスとテーマの変数で書く。style 属性・色コード・Tailwind の任意値 ([#fff] など) は書かない。shadcn/ui が生成したコードは、bunx biome check --write で書式を整えるだけにし、中身は書き換えない
 - 画面を足す・変えるときは、Playwright で E2E テストを書く
-- このリポジトリが npm・ESLint など上と違う道具を使っていたら、/frontend:setup で移行できるとユーザーに伝える。頼まれるまで移行しない
 EOF2
+
+  # 足りないものがあるときだけ、移行の案内を出す (揃っているリポジトリで毎回出さないため)
+  MISSING=()
+  [ -n "$(git ls-files -- '*bun.lock')" ] || MISSING+=(bun)
+  [ -n "$(git ls-files -- '*biome.json' '*biome.jsonc')" ] || MISSING+=(Biome)
+  git grep -qF '"tailwindcss"' -- '*package.json' || MISSING+=("Tailwind CSS")
+  [ -n "$(git ls-files -- '*components.json')" ] || MISSING+=(shadcn/ui)
+  git grep -qF '"@playwright/test"' -- '*package.json' || MISSING+=(Playwright)
+  if [ "${#MISSING[@]}" -gt 0 ]; then
+    LIST=$(printf '・%s' "${MISSING[@]}")
+    echo "- このリポジトリには ${LIST#・} がまだ無い。/frontend:setup で移行できるとユーザーに伝える。頼まれるまで移行しない"
+  fi
 fi
 
 # bun を使わないリポジトリでは何もしない
