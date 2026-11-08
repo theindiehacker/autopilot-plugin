@@ -11,12 +11,6 @@
     "playwright@claude-plugins-official",
     "shadcn"
   ],
-  "mcpServers": {
-    "playwright": {
-      "command": "sh",
-      "args": ["-c", "[ \"$CLAUDE_CODE_REMOTE\" != true ] || set -- --no-sandbox --executable-path \"$CHROME_PATH\"; exec npx -y @playwright/mcp@0.0.84 \"$@\"", "sh"]
-    }
-  },
   "lspServers": {
     "typescript": {
       "command": "sh",

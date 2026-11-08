@@ -6,9 +6,6 @@ set -uo pipefail
 PLUGIN_BIN="${CLAUDE_PLUGIN_ROOT:-$(cd "$(dirname "$0")/.." && pwd)}/bin"
 [ -z "${CLAUDE_ENV_FILE:-}" ] || echo "export PATH=\"$PLUGIN_BIN:\$PATH\"" >> "$CLAUDE_ENV_FILE"
 
-# 🌐 Web では、入っている Chrome を起動できる frontend の Playwright を使うよう Claude に伝える
-[ "${CLAUDE_CODE_REMOTE:-}" != "true" ] || echo "ブラウザ操作は mcp__plugin_frontend_playwright__* を使ってください。公式の playwright は Web では動きません"
-
 cd "${CLAUDE_PROJECT_DIR:-.}" || exit 0
 
 # 🎨 shadcn/ui の公式スキルはセッションのフォルダで設定を読むため、components.json の場所を Claude に伝える
