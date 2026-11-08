@@ -1,5 +1,5 @@
 #!/bin/sh
-# プロジェクトに入っている版を優先する (biome.json の版と揃えるため)。無ければ、ここで固定した版を動かす
+# プロジェクトに入っている版を優先する (biome.json の版と揃えるため)。無ければ、ここで固定した版を bunx で動かす
 d=$PWD
 while [ "$d" != / ]; do
   [ -x "$d/node_modules/.bin/biome" ] && exec "$d/node_modules/.bin/biome" "$@"
@@ -7,4 +7,4 @@ while [ "$d" != / ]; do
   [ ! -e "$d/.git" ] || break
   d=$(dirname -- "$d")
 done
-exec npx -y @biomejs/biome@2.6.4 "$@"
+exec bunx @biomejs/biome@2.6.4 "$@"

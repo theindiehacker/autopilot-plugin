@@ -29,10 +29,10 @@
       "versioningTemplate": "pep440"
     },
     {
-      "description": "plugins/*/bin/* で npx -y に版を固定した npm のツール (biome) を更新する",
+      "description": "plugins/*/bin/* で bunx に版を固定した npm のツール (biome) を更新する",
       "customType": "regex",
       "managerFilePatterns": ["/^plugins/[^/]+/bin/[^/]+$/"],
-      "matchStrings": ["npx -y (?<depName>@?[a-zA-Z0-9._/-]+)@(?<currentValue>[0-9][^\\s\"\\\\]*)"],
+      "matchStrings": ["bunx (?<depName>@?[a-zA-Z0-9._/-]+)@(?<currentValue>[0-9][^\\s\"\\\\]*)"],
       "datasourceTemplate": "npm",
       "versioningTemplate": "npm"
     },
