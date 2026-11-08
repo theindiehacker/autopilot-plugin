@@ -14,6 +14,19 @@ f=$(git ls-files -- components.json '*/components.json' 2> /dev/null | head -1)
 case "$f" in *[!A-Za-z0-9._/@-]*) f= ;; esac
 [ -z "$f" ] || echo "shadcn/ui の components.json は $f にあります。shadcn の CLI はこのフォルダで実行してください"
 
+# 📐 フロントエンドのリポジトリでは、技術スタックの方針を Claude に伝える。python だけのリポジトリでは出さない
+if [ -n "$(git ls-files -- '*package.json' 2> /dev/null)" ]; then
+  cat << 'EOF2'
+このリポジトリのフロントエンドは、次の技術スタックで書いてください。
+- パッケージの管理と実行は bun (bun add / bun run / bunx)。npm・npx・yarn・pnpm は使わない
+- lint と整形は Biome。ESLint・Prettier は使わない
+- UI は shadcn/ui のコンポーネント (bunx shadcn@latest add) を使う。shadcn/ui に無いものだけ、shadcn/ui を組み合わせて作る
+- スタイルは Tailwind CSS のクラスとテーマの変数で書く。style 属性・色コード・Tailwind の任意値 ([#fff] など) は書かない
+- 画面を足す・変えるときは、Playwright で E2E テストを書く
+- このリポジトリが npm・ESLint など上と違う道具を使っていたら、/frontend:setup で移行できるとユーザーに伝える。頼まれるまで移行しない
+EOF2
+fi
+
 # bun を使わないリポジトリでは何もしない
 [ -n "$(git ls-files '*bun.lock' 2> /dev/null)" ] || exit 0
 
