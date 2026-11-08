@@ -1,0 +1,8 @@
+#!/bin/sh
+# プロジェクトに入っている版を優先する (biome.json の版と揃えるため)。無ければ、ここで固定した版を動かす
+d=$PWD
+while [ "$d" != / ]; do
+  [ -x "$d/node_modules/.bin/biome" ] && exec "$d/node_modules/.bin/biome" "$@"
+  d=$(dirname -- "$d")
+done
+exec npx -y @biomejs/biome@2.6.4 "$@"

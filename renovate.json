@@ -29,6 +29,14 @@
       "versioningTemplate": "pep440"
     },
     {
+      "description": "plugins/*/bin/* と plugin.json で npx -y に版を固定した npm のツール (biome・Playwright MCP) を更新する",
+      "customType": "regex",
+      "managerFilePatterns": ["/^plugins/[^/]+/bin/[^/]+$/", "/^plugins/[^/]+/\\.claude-plugin/plugin\\.json$/"],
+      "matchStrings": ["npx -y (?<depName>@?[a-zA-Z0-9._/-]+)@(?<currentValue>[0-9][^\\s\"\\\\]*)"],
+      "datasourceTemplate": "npm",
+      "versioningTemplate": "npm"
+    },
+    {
       "description": ".claude-plugin/marketplace.json の git-subdir で固定した外部のプラグインの sha を、ref のブランチの最新のコミットに更新する",
       "customType": "regex",
       "managerFilePatterns": ["/^\\.claude-plugin/marketplace\\.json$/"],
@@ -42,7 +50,7 @@
   "packageRules": [
     {
       "description": "公開から 7 日たった版だけを取り込む。乗っ取られて悪意のあるコードを入れられた版は、公開から数日で見つかり取り下げられることが多い",
-      "matchDatasources": ["pypi"],
+      "matchDatasources": ["pypi", "npm"],
       "minimumReleaseAge": "7 days"
     }
   ]
