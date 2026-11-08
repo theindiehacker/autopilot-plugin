@@ -8,14 +8,15 @@ BIOME="${CLAUDE_PLUGIN_ROOT:-$(cd "$(dirname "$0")/.." && pwd)}/bin/biome"
 # 📝 フックの入力から、編集したファイルを取り出す。jq は Mac に無いことがあるため、sed で読む
 FILE=$(sed -n 's/.*"file_path": *"\([^"]*\)".*/\1/p' | head -1)
 case "$FILE" in /*) ;; *) FILE="$PWD/$FILE" ;; esac
-[ -f "$FILE" ] || exit 0
+[ -f "$FILE" ] && [ ! -L "$FILE" ] || exit 0
 
-# プロジェクトの外は見ない (よそのフォルダの設定や biome を動かさないため)
-ROOT="${CLAUDE_PROJECT_DIR:-$PWD}"
+# プロジェクトの外は見ない (よそのフォルダの設定や biome を動かさないため)。.. とシンボリックリンクを解決して比べる
+ROOT=$(cd -P -- "${CLAUDE_PROJECT_DIR:-$PWD}" && pwd -P) || exit 0
+DIR=$(cd -P -- "$(dirname -- "$FILE")" && pwd -P) || exit 0
+FILE="$DIR/$(basename -- "$FILE")"
 case "$FILE" in "$ROOT"/*) ;; *) exit 0 ;; esac
 
 # 📂 biome の設定があるフォルダで動かす。無ければ何もしない (既定のタブ書式で書き換えないため)
-DIR=$(dirname -- "$FILE")
 until [ -f "$DIR/biome.json" ] || [ -f "$DIR/biome.jsonc" ]; do
   [ "$DIR" != "$ROOT" ] || exit 0
   DIR=$(dirname -- "$DIR")
