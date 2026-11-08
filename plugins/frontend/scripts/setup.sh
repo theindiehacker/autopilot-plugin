@@ -21,7 +21,7 @@ if [ -n "$(git ls-files -- '*package.json' 2> /dev/null)" ]; then
 - パッケージの管理と実行は bun (bun add / bun run / bunx)。npm・npx・yarn・pnpm は使わない
 - lint と整形は Biome。ESLint・Prettier は使わない
 - UI は shadcn/ui のコンポーネント (bunx shadcn@latest add) を使う。shadcn/ui に無いものだけ、shadcn/ui を組み合わせて作る
-- スタイルは Tailwind CSS のクラスとテーマの変数で書く。style 属性・色コード・Tailwind の任意値 ([#fff] など) は書かない。shadcn/ui が生成したコードは書き換えない
+- スタイルは Tailwind CSS のクラスとテーマの変数で書く。style 属性・色コード・Tailwind の任意値 ([#fff] など) は書かない。shadcn/ui が生成したコードは、bunx biome check --write で書式を整えるだけにし、中身は書き換えない
 - 画面を足す・変えるときは、Playwright で E2E テストを書く
 - このリポジトリが npm・ESLint など上と違う道具を使っていたら、/frontend:setup で移行できるとユーザーに伝える。頼まれるまで移行しない
 EOF2

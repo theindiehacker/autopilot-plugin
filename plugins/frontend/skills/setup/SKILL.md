@@ -39,7 +39,9 @@ argument-hint: "[フォルダ]"
 フレームワークの公式手順 (https://tailwindcss.com/docs/installation) で入れてください。既存のスタイルは、頼まれたときだけ Tailwind CSS に書き換えます。Biome があれば、`biome.json` の `css.parser.tailwindDirectives` を `true` にしてください。
 
 ### shadcn/ui
-`bunx shadcn@latest init` で入れてください。Tailwind CSS が要ります。
+1. フレームワークの公式手順 (https://ui.shadcn.com/docs/installation) で、import alias (`@/*` など) を用意する。無いと `init` が止まります (Vite など)
+2. `bunx shadcn@latest init` で入れる。Tailwind CSS が要ります
+3. 生成されたファイルは Biome の書式に合わないため、`bunx biome check --write .` で整える
 
 ### Playwright
 1. `bun add -d @playwright/test` で入れ、`bunx playwright install chromium` でブラウザを入れる
