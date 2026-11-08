@@ -1,6 +1,31 @@
 # 🔌 dev-plugins
 
+<p align="center">
+  <img src="docs/images/readme/hero.svg" width="100%" alt="dev-plugins">
+</p>
+
+<p align="center">
+  <a href="https://code.claude.com/docs/en/discover-plugins"><img src="https://img.shields.io/badge/Claude_Code-indiehacker-D97757?style=for-the-badge&logo=claude&logoColor=white&labelColor=0B0B12" alt="Claude Code"></a>
+  <a href="plugins/frontend"><img src="https://img.shields.io/badge/dynamic/json?url=https%3A%2F%2Fraw.githubusercontent.com%2Ftheindiehacker%2Fdev-plugins%2Fmain%2Fplugins%2Ffrontend%2F.claude-plugin%2Fplugin.json&query=%24.version&prefix=v&label=frontend&style=for-the-badge&color=A78BFA&labelColor=0B0B12" alt="frontend"></a>
+  <a href="plugins/python"><img src="https://img.shields.io/badge/dynamic/json?url=https%3A%2F%2Fraw.githubusercontent.com%2Ftheindiehacker%2Fdev-plugins%2Fmain%2Fplugins%2Fpython%2F.claude-plugin%2Fplugin.json&query=%24.version&prefix=v&label=python&style=for-the-badge&color=FACC15&labelColor=0B0B12" alt="python"></a>
+  <a href="plugins/cloud"><img src="https://img.shields.io/badge/dynamic/json?url=https%3A%2F%2Fraw.githubusercontent.com%2Ftheindiehacker%2Fdev-plugins%2Fmain%2Fplugins%2Fcloud%2F.claude-plugin%2Fplugin.json&query=%24.version&prefix=v&label=cloud&style=for-the-badge&color=38BDF8&labelColor=0B0B12" alt="cloud"></a>
+  <a href="plugins/security"><img src="https://img.shields.io/badge/dynamic/json?url=https%3A%2F%2Fraw.githubusercontent.com%2Ftheindiehacker%2Fdev-plugins%2Fmain%2Fplugins%2Fsecurity%2F.claude-plugin%2Fplugin.json&query=%24.version&prefix=v&label=security&style=for-the-badge&color=34D399&labelColor=0B0B12" alt="security"></a>
+  <a href="renovate.json"><img src="https://img.shields.io/badge/Renovate-308BE3?style=for-the-badge&logo=renovate&logoColor=white" alt="Renovate"></a>
+</p>
+
+<p align="center">
+  <img src="docs/images/readme/plugins.svg" width="100%" alt="frontend · python · cloud · security">
+</p>
+
+<p align="center">
+  <img src="docs/images/readme/flow.svg" width="100%" alt="SessionStart · Edit · git commit · git push">
+</p>
+
 ## 🧩 プラグインの追加
+
+<p align="center">
+  <img src="docs/images/readme/terminal.svg" width="100%" alt="claude plugin install">
+</p>
 
 <details><summary><b>☁️ Claude Code on the Web</b></summary>
 
