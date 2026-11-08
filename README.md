@@ -35,6 +35,11 @@ claude plugin install cloud@indiehacker
 claude plugin install security@indiehacker
 claude plugin install frontend@indiehacker
 claude plugin install python@indiehacker
+
+# 2026-11-08
 ```
+
+> [!WARNING]
+> プラグインを更新したら、「セットアップスクリプト」の最後の行の日付を、更新した日に書き換えてください。書き換えないと、古いプラグインのまま動くことがあります。
 
 </details>
