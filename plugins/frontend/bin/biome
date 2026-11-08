@@ -3,6 +3,8 @@
 d=$PWD
 while [ "$d" != / ]; do
   [ -x "$d/node_modules/.bin/biome" ] && exec "$d/node_modules/.bin/biome" "$@"
+  # リポジトリの外は見ない (よそのフォルダの biome を動かさないため)
+  [ ! -e "$d/.git" ] || break
   d=$(dirname -- "$d")
 done
 exec npx -y @biomejs/biome@2.6.4 "$@"

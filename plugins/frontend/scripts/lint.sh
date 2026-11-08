@@ -10,10 +10,14 @@ FILE=$(sed -n 's/.*"file_path": *"\([^"]*\)".*/\1/p' | head -1)
 case "$FILE" in /*) ;; *) FILE="$PWD/$FILE" ;; esac
 [ -f "$FILE" ] || exit 0
 
+# プロジェクトの外は見ない (よそのフォルダの設定や biome を動かさないため)
+ROOT="${CLAUDE_PROJECT_DIR:-$PWD}"
+case "$FILE" in "$ROOT"/*) ;; *) exit 0 ;; esac
+
 # 📂 biome の設定があるフォルダで動かす。無ければ何もしない (既定のタブ書式で書き換えないため)
 DIR=$(dirname -- "$FILE")
 until [ -f "$DIR/biome.json" ] || [ -f "$DIR/biome.jsonc" ]; do
-  [ "$DIR" != / ] || exit 0
+  [ "$DIR" != "$ROOT" ] || exit 0
   DIR=$(dirname -- "$DIR")
 done
 cd "$DIR" || exit 0
