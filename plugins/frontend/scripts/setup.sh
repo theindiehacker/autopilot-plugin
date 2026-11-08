@@ -2,6 +2,10 @@
 # セッションの開始・再開時に、bun の版を揃えて依存を入れるスクリプト
 set -uo pipefail
 
+# プラグインのコマンド (biome) をコマンド名だけで呼べるようにする。Mac の mise の biome より先に見つかるよう、先頭に足す
+PLUGIN_BIN="${CLAUDE_PLUGIN_ROOT:-$(cd "$(dirname "$0")/.." && pwd)}/bin"
+[ -z "${CLAUDE_ENV_FILE:-}" ] || echo "export PATH=\"$PLUGIN_BIN:\$PATH\"" >> "$CLAUDE_ENV_FILE"
+
 cd "${CLAUDE_PROJECT_DIR:-.}" || exit 0
 
 # 🎨 shadcn/ui の公式スキルはセッションのフォルダで設定を読むため、components.json の場所を Claude に伝える
