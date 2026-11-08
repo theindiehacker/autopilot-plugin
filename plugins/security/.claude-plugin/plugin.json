@@ -1,0 +1,12 @@
+{
+  "name": "security",
+  "displayName": "security@indiehacker",
+  "version": "0.1.0",
+  "description": "IndieHacker, Inc. のセキュリティプラグイン",
+  "repository": "https://github.com/theindiehacker/dev-plugins",
+  "dependencies": [
+    "security-guidance@claude-plugins-official",
+    "security-audit",
+    "claude-security@claude-plugins-official"
+  ]
+}
