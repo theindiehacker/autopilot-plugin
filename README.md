@@ -24,6 +24,8 @@ semgrep.dev
 pkg-containers.githubusercontent.com
 dl.google.com
 dl-cdn.alpinelinux.org
+ui.shadcn.com
+cdn.playwright.dev
 ```
 ✅ [パッケージマネージャー](https://code.claude.com/docs/en/cloud-environments#default-allowed-domains)を許可
 
