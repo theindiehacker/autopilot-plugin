@@ -1,0 +1,4 @@
+#!/bin/sh
+# import-linter は自分のパッケージを import して調べるため、プロジェクトの環境の上で動かす。
+# --no-sync: 依存はセッションの開始時に入れてある。uv.lock や .venv を書き換えない
+exec uv run --no-sync --with import-linter==2.15 lint-imports "$@"
