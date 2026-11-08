@@ -26,8 +26,22 @@ for t in uv ruff ty; do
   command -v "$t" > /dev/null 2>&1 || echo "⚠️ $t がありません。ユーザーに伝えてください"
 done
 
-# 📦 lock ファイルの版で依存を入れる
 cd "${CLAUDE_PROJECT_DIR:-.}" || exit 0
+
+# 📐 Python のリポジトリでは、技術スタックの方針を Claude に伝える。フロントエンドだけのリポジトリでは出さない
+if [ -n "$(git ls-files -- '*pyproject.toml' '*requirements*.txt' '*setup.py' 2> /dev/null)" ]; then
+  cat << 'EOF2'
+このリポジトリの Python は、次の技術スタックで書いてください。
+- パッケージの管理と実行は uv (uv add / uv run / uvx)。pip・poetry・pipenv は使わない
+- lint と整形は ruff。flake8・black・isort・pylint は使わない
+- 型の検査は ty。mypy・pyright は使わない
+- 依存の過不足は deptry、import の向きは import-linter で検査する
+- 機能を足す・変えるときは、pytest でテストを書く
+- このリポジトリが pip・flake8 など上と違う道具を使っていたら、/python:setup で移行できるとユーザーに伝える。頼まれるまで移行しない
+EOF2
+fi
+
+# 📦 lock ファイルの版で依存を入れる
 # git のリポジトリでないフォルダや、uv を使わないリポジトリでは何もしない (誤って警告を出さないため)
 [ -n "$(git ls-files '*uv.lock' 2> /dev/null)" ] || exit 0
 git ls-files -z -- '*uv.lock' | xargs -0r -n1 dirname -- | xargs -r -I{} uv sync --locked --directory {} >&2 ||
