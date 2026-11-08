@@ -1,0 +1,21 @@
+{
+  "name": "python",
+  "displayName": "python@indiehacker",
+  "version": "0.1.0",
+  "description": "Python・uv・ty の開発で使うプラグイン",
+  "repository": "https://github.com/theindiehacker/dev-plugins",
+  "dependencies": [
+    "security-guidance@claude-plugins-official",
+    "superpowers@claude-plugins-official"
+  ],
+  "lspServers": {
+    "ty": {
+      "command": "sh",
+      "args": ["-c", "exec \"$(ls .venv/bin/ty */.venv/bin/ty 2>/dev/null | head -1)\" server"],
+      "extensionToLanguage": {
+        ".py": "python",
+        ".pyi": "python"
+      }
+    }
+  }
+}
