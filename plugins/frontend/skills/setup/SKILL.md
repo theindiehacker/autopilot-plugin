@@ -24,19 +24,19 @@ argument-hint: "[フォルダ]"
 聞いた順に、1 項目ずつ行ってください。各項目の後で、build が通ることを確かめてください。
 
 ### bun
-1. 古い lock ファイルを消し、`bun install` で `bun.lock` を作る
+1. `bun install` で `bun.lock` を作る。bun は古い lock ファイルの版を引き継ぐため、`bun.lock` ができてから古い lock ファイルを消す
 2. `package.json` の `packageManager` に `bun@<bun --version の版>` を書く (setup.sh がこの版の bun を入れます)
-3. `scripts`・CI・Dockerfile・README の `npm`・`npx`・`yarn`・`pnpm` を `bun`・`bunx` に置き換える
+3. `scripts`・CI・Dockerfile・README の `npm`・`npx`・`yarn`・`pnpm` を `bun`・`bunx` に置き換える。CI には `oven-sh/setup-bun`、Dockerfile には `oven/bun` のイメージなどで bun を入れる手順を足す
 
 ### Biome
 1. `bun add -d -E @biomejs/biome` で入れ、`bunx biome init` で `biome.json` を作る
 2. ESLint・Prettier の設定があれば `bunx biome migrate eslint --write`・`bunx biome migrate prettier --write` で移す。移せないとき (Next.js の `FlatCompat` を使った設定など) は、ESLint の設定を読んで `linter.domains` (`next`・`react` など) と `linter.rules` に手で書く
-3. Tailwind CSS を使うなら、`css.parser.tailwindDirectives` を `true` にする (`@theme` などを読めるようにするため)
+3. Tailwind CSS を使うなら、`css.parser.tailwindDirectives` を `true` にする (`@theme` などを読めるようにするため)。後で Tailwind CSS を入れるときも同じ
 4. ESLint・Prettier の依存・設定ファイル・`scripts` を消し、`lint` を `biome check`、`format` を `biome format --write` にする
 5. `bunx biome check --write .` で全体を整え、残った問題を直す
 
 ### Tailwind CSS
-フレームワークの公式手順 (https://tailwindcss.com/docs/installation) で入れてください。既存のスタイルは、頼まれたときだけ Tailwind CSS に書き換えます。
+フレームワークの公式手順 (https://tailwindcss.com/docs/installation) で入れてください。既存のスタイルは、頼まれたときだけ Tailwind CSS に書き換えます。Biome があれば、`biome.json` の `css.parser.tailwindDirectives` を `true` にしてください。
 
 ### shadcn/ui
 `bunx shadcn@latest init` で入れてください。Tailwind CSS が要ります。
