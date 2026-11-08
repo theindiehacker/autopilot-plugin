@@ -28,6 +28,8 @@ done
 
 # 📦 lock ファイルの版で依存を入れる
 cd "${CLAUDE_PROJECT_DIR:-.}" || exit 0
+# git のリポジトリでないフォルダや、uv を使わないリポジトリでは何もしない (誤って警告を出さないため)
+[ -n "$(git ls-files '*uv.lock' 2> /dev/null)" ] || exit 0
 git ls-files -z -- '*uv.lock' | xargs -0r -n1 dirname -- | xargs -r -I{} uv sync --locked --directory {} >&2 ||
   echo '⚠️ 依存を入れられませんでした。ユーザーに伝えてください'
 
