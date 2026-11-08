@@ -30,7 +30,7 @@ if [ -f mise.toml ]; then
 
   if ! mise --version > /dev/null 2>&1; then
     curl -sSfL --connect-timeout 10 --max-time 240 -o /usr/local/bin/mise \
-      https://github.com/jdx/mise/releases/download/v2026.11.0/mise-v2026.11.0-linux-x64 &&
+      https://github.com/jdx/mise/releases/download/v2026.11.1/mise-v2026.11.1-linux-x64 &&
       chmod +x /usr/local/bin/mise
   fi
   # ツールは mise.toml で変わるため、mise があっても毎回確かめる
