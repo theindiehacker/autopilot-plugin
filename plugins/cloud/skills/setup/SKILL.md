@@ -24,7 +24,7 @@ description: Claude Code on the Web のクラウド環境で Docker (docker comp
 | 終了するサービス | 無い、または待つ側が `service_completed_successfully` で待っている | migration などが終了する |
 | ドメイン | ビルドと起動で使うドメインが許可されている | 名前を解決できない |
 
-ドメインは、Dockerfile の `apt-get`・`apk`・`curl` などの取得先と、`docker compose build` のエラーから調べます。
+ドメインは、`image:`・`FROM` のレジストリ、Dockerfile の `apt-get`・`apk`・`curl` などの取得先と、`docker compose build` のエラーから調べます。
 
 揃っていない項目を一覧にして、項目ごとに行うかをユーザーに聞いてください。行わないと答えた項目は飛ばします。
 
@@ -34,12 +34,12 @@ description: Claude Code on the Web のクラウド環境で Docker (docker comp
 ### compose ファイル
 - サブフォルダにあれば、ルートに `include:` でそれを読む `compose.yaml` を作る
 - 無ければ、依存 (`pyproject.toml`・`package.json` など) と README から DB・Redis などを読み取り、それだけの `compose.yaml` を作る。アプリは入れません (クラウドの node・python で直接動かすため)
-  - イメージは Docker Hub の公式イメージ (`postgres:17` など) にする
+  - イメージは Docker Hub の公式イメージ (`postgres:17` など) にする。版はコードや README から決め、分からなければユーザーに聞く
   - `ports` でホストに公開し、`healthcheck` を付け、データは名前付き volume に置く
   - ユーザー名・パスワード・DB 名は、アプリの接続先の既定値 (`postgresql://app:app@localhost:5432/app` など) に合わせる
 
 ### ビルドの CA
-通信する `RUN` (パッケージの取得・`curl` など) に、secret の mount を付けてください。ローカルでは secret が無く mount されないため、今までどおり動きます。
+HTTPS で取得する `RUN` (`npm ci`・`pip install`・`apk add`・`curl https://` など) に、secret の mount を付けてください。`apt-get` は http なので要りません。ローカルでは secret が無く mount されないため、今までどおり動きます。
 
 ```dockerfile
 RUN --mount=type=secret,id=ca-certificates,target=/etc/ssl/certs/ca-certificates.crt \
@@ -54,14 +54,15 @@ OS の証明書を読まないツールには、同じ `RUN` で環境変数を�
 | uv | `SSL_CERT_FILE=/etc/ssl/certs/ca-certificates.crt` |
 | pip (24.2 以降)・curl・apk・git | 要らない (mount だけで読む) |
 
-- 多段ビルドでは、通信する `RUN` のある段すべてに付ける
-- 環境変数は `ENV` にせず、その `RUN` だけに付ける。ローカルのイメージには、このパスが無いことがあるため
+- 多段ビルドでは、HTTPS で取得する `RUN` のある段すべてに付ける
+- 環境変数は `ENV` にせず、その `RUN` だけに付ける。ローカルのイメージには、このパスが無いことがあるため (`NODE_EXTRA_CA_CERTS` は、ファイルが無くても警告が出るだけで動きます)
 - `ca-certificates` を入れる `RUN` には付けない。mount したファイルを書き換えられず、dpkg が失敗します。同じ `RUN` で他の取得もしていれば、`RUN` を分ける (`apt-get` は http なので CA が要りません)
 - TLS の検証を切る (`strict-ssl false`・`--trusted-host`・`curl -k` など)、`network: host`、プロキシの設定は使わない
 
 ### `.env`
 - `env_file` を `- path: .env` と `required: false` の形にする
 - 必須の変数には、`.env.example` などの値で既定値を付ける (`${POSTGRES_PASSWORD:-postgres}`)。ローカルでは今までどおり `.env` の値が使われます
+- アプリが `env_file` からしか受け取らない必須の値 (`DATABASE_URL` など) は、`environment:` に既定値付きで書く (`DATABASE_URL: ${DATABASE_URL:-postgres://...}`)。compose は `.env` を変数の展開にも使うため、ローカルでは今までどおり `.env` の値になります
 - `.env.example` を `env_file` に足さない (ローカルの値が変わるため)。`.env` は読まない
 
 ### Mac 専用の設定
@@ -85,5 +86,7 @@ CLAUDE_PROJECT_DIR="$PWD" bash "${CLAUDE_PLUGIN_ROOT}/scripts/setup.sh"
 
 - `docker compose ps` で、すべてのサービスが動いている
 - 公開したポートに繋がる (アプリが外部の HTTPS に繋ぐなら、それも)
+
+遮断されたドメインでビルドが止まるときは、ビルドの無いサービスだけを `docker compose up -d --wait <サービス>` で確かめてください。setup.sh が作る `.claude/session/` は、中の `.gitignore` で git から外れるため、リポジトリの `.gitignore` に足す必要はありません。
 
 動かせなかった確認があれば、理由と一緒に伝えてください。commit・PR は、頼まれたときだけ行ってください。
