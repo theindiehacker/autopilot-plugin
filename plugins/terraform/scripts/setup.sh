@@ -49,12 +49,13 @@ plugins() {
 }
 
 # Web では GitHub の API が使えず tflint --init が失敗するため、GitHub のリリースから直接入れる。
-# 入れ先は tflint --init と同じ (~/.tflint.d/plugins/<source>/<版>/)。リリースの checksums.txt で中身を確かめる
+# 入れ先は tflint --init と同じ (~/.tflint.d/plugins/<source>/<版>/)。リリースの checksums.txt で、壊れていないかを確かめる
 download() {
   local s v repo dir url
   while read -r s v; do
-    # URL とパスに使うので、想定の形だけを通す
-    printf '%s %s' "$s" "$v" | grep -Eq '^github\.com/[A-Za-z0-9_.-]+/tflint-ruleset-[A-Za-z0-9_.-]+ [0-9][0-9.]*$' || return 1
+    # 公式 (terraform-linters) のプラグインだけを入れる。リポジトリの設定に書かれた、よそのバイナリを入れて動かさないため。
+    # URL とパスにも使うので、想定の形だけを通す
+    printf '%s %s' "$s" "$v" | grep -Eq '^github\.com/terraform-linters/tflint-ruleset-[a-z0-9-]+ [0-9]+\.[0-9]+\.[0-9]+$' || return 1
     repo=${s##*/}
     dir="${TFLINT_PLUGIN_DIR:-$HOME/.tflint.d/plugins}/$s/$v"
     [ ! -x "$dir/$repo" ] || continue
