@@ -1,5 +1,3 @@
-# 🔌 dev-plugins
-
 <p align="center">
   <img src="docs/images/readme/hero.svg" width="100%" alt="dev-plugins">
 </p>
@@ -13,19 +11,31 @@
   <a href="renovate.json"><img src="https://img.shields.io/badge/Renovate-308BE3?style=for-the-badge&logo=renovate&logoColor=white" alt="Renovate"></a>
 </p>
 
+<p align="center"><b>Claude Code に、技術スタックの統一と、hooks による自動チェック (lint・型検査・シークレット検出・脆弱性スキャン) を追加するプラグイン集です。</b></p>
+
+## ✨ 入れるとどう変わる？
+
 <p align="center">
-  <img src="docs/images/readme/plugins.svg" width="100%" alt="frontend · python · cloud · security">
+  <img src="docs/images/readme/demo.svg" width="100%" alt="dev-plugins なしとありを、4 つの場面で比べるアニメーション。起動時: 依存を手で入れる → bun install --frozen-lockfile と uv sync --locked が自動で走る。編集後: format・lint は Claude の判断しだい → biome check --write が自動で走り、残った問題を exit 2 で Claude に通知する。commit 前: 型エラーや API キーが入ったまま commit → tsc・Gitleaks が検出して中止し、Claude が修正する。push 前: 脆弱なコード・依存のまま公開 → Semgrep・Trivy が検出して中止し、Claude が修正する。">
+</p>
+
+<p align="center"><sub>※ 出力はイメージです</sub></p>
+
+## 🧩 プラグイン
+
+<p align="center">
+  <a href="plugins/frontend/README.md"><img src="docs/images/readme/plugin-frontend.svg" width="49%" alt="frontend の README を開く。対象: TypeScript・Next.js のフロントエンド。Bun・Biome・TypeScript・Next.js・Tailwind CSS・shadcn/ui・Playwright、一緒に入る superpowers・frontend-design・playwright・shadcn・security-guidance、コマンド /frontend:setup"></a>
+  <a href="plugins/python/README.md"><img src="docs/images/readme/plugin-python.svg" width="49%" alt="python の README を開く。対象: Python。Python・uv・Ruff・ty・deptry・import-linter、一緒に入る superpowers・security-guidance、コマンド /python:setup"></a>
 </p>
 
 <p align="center">
-  <img src="docs/images/readme/flow.svg" width="100%" alt="SessionStart · Edit · git commit · git push">
+  <a href="plugins/cloud/README.md"><img src="docs/images/readme/plugin-cloud.svg" width="49%" alt="cloud の README を開く。対象: Claude Code on the Web のみ。Docker・Docker Compose・mise、起動時に dockerd・mise install・docker compose up を実行"></a>
+  <a href="plugins/security/README.md"><img src="docs/images/readme/plugin-security.svg" width="49%" alt="security の README を開く。対象: すべてのリポジトリ。Gitleaks・Semgrep・Trivy・OWASP Top 10、一緒に入る security-guidance・security-audit・claude-security"></a>
 </p>
 
-## 🧩 プラグインの追加
+カードを押すと、自動で動くものや技術スタックの移行を書いた README を開けます。
 
-<p align="center">
-  <img src="docs/images/readme/terminal.svg" width="100%" alt="claude plugin install">
-</p>
+## 📥 入れ方
 
 <details><summary><b>☁️ Claude Code on the Web</b></summary>
 
@@ -132,3 +142,8 @@ Claude Code を開いていたら、起動し直します。
 > - `security` のコミット・push 前の検査には、Semgrep・Gitleaks・Trivy が要ります。Mac では `brew install semgrep gitleaks trivy` で入れられます。
 
 </details>
+
+## ⚠️ 注意
+
+- hooks が動くのは Claude Code の操作だけです。ターミナルで直接 commit・push すると動きません。
+- これらのツールで検出できない脆弱性もあります。

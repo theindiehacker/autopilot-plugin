@@ -1,0 +1,45 @@
+<svg xmlns="http://www.w3.org/2000/svg" width="566" height="422" viewBox="0 0 566 422">
+<style>
+.t{font-family:-apple-system, BlinkMacSystemFont, 'Segoe UI', 'Noto Sans', Helvetica, Arial, sans-serif} .m{font-family:ui-monospace, SFMono-Regular, 'SF Mono', Menlo, Consolas, 'Liberation Mono', monospace}
+.card{animation:rise .9s cubic-bezier(.2,.8,.2,1) both}
+@keyframes rise{from{opacity:0;transform:translateY(16px)}}
+.shine{animation:sweep 7s ease-in-out infinite}
+@keyframes sweep{0%,55%{transform:translateX(-500px)}100%{transform:translateX(1700px)}}
+@media (prefers-reduced-motion:reduce){*{animation:none!important}}
+</style>
+<defs>
+<clipPath id="clip"><rect width="566" height="422" rx="22"/></clipPath>
+<linearGradient id="glass" x1="0" y1="0" x2="1" y2="1"><stop offset="0" stop-color="#FFFFFF" stop-opacity=".09"/><stop offset="1" stop-color="#FFFFFF" stop-opacity=".03"/></linearGradient>
+<linearGradient id="sheen" x1="0" y1="0" x2="1" y2="0"><stop offset="0" stop-color="#FFFFFF" stop-opacity="0"/><stop offset=".5" stop-color="#FFFFFF" stop-opacity=".07"/><stop offset="1" stop-color="#FFFFFF" stop-opacity="0"/></linearGradient>
+<radialGradient id="glow-cloud" cx="0" cy="0" r="1" gradientTransform="scale(420 260)" gradientUnits="userSpaceOnUse"><stop offset="0" stop-color="#38BDF8" stop-opacity=".22"/><stop offset="1" stop-color="#38BDF8" stop-opacity="0"/></radialGradient>
+<linearGradient id="edge-cloud" x1="0" y1="0" x2="1" y2="1"><stop offset="0" stop-color="#38BDF8" stop-opacity=".7"/><stop offset=".45" stop-color="#FFFFFF" stop-opacity=".06"/><stop offset="1" stop-color="#FFFFFF" stop-opacity=".12"/></linearGradient>
+<symbol id="i-cloud" viewBox="0 0 24 24" fill="none" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M17.5 19H9a7 7 0 1 1 6.71-9h1.79a4.5 4.5 0 1 1 0 9Z"/></symbol><symbol id="i-docker" viewBox="0 0 24 24"><path d="M13.983 11.078h2.119a.186.186 0 00.186-.185V9.006a.186.186 0 00-.186-.186h-2.119a.185.185 0 00-.185.185v1.888c0 .102.083.185.185.185m-2.954-5.43h2.118a.186.186 0 00.186-.186V3.574a.186.186 0 00-.186-.185h-2.118a.185.185 0 00-.185.185v1.888c0 .102.082.185.185.185m0 2.716h2.118a.187.187 0 00.186-.186V6.29a.186.186 0 00-.186-.185h-2.118a.185.185 0 00-.185.185v1.887c0 .102.082.185.185.186m-2.93 0h2.12a.186.186 0 00.184-.186V6.29a.185.185 0 00-.185-.185H8.1a.185.185 0 00-.185.185v1.887c0 .102.083.185.185.186m-2.964 0h2.119a.186.186 0 00.185-.186V6.29a.185.185 0 00-.185-.185H5.136a.186.186 0 00-.186.185v1.887c0 .102.084.185.186.186m5.893 2.715h2.118a.186.186 0 00.186-.185V9.006a.186.186 0 00-.186-.186h-2.118a.185.185 0 00-.185.185v1.888c0 .102.082.185.185.185m-2.93 0h2.12a.185.185 0 00.184-.185V9.006a.185.185 0 00-.184-.186h-2.12a.185.185 0 00-.184.185v1.888c0 .102.083.185.185.185m-2.964 0h2.119a.185.185 0 00.185-.185V9.006a.185.185 0 00-.184-.186h-2.12a.186.186 0 00-.186.186v1.887c0 .102.084.185.186.185m-2.92 0h2.12a.185.185 0 00.184-.185V9.006a.185.185 0 00-.184-.186h-2.12a.185.185 0 00-.184.185v1.888c0 .102.082.185.185.185M23.763 9.89c-.065-.051-.672-.51-1.954-.51-.338.001-.676.03-1.01.087-.248-1.7-1.653-2.53-1.716-2.566l-.344-.199-.226.327c-.284.438-.49.922-.612 1.43-.23.97-.09 1.882.403 2.661-.595.332-1.55.413-1.744.42H.751a.751.751 0 00-.75.748 11.376 11.376 0 00.692 4.062c.545 1.428 1.355 2.48 2.41 3.124 1.18.723 3.1 1.137 5.275 1.137.983.003 1.963-.086 2.93-.266a12.248 12.248 0 003.823-1.389c.98-.567 1.86-1.288 2.61-2.136 1.252-1.418 1.998-2.997 2.553-4.4h.221c1.372 0 2.215-.549 2.68-1.009.309-.293.55-.65.707-1.046l.098-.288Z"/></symbol><symbol id="i-monitor" viewBox="0 0 24 24" fill="none" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><rect x="2" y="3" width="20" height="14" rx="2"/><path d="M8 21h8M12 17v4"/></symbol><symbol id="i-play" viewBox="0 0 24 24" fill="none" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M7 4.5v15a1 1 0 0 0 1.5.86l12.4-7.5a1 1 0 0 0 0-1.72L8.5 3.64A1 1 0 0 0 7 4.5z"/></symbol><symbol id="i-wrench" viewBox="0 0 24 24" fill="none" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M14.7 6.3a1 1 0 0 0 0 1.4l1.6 1.6a1 1 0 0 0 1.4 0l3.77-3.77a6 6 0 0 1-7.94 7.94l-6.91 6.91a2.12 2.12 0 0 1-3-3l6.91-6.91a6 6 0 0 1 7.94-7.94l-3.76 3.76z"/></symbol>
+</defs>
+<g clip-path="url(#clip)">
+<g class="card">
+<rect width="566" height="422" rx="22" fill="#0E0E17"/>
+<rect width="566" height="422" rx="22" fill="url(#glow-cloud)"/>
+<rect x=".5" y=".5" width="565" height="421" rx="21.5" fill="none" stroke="url(#edge-cloud)"/>
+<rect x="28" y="28" width="60" height="60" rx="18" fill="#38BDF8" fill-opacity=".14" stroke="#38BDF8" stroke-opacity=".5"/>
+<use href="#i-cloud" x="43" y="43" width="30" height="30" stroke="#38BDF8" />
+<text x="108" y="58" font-size="34" font-weight="800" letter-spacing="-.5" fill="#FAFAFA" class="t">cloud</text>
+<text x="109" y="83" font-size="16" fill="#A1A1AA" class="m">@indiehacker</text>
+<g opacity="1">
+<rect x="440" y="28" width="44" height="32" rx="10" fill="#38BDF8" fill-opacity="0.12" stroke="#38BDF8" stroke-opacity="0.5"/>
+<use href="#i-cloud" x="452" y="34" width="20" height="20" stroke="#38BDF8" /></g><g opacity="0.22">
+<rect x="494" y="28" width="44" height="32" rx="10" fill="#FFFFFF" fill-opacity="0.04" stroke="#FFFFFF" stroke-opacity="0.3"/>
+<use href="#i-monitor" x="506" y="34" width="20" height="20" stroke="#A1A1AA" /></g>
+<text x="28" y="126" font-size="22" font-weight="600" fill="#E4E4E7" class="t">Claude Code on the Web のみ</text><g transform="translate(0 44)"><rect x="28" y="120" width="115" height="42" rx="12" fill="url(#glass)" stroke="#FFFFFF" stroke-opacity=".12"/>
+<use href="#i-docker" x="41" y="131" width="20" height="20" fill="#2496ED" />
+<text x="72" y="147.12" font-size="17" font-weight="500" fill="#E4E4E7" class="t">Docker</text><rect x="153" y="120" width="197" height="42" rx="12" fill="url(#glass)" stroke="#FFFFFF" stroke-opacity=".12"/>
+<use href="#i-docker" x="166" y="131" width="20" height="20" fill="#2496ED" />
+<text x="197" y="147.12" font-size="17" font-weight="500" fill="#E4E4E7" class="t">Docker Compose</text><rect x="360" y="120" width="96" height="42" rx="12" fill="url(#glass)" stroke="#FFFFFF" stroke-opacity=".12"/>
+<use href="#i-wrench" x="373" y="131" width="20" height="20" stroke="#F59E0B" />
+<text x="404" y="147.12" font-size="17" font-weight="500" fill="#E4E4E7" class="t">mise</text><line x1="28" y1="184" x2="538" y2="184" stroke="#FFFFFF" stroke-opacity=".08"/><use href="#i-play" x="28" y="215" width="20" height="20" stroke="#71717A" /><rect x="62" y="204" width="99" height="42" rx="12" fill="#38BDF8" fill-opacity=".08" stroke="#38BDF8" stroke-opacity=".35"/>
+<text x="78" y="230.5" font-size="16" fill="#BAE6FD" class="m">dockerd</text><rect x="171" y="204" width="147" height="42" rx="12" fill="#38BDF8" fill-opacity=".08" stroke="#38BDF8" stroke-opacity=".35"/>
+<text x="187" y="230.5" font-size="16" fill="#BAE6FD" class="m">mise install</text><rect x="328" y="204" width="195" height="42" rx="12" fill="#38BDF8" fill-opacity=".08" stroke="#38BDF8" stroke-opacity=".35"/>
+<text x="344" y="230.5" font-size="16" fill="#BAE6FD" class="m">docker compose up</text>
+</g><text x="538" y="382" font-size="20" font-weight="700" fill="#38BDF8" text-anchor="end" class="t">README →</text></g>
+<g transform="skewX(-20)"><rect class="shine" x="0" y="0" width="260" height="422" fill="url(#sheen)"/></g>
+</g>
+</svg>
