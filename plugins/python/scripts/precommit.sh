@@ -5,7 +5,7 @@ set -uo pipefail
 
 export PATH="$HOME/.local/bin:$PATH"
 command -v uv > /dev/null 2>&1 || exit 0
-BIN="${CLAUDE_PLUGIN_ROOT:-$(cd "$(dirname "$0")/.." && pwd)}/bin"
+BIN="${CLAUDE_PLUGIN_ROOT:-$(cd "$(dirname "$0")/.." && pwd)}/tools"
 cd "${CLAUDE_PROJECT_DIR:-.}" || exit 0
 
 # Claude が読みやすいよう、出力から色のコードを取り除く (Mac の sed でも動く書き方)
