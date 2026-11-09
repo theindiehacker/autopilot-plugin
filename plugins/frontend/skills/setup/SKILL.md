@@ -18,6 +18,7 @@ argument-hint: "[フォルダ]"
 | shadcn/ui | `components.json` がある | 無い |
 | Playwright | `@playwright/test` が依存にある | 無い |
 | 型チェック | `package.json` の `scripts` に `typecheck` がある | 無い |
+| 依存のルール | `biome.json` の `overrides` と `biome/feature.grit` がある | 無い |
 
 揃っていない項目を一覧にして、項目ごとに行うかをユーザーに聞いてください。行わないと答えた項目は飛ばします。
 
@@ -53,6 +54,12 @@ argument-hint: "[フォルダ]"
 ### 型チェック
 `package.json` の `scripts` に `"typecheck": "tsc --noEmit"` を足してください (commit の前に precommit.sh がこれを動かします)。Next.js では `next typegen && tsc --noEmit` (`next-env.d.ts` などの型を先に作るため)、`tsconfig.json` が `references` で分かれている (Vite など) なら `tsc -b` にします。`typescript` が依存に無ければ `bun add -d typescript` で入れてください。
 
+### 依存のルール
+Next.js のときだけ行います。architecture:standard スキルの標準 (feature ベース) の import の向きを、Biome で検査できるようにします。
+1. architecture:standard スキルを読み、ディレクトリの構成 (`src/app`・`src/features/<モジュール>`・`src/components`・`src/lib`) と `tsconfig.json` の `@/*` → `./src/*` が標準と同じかを調べる。違えば、どう合わせるかを先にユーザーに聞く
+2. そのスキルの `templates/nextjs/biome.overrides.json` の `overrides` を `biome.json` に足し、`templates/nextjs/biome/` を `biome/` に写す
+3. `bunx biome check .` と `bash biome/features.test.sh` で確かめる。違反は一覧にして伝え、直すのは頼まれたときだけにする
+
 ## 3. 確かめる
 次がすべて通ることを確かめ、結果をユーザーに伝えてください。
 
@@ -74,6 +81,12 @@ bun run typecheck
 
 ```bash
 bun run test:e2e
+```
+
+依存のルールを入れたときは、次も確かめてください。
+
+```bash
+bash biome/features.test.sh
 ```
 
 動かせなかった検査があれば、理由と一緒に伝えてください。commit・PR は、頼まれたときだけ行ってください。
