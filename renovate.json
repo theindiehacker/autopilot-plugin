@@ -37,6 +37,30 @@
       "versioningTemplate": "npm"
     },
     {
+      "description": "plugins/*/scripts/*.sh の releases.hashicorp.com の URL の terraform の版を更新する (ディレクトリとファイル名の両方の版を置き換える)",
+      "customType": "regex",
+      "managerFilePatterns": ["/^plugins/[^/]+/scripts/[^/]+\\.sh$/"],
+      "matchStrings": ["https://releases\\.hashicorp\\.com/terraform/(?<currentValue>[0-9][^/\\s]*)/\\S+"],
+      "depNameTemplate": "hashicorp/terraform",
+      "datasourceTemplate": "github-releases",
+      "extractVersionTemplate": "^v(?<version>.+)$",
+      "versioningTemplate": "semver"
+    },
+    {
+      "description": "plugins/*/bin/* で go run に版を固定した Go のツール (golangci-lint) を更新する",
+      "customType": "regex",
+      "managerFilePatterns": ["/^plugins/[^/]+/bin/[^/]+$/"],
+      "matchStrings": ["go run (?<depName>[^@\\s]+?)(?:/cmd/[^@\\s]+)?@(?<currentValue>v[^\\s\"]+)"],
+      "datasourceTemplate": "go"
+    },
+    {
+      "description": "plugins/*/.claude-plugin/plugin.json で go run に版を固定した gopls を更新する",
+      "customType": "regex",
+      "managerFilePatterns": ["/^plugins/[^/]+/\\.claude-plugin/plugin\\.json$/"],
+      "matchStrings": ["\"(?<depName>golang\\.org/x/tools/gopls)@(?<currentValue>v[^\"]+)\""],
+      "datasourceTemplate": "go"
+    },
+    {
       "description": ".claude-plugin/marketplace.json の git-subdir で固定した外部のプラグインの sha を、ref のブランチの最新のコミットに更新する",
       "customType": "regex",
       "managerFilePatterns": ["/^\\.claude-plugin/marketplace\\.json$/"],
@@ -50,7 +74,7 @@
   "packageRules": [
     {
       "description": "公開から 7 日たった版だけを取り込む。乗っ取られて悪意のあるコードを入れられた版は、公開から数日で見つかり取り下げられることが多い",
-      "matchDatasources": ["pypi", "npm"],
+      "matchDatasources": ["pypi", "npm", "go"],
       "minimumReleaseAge": "7 days"
     }
   ]

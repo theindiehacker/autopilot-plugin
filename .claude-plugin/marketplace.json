@@ -8,6 +8,10 @@
   "allowCrossMarketplaceDependenciesOn": ["claude-plugins-official"],
   "plugins": [
     {
+      "name": "architecture",
+      "source": "./plugins/architecture"
+    },
+    {
       "name": "cloud",
       "source": "./plugins/cloud"
     },
@@ -16,12 +20,20 @@
       "source": "./plugins/frontend"
     },
     {
+      "name": "go",
+      "source": "./plugins/go"
+    },
+    {
       "name": "python",
       "source": "./plugins/python"
     },
     {
       "name": "security",
       "source": "./plugins/security"
+    },
+    {
+      "name": "terraform",
+      "source": "./plugins/terraform"
     },
     {
       "name": "security-audit",

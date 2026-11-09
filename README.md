@@ -6,15 +6,18 @@
 
 <p align="center">
   <a href="https://code.claude.com/docs/en/discover-plugins"><img src="https://img.shields.io/badge/Claude_Code-indiehacker-D97757?style=for-the-badge&logo=claude&logoColor=white&labelColor=0B0B12" alt="Claude Code"></a>
+  <a href="plugins/architecture"><img src="https://img.shields.io/badge/dynamic/json?url=https%3A%2F%2Fraw.githubusercontent.com%2Ftheindiehacker%2Fdev-plugins%2Fmain%2Fplugins%2Farchitecture%2F.claude-plugin%2Fplugin.json&query=%24.version&prefix=v&label=architecture&style=for-the-badge&color=F472B6&labelColor=0B0B12" alt="architecture"></a>
   <a href="plugins/frontend"><img src="https://img.shields.io/badge/dynamic/json?url=https%3A%2F%2Fraw.githubusercontent.com%2Ftheindiehacker%2Fdev-plugins%2Fmain%2Fplugins%2Ffrontend%2F.claude-plugin%2Fplugin.json&query=%24.version&prefix=v&label=frontend&style=for-the-badge&color=A78BFA&labelColor=0B0B12" alt="frontend"></a>
   <a href="plugins/python"><img src="https://img.shields.io/badge/dynamic/json?url=https%3A%2F%2Fraw.githubusercontent.com%2Ftheindiehacker%2Fdev-plugins%2Fmain%2Fplugins%2Fpython%2F.claude-plugin%2Fplugin.json&query=%24.version&prefix=v&label=python&style=for-the-badge&color=FACC15&labelColor=0B0B12" alt="python"></a>
+  <a href="plugins/go"><img src="https://img.shields.io/badge/dynamic/json?url=https%3A%2F%2Fraw.githubusercontent.com%2Ftheindiehacker%2Fdev-plugins%2Fmain%2Fplugins%2Fgo%2F.claude-plugin%2Fplugin.json&query=%24.version&prefix=v&label=go&style=for-the-badge&color=00ADD8&labelColor=0B0B12" alt="go"></a>
+  <a href="plugins/terraform"><img src="https://img.shields.io/badge/dynamic/json?url=https%3A%2F%2Fraw.githubusercontent.com%2Ftheindiehacker%2Fdev-plugins%2Fmain%2Fplugins%2Fterraform%2F.claude-plugin%2Fplugin.json&query=%24.version&prefix=v&label=terraform&style=for-the-badge&color=7B42BC&labelColor=0B0B12" alt="terraform"></a>
   <a href="plugins/cloud"><img src="https://img.shields.io/badge/dynamic/json?url=https%3A%2F%2Fraw.githubusercontent.com%2Ftheindiehacker%2Fdev-plugins%2Fmain%2Fplugins%2Fcloud%2F.claude-plugin%2Fplugin.json&query=%24.version&prefix=v&label=cloud&style=for-the-badge&color=38BDF8&labelColor=0B0B12" alt="cloud"></a>
   <a href="plugins/security"><img src="https://img.shields.io/badge/dynamic/json?url=https%3A%2F%2Fraw.githubusercontent.com%2Ftheindiehacker%2Fdev-plugins%2Fmain%2Fplugins%2Fsecurity%2F.claude-plugin%2Fplugin.json&query=%24.version&prefix=v&label=security&style=for-the-badge&color=34D399&labelColor=0B0B12" alt="security"></a>
   <a href="renovate.json"><img src="https://img.shields.io/badge/Renovate-308BE3?style=for-the-badge&logo=renovate&logoColor=white" alt="Renovate"></a>
 </p>
 
 <p align="center">
-  <img src="docs/images/readme/plugins.svg" width="100%" alt="frontend · python · cloud · security">
+  <img src="docs/images/readme/plugins.svg" width="100%" alt="architecture · frontend · python · go · terraform · cloud · security">
 </p>
 
 <p align="center">
@@ -75,8 +78,10 @@
   claude plugin install security@indiehacker
   claude plugin install frontend@indiehacker
   claude plugin install python@indiehacker
+  claude plugin install go@indiehacker
+  claude plugin install terraform@indiehacker
 
-  # 2026-11-08
+  # 2026-11-09
   ```
 
 - ② 「<」を押して、前の画面に戻ります。
@@ -115,11 +120,13 @@ claude plugin marketplace add theindiehacker/dev-plugins
 claude plugin install security@indiehacker
 claude plugin install frontend@indiehacker
 claude plugin install python@indiehacker
+claude plugin install go@indiehacker
+claude plugin install terraform@indiehacker
 ```
 
 **3. 結果を確かめる**
 
-赤枠のように `✔` が 5 つ出れば成功です。
+赤枠のように `✔` が 7 つ出れば成功です。
 
 <img src="docs/images/pc-install.png" width="700" alt="ターミナルの画面。コマンドごとに出る ✔ Successfully の表示を赤枠で示している">
 
@@ -130,5 +137,8 @@ Claude Code を開いていたら、起動し直します。
 > [!NOTE]
 > - `cloud` は Claude Code on the Web のセッションを準備するプラグインなので、PC には入れません。
 > - `security` のコミット・push 前の検査には、Semgrep・Gitleaks・Trivy が要ります。Mac では `brew install semgrep gitleaks trivy` で入れられます。
+> - `go` には Go が要ります。Mac では `brew install go` で入れられます。
+> - `terraform` には Terraform・TFLint が要ります。Mac では `brew install hashicorp/tap/terraform tflint` で入れられます。
+> - `architecture` (統一のアーキテクチャの標準) は、`frontend`・`python`・`go`・`terraform` を入れると一緒に入ります。
 
 </details>
