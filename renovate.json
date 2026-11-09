@@ -21,17 +21,17 @@
       "versioningTemplate": "pep440"
     },
     {
-      "description": "plugins/*/bin/* で uv run --with に版を固定した PyPI のツール (deptry・import-linter) を更新する",
+      "description": "plugins/*/tools/* で uv run --with に版を固定した PyPI のツール (deptry・import-linter) を更新する",
       "customType": "regex",
-      "managerFilePatterns": ["/^plugins/[^/]+/bin/[^/]+$/"],
+      "managerFilePatterns": ["/^plugins/[^/]+/tools/[^/]+$/"],
       "matchStrings": ["--with (?<depName>[a-zA-Z0-9._-]+)==(?<currentValue>[^\\s\"]+)"],
       "datasourceTemplate": "pypi",
       "versioningTemplate": "pep440"
     },
     {
-      "description": "plugins/*/bin/* で bunx に版を固定した npm のツール (biome) を更新する",
+      "description": "plugins/*/tools/* で bunx に版を固定した npm のツール (biome) を更新する",
       "customType": "regex",
-      "managerFilePatterns": ["/^plugins/[^/]+/bin/[^/]+$/"],
+      "managerFilePatterns": ["/^plugins/[^/]+/tools/[^/]+$/"],
       "matchStrings": ["bunx (?<depName>@?[a-zA-Z0-9._/-]+)@(?<currentValue>[0-9][^\\s\"\\\\]*)"],
       "datasourceTemplate": "npm",
       "versioningTemplate": "npm"
@@ -47,9 +47,9 @@
       "versioningTemplate": "semver"
     },
     {
-      "description": "plugins/*/bin/* で go run に版を固定した Go のツール (golangci-lint) を更新する",
+      "description": "plugins/*/tools/* で go run に版を固定した Go のツール (golangci-lint) を更新する",
       "customType": "regex",
-      "managerFilePatterns": ["/^plugins/[^/]+/bin/[^/]+$/"],
+      "managerFilePatterns": ["/^plugins/[^/]+/tools/[^/]+$/"],
       "matchStrings": ["go run (?<depName>[^@\\s]+?)(?:/cmd/[^@\\s]+)?@(?<currentValue>v[^\\s\"]+)"],
       "datasourceTemplate": "go"
     },

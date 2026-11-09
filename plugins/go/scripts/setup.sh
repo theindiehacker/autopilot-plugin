@@ -4,7 +4,7 @@ set -uo pipefail
 
 # プラグインのコマンド (golangci-lint) をコマンド名だけで呼べるようにする。ほかで入れた golangci-lint より先に見つかるよう、先頭に足す
 PLUGIN_ROOT="${CLAUDE_PLUGIN_ROOT:-$(cd "$(dirname "$0")/.." && pwd)}"
-PLUGIN_BIN="$PLUGIN_ROOT/bin"
+PLUGIN_BIN="$PLUGIN_ROOT/tools"
 [ -z "${CLAUDE_ENV_FILE:-}" ] || echo "export PATH=\"$PLUGIN_BIN:\$PATH\"" >> "$CLAUDE_ENV_FILE"
 
 cd "${CLAUDE_PROJECT_DIR:-.}" || exit 0

@@ -4,7 +4,7 @@ set -uo pipefail
 
 # uv で入れたツールと、プラグインのコマンド (deptry・lint-imports) をコマンド名だけで呼べるようにする
 BIN="$HOME/.local/bin"
-PLUGIN_BIN="${CLAUDE_PLUGIN_ROOT:-$(cd "$(dirname "$0")/.." && pwd)}/bin"
+PLUGIN_BIN="${CLAUDE_PLUGIN_ROOT:-$(cd "$(dirname "$0")/.." && pwd)}/tools"
 export PATH="$PLUGIN_BIN:$BIN:$PATH" UV_TOOL_BIN_DIR="$BIN" UV_INSTALL_DIR="$BIN"
 [ -z "${CLAUDE_ENV_FILE:-}" ] || echo "export PATH=\"$PLUGIN_BIN:\$HOME/.local/bin:\$PATH\"" >> "$CLAUDE_ENV_FILE"
 

@@ -4,7 +4,7 @@
 set -uo pipefail
 
 command -v go > /dev/null 2>&1 || exit 0
-BIN="${CLAUDE_PLUGIN_ROOT:-$(cd "$(dirname "$0")/.." && pwd)}/bin"
+BIN="${CLAUDE_PLUGIN_ROOT:-$(cd "$(dirname "$0")/.." && pwd)}/tools"
 cd "${CLAUDE_PROJECT_DIR:-.}" || exit 0
 
 # Go を使わないリポジトリでは何もしない (golangci-lint をビルドしないため)

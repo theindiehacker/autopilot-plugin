@@ -3,7 +3,7 @@
 set -uo pipefail
 
 # プラグインのコマンド (biome) をコマンド名だけで呼べるようにする。Mac の mise の biome より先に見つかるよう、先頭に足す
-PLUGIN_BIN="${CLAUDE_PLUGIN_ROOT:-$(cd "$(dirname "$0")/.." && pwd)}/bin"
+PLUGIN_BIN="${CLAUDE_PLUGIN_ROOT:-$(cd "$(dirname "$0")/.." && pwd)}/tools"
 [ -z "${CLAUDE_ENV_FILE:-}" ] || echo "export PATH=\"$PLUGIN_BIN:\$PATH\"" >> "$CLAUDE_ENV_FILE"
 
 cd "${CLAUDE_PROJECT_DIR:-.}" || exit 0
