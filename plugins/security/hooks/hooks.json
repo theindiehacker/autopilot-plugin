@@ -19,7 +19,7 @@
           {
             "type": "command",
             "if": "Bash(*git*commit*)",
-            "command": "cd \"$CLAUDE_PROJECT_DIR\" && gitleaks dir . --redact --verbose --ignore-gitleaks-allow --exit-code 2 1>&2",
+            "command": "bash \"${CLAUDE_PLUGIN_ROOT}/scripts/in-git-files.sh\" gitleaks dir . --redact --verbose --ignore-gitleaks-allow --exit-code 2",
             "timeout": 120
           },
           {
@@ -31,7 +31,7 @@
           {
             "type": "command",
             "if": "Bash(*git*push*)",
-            "command": "cd \"$CLAUDE_PROJECT_DIR\" && trivy fs --scanners vuln,misconfig,secret --severity HIGH,CRITICAL --ignore-unfixed --exit-code 2 . 1>&2",
+            "command": "bash \"${CLAUDE_PLUGIN_ROOT}/scripts/in-git-files.sh\" trivy fs --scanners vuln,misconfig,secret --severity HIGH,CRITICAL --ignore-unfixed --exit-code 2 .",
             "timeout": 300
           }
         ]
