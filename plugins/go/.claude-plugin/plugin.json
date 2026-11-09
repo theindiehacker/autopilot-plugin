@@ -1,0 +1,21 @@
+{
+  "name": "go",
+  "displayName": "go@indiehacker",
+  "version": "0.1.0",
+  "description": "Go・gofmt・golangci-lint の開発で使うプラグイン",
+  "repository": "https://github.com/theindiehacker/dev-plugins",
+  "dependencies": [
+    "security-guidance@claude-plugins-official",
+    "superpowers@claude-plugins-official",
+    "architecture"
+  ],
+  "lspServers": {
+    "gopls": {
+      "command": "go",
+      "args": ["run", "golang.org/x/tools/gopls@v0.24.0"],
+      "extensionToLanguage": {
+        ".go": "go"
+      }
+    }
+  }
+}

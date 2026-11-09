@@ -1,0 +1,4 @@
+#!/bin/sh
+# 版を固定した golangci-lint を、go run でビルドして動かす。配布のバイナリは、ビルドした Go より新しい版のコードを検査できないため。
+# ビルドしたものは Go のキャッシュに残り、2 回目からはすぐ動く
+exec go run github.com/golangci/golangci-lint/v2/cmd/golangci-lint@v2.15.0 "$@"
