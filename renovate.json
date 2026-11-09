@@ -29,7 +29,7 @@
       "versioningTemplate": "pep440"
     },
     {
-      "description": "plugins/*/tools/* で bunx に版を固定した npm のツール (biome) を更新する",
+      "description": "plugins/*/tools/* で bunx に版を固定した npm のツール (biome・typescript-language-server) を更新する",
       "customType": "regex",
       "managerFilePatterns": ["/^plugins/[^/]+/tools/[^/]+$/"],
       "matchStrings": ["bunx (?<depName>@?[a-zA-Z0-9._/-]+)@(?<currentValue>[0-9][^\\s\"\\\\]*)"],

@@ -10,13 +10,17 @@ command -v uv > /dev/null 2>&1 || exit 0
 FILE=$(uv run --no-project --no-config --quiet python -I -c \
   'import json, sys; print(json.load(sys.stdin).get("tool_input", {}).get("file_path", ""))' 2> /dev/null) || exit 0
 case "$FILE" in *.py | *.pyi) ;; *) exit 0 ;; esac
-case "$FILE" in /*) ;; *) FILE="$PWD/$FILE" ;; esac
-[ -f "$FILE" ] || exit 0
+[ -f "$FILE" ] && [ ! -L "$FILE" ] || exit 0
+
+# プロジェクトの外は見ない (よそのフォルダの設定や .venv の ruff を動かさないため)。.. とシンボリックリンクを解決して比べる
+ROOT=$(cd -P -- "${CLAUDE_PROJECT_DIR:-$PWD}" && pwd -P) || exit 0
+DIR=$(cd -P -- "$(dirname -- "$FILE")" && pwd -P) || exit 0
+FILE="$DIR/$(basename -- "$FILE")"
+case "$FILE" in "$ROOT"/*) ;; *) exit 0 ;; esac
 
 # 📂 pyproject.toml のあるフォルダで動かす。設定と .venv をそこから読む。無ければ何もしない
-DIR=$(dirname -- "$FILE")
 until [ -f "$DIR/pyproject.toml" ]; do
-  [ "$DIR" != / ] || exit 0
+  [ "$DIR" != "$ROOT" ] || exit 0
   DIR=$(dirname -- "$DIR")
 done
 cd "$DIR" || exit 0

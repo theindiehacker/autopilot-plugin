@@ -7,7 +7,6 @@ BIOME="${CLAUDE_PLUGIN_ROOT:-$(cd "$(dirname "$0")/.." && pwd)}/tools/biome"
 
 # 📝 フックの入力から、編集したファイルを取り出す。jq は Mac に無いことがあるため、sed で読む
 FILE=$(sed -n 's/.*"file_path": *"\([^"]*\)".*/\1/p' | head -1)
-case "$FILE" in /*) ;; *) FILE="$PWD/$FILE" ;; esac
 [ -f "$FILE" ] && [ ! -L "$FILE" ] || exit 0
 
 # プロジェクトの外は見ない (よそのフォルダの設定や biome を動かさないため)。.. とシンボリックリンクを解決して比べる
