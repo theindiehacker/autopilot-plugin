@@ -1,0 +1,7 @@
+# golangci-lint の設定 (architecture プラグインの標準)。CI では golangci-lint run ./... で動かす
+version: "2"
+linters:
+  default: standard
+formatters:
+  enable:
+    - gofmt

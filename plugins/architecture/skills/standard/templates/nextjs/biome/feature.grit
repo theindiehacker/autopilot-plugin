@@ -1,0 +1,16 @@
+// feature は別の feature を import できない (architecture プラグインの標準)。biome.json の overrides で src/features/*/** にだけ付ける。
+// 自分の feature 名が要るので、Biome の noRestrictedImports では書けない。ほかの依存のルールは biome.json の noRestrictedImports にある。
+// 守るのはルールを忘れたときで、わざとすり抜ける書き方 (require()・@/./features など) は見ない。
+// ルールを変えたら biome/features.test.sh も直す
+language js
+
+or {
+  JsModuleSource() as $source,
+  `import($source)`
+} where {
+  // 自分の feature 名は、パスの最後の src/features/<名前>/ から取る (clone 先のパスに src/features/ があっても誤らない)
+  $filename <: r"(?:.*[/\\])?src[/\\]features[/\\]([^/\\]+)[/\\].*"($feature),
+  $source <: r".@/features/([^/]+?)(?:/.*|.)"($other),
+  not $other <: $feature,
+  register_diagnostic(span=$source, message="feature は別の feature を import できません。両方が要る画面は、app の page で組み立ててください")
+}

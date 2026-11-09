@@ -1,0 +1,36 @@
+# 依存の向きの検査 (architecture プラグインの標準)。pyproject.toml に足し、uv run lint-imports で動かす
+# root_packages には、src 直下のパッケージ (モジュールと shared) をすべて並べる。並べていないパッケージは検査されない。
+# shared が無ければ外す。ほかの契約はモジュール名を書かないため、モジュールを足しても root_packages だけを直す
+[tool.importlinter]
+root_packages = ["shared", "<モジュール>"]
+
+# モジュールの中の層。上の層は下の層を import できるが、逆はできない。どの層も無くてよい
+[[tool.importlinter.contracts]]
+id = "hexagonal-layers"
+name = "ヘキサゴナルアーキテクチャ (層の向き)"
+type = "layers"
+containers = ["*"]
+layers = ["(core)", "(middleware)", "(port)", "(application)", "(domain)", "(exception)"]
+
+# 受け付ける側のアダプター (resource・messaging・tool) は domain を使わず、application を通す
+[[tool.importlinter.contracts]]
+id = "hexagonal-domain"
+name = "ヘキサゴナルアーキテクチャ (domain を使える層)"
+type = "protected"
+protected_modules = ["*.domain"]
+allowed_importers = ["*.core", "*.application", "*.port.adapter.persistence", "*.port.adapter.service"]
+
+# モジュール同士は import しない。shared はどのモジュールからも使えるが、shared からモジュールは使えない。
+# 腐敗防止層 (port.adapter.service.<相手>.adapter) から、相手の公開 IF (port.adapter.resource) を呼ぶときだけ許す
+[[tool.importlinter.contracts]]
+id = "modularmonolithic"
+name = "モジュラモノリス (モジュールの独立)"
+type = "independence"
+modules = ["*"]
+ignore_imports = [
+  "** -> shared",
+  "** -> shared.**",
+  "*.port.adapter.service.*.adapter.** -> *.port.adapter.resource.**",
+]
+# shared や腐敗防止層がまだ無くても止めない
+unmatched_ignore_imports_alerting = "none"

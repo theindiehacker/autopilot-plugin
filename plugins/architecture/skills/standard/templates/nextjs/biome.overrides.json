@@ -1,0 +1,65 @@
+{
+  "overrides": [
+    {
+      "includes": ["src/features/*/**"],
+      "plugins": ["./biome/feature.grit"],
+      "linter": {
+        "rules": {
+          "style": {
+            "noRestrictedImports": {
+              "level": "error",
+              "options": {
+                "patterns": [
+                  {
+                    "group": ["@/app", "@/app/**"],
+                    "message": "app (組み立てる側) は import できません"
+                  },
+                  {
+                    "group": ["@/*", "!@/app", "!@/features"],
+                    "message": "@/<名前> だけの import はできません。@/<ディレクトリ>/<ファイル> まで書いてください (src 直下のファイルは組み立てる側なので import できません)"
+                  },
+                  {
+                    "group": ["../**"],
+                    "message": "app の外では .. を使えません。別のディレクトリのファイルは @/ から import してください"
+                  }
+                ]
+              }
+            }
+          }
+        }
+      }
+    },
+    {
+      "includes": ["src/*/**", "!src/app/**", "!src/features/**"],
+      "linter": {
+        "rules": {
+          "style": {
+            "noRestrictedImports": {
+              "level": "error",
+              "options": {
+                "patterns": [
+                  {
+                    "group": ["@/features", "@/features/**"],
+                    "message": "共通のコード (app・features 以外) は features を import できません"
+                  },
+                  {
+                    "group": ["@/app", "@/app/**"],
+                    "message": "app (組み立てる側) は import できません"
+                  },
+                  {
+                    "group": ["@/*", "!@/app", "!@/features"],
+                    "message": "@/<名前> だけの import はできません。@/<ディレクトリ>/<ファイル> まで書いてください (src 直下のファイルは組み立てる側なので import できません)"
+                  },
+                  {
+                    "group": ["../**"],
+                    "message": "app の外では .. を使えません。別のディレクトリのファイルは @/ から import してください"
+                  }
+                ]
+              }
+            }
+          }
+        }
+      }
+    }
+  ]
+}

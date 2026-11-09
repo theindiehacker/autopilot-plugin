@@ -1,0 +1,7 @@
+{
+  "name": "architecture",
+  "displayName": "architecture@indiehacker",
+  "version": "0.1.0",
+  "description": "統一のアーキテクチャ (モジュラモノリス + ヘキサゴナル・feature ベース・Terraform) の標準と、検査の設定のテンプレート",
+  "repository": "https://github.com/theindiehacker/dev-plugins"
+}
