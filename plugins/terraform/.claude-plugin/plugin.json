@@ -1,0 +1,12 @@
+{
+  "name": "terraform",
+  "displayName": "terraform@indiehacker",
+  "version": "0.1.0",
+  "description": "Terraform・tflint のインフラ開発で使うプラグイン",
+  "repository": "https://github.com/theindiehacker/dev-plugins",
+  "dependencies": [
+    "security-guidance@claude-plugins-official",
+    "superpowers@claude-plugins-official",
+    "architecture"
+  ]
+}
