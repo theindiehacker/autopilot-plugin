@@ -35,7 +35,8 @@ if [ -n "$(git ls-files -- '*pyproject.toml' '*requirements*.txt' '*setup.py' 2>
 - パッケージの管理と実行は uv (uv add / uv run / uvx)。pip・poetry・pipenv は使わない
 - lint と整形は ruff。flake8・black・isort・pylint は使わない
 - 型の検査は ty。mypy・pyright は使わない
-- 依存の過不足は deptry、import の向きは import-linter で検査する
+- 依存の過不足は deptry で検査する
+- モジュールの構成と依存の向きは、architecture:standard スキルの標準 (モジュラモノリス + ヘキサゴナル) に従う。import の向きは import-linter で検査する
 - 機能を足す・変えるときは、pytest でテストを書く
 - このリポジトリが pip・flake8 など上と違う道具を使っていたら、/python:setup で移行できるとユーザーに伝える。頼まれるまで移行しない
 EOF2

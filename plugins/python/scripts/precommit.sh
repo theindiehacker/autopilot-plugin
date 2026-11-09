@@ -1,5 +1,5 @@
 #!/usr/bin/env bash
-# Claude が commit する前に、deptry と import-linter で検査するスクリプト。
+# Claude が commit する前に、deptry と import-linter で検査するスクリプト (import-linter の root_packages の並べ忘れも見る)。
 # 問題があれば exit 2 で commit を止め、Claude に直させる
 set -uo pipefail
 
@@ -32,6 +32,21 @@ while IFS= read -r -d '' LOCK; do
     grep -qs '^\[tool\.importlinter' "$DIR/pyproject.toml"; then
     if ! R=$(cd "$DIR" && "$BIN/lint-imports" 2>&1); then
       printf '❌ lint-imports (%s):\n%s\n' "$DIR" "$(nocolor "$R")" >&2
+      FAIL=1
+    fi
+
+    # 🧭 src 直下のパッケージが、すべて root_packages に並んでいるか (並べ忘れたパッケージは、import-linter が検査しないため)
+    if [ -d "$DIR/src" ] && grep -qs '^\[tool\.importlinter' "$DIR/pyproject.toml" &&
+      ! R=$(cd "$DIR" && uv run --no-project --no-config --quiet --python '>=3.11' python -I -c '
+import pathlib, tomllib
+conf = tomllib.load(open("pyproject.toml", "rb")).get("tool", {}).get("importlinter", {})
+listed = set(conf.get("root_packages", [])) | {conf.get("root_package")}
+missing = sorted(p.parent.name for p in pathlib.Path("src").glob("*/__init__.py") if p.parent.name not in listed)
+for name in missing:
+    print(f"- src/{name} が [tool.importlinter] の root_packages にありません。足してください")
+raise SystemExit(1 if missing else 0)
+' 2>&1); then
+      printf '❌ import-linter の設定 (%s):\n%s\n' "$DIR" "$R" >&2
       FAIL=1
     fi
   fi

@@ -47,9 +47,9 @@ argument-hint: "[フォルダ]"
 `deptry src` (src レイアウトでなければ `deptry .`) で検査し、足りない依存は `uv add`、使っていない依存は `uv remove` で直してください。誤検知だけ `[tool.deptry]` で除外します (commit の前に precommit.sh がこれを動かします)。
 
 ### import-linter
-1. パッケージの層 (例: `presentation → application → domain`) と依存の向きを、ユーザーに確かめる
-2. `pyproject.toml` の `[tool.importlinter]` に `root_package` を書き、`[[tool.importlinter.contracts]]` に `type = "layers"` の契約を書く
-3. `lint-imports` で確かめる (commit の前に precommit.sh がこれを動かします)
+1. `uv add --dev import-linter` で入れる (CI でも `uv run lint-imports` で動かせるようにするため)
+2. architecture:standard スキルを読み、その `templates/python/importlinter.toml` を `pyproject.toml` に写す。`root_packages` には `src` 直下のパッケージをすべて並べる。ディレクトリ構成が標準と違えば、どう合わせるかを先にユーザーに聞く
+3. `lint-imports` で確かめる (commit の前に precommit.sh がこれを動かします)。違反は一覧にして伝え、直すのは頼まれたときだけにする
 
 ### pytest
 1. `uv add --dev pytest` で入れる
