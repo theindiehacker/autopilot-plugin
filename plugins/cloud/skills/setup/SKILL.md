@@ -18,7 +18,7 @@ description: Claude Code on the Web のクラウド環境で Docker (docker comp
 | 項目 | 揃っている | 直す |
 |---|---|---|
 | compose ファイル | ルートに `compose.yaml` などがある | 無い |
-| ビルドの CA | 通信する `RUN` が secret を読んでいる | 読んでいない |
+| ビルドの CA | HTTPS で取得する `RUN` が secret を読んでいる | 読んでいない |
 | `.env` | `.env` が無くても `docker compose config` が通り、値が空にならない | `env_file` が必須、または変数に既定値が無い |
 | Mac 専用の設定 | 無い | `platform: linux/arm64`、リポジトリの外のパス (`~/`・`/Users/` など) の mount |
 | 終了するサービス | 無い、または待つ側が `service_completed_successfully` で待っている | migration などが終了する |
@@ -56,7 +56,7 @@ OS の証明書を読まないツールには、同じ `RUN` で環境変数を�
 
 - 多段ビルドでは、HTTPS で取得する `RUN` のある段すべてに付ける
 - 環境変数は `ENV` にせず、その `RUN` だけに付ける。ローカルのイメージには、このパスが無いことがあるため (`NODE_EXTRA_CA_CERTS` は、ファイルが無くても警告が出るだけで動きます)
-- `ca-certificates` を入れる `RUN` には付けない。mount したファイルを書き換えられず、dpkg が失敗します。同じ `RUN` で他の取得もしていれば、`RUN` を分ける (`apt-get` は http なので CA が要りません)
+- `ca-certificates` を入れる `RUN` (`apt-get`・`apk` など) には付けない。mount したファイルを書き換えられず、パッケージの導入が失敗します。同じ `RUN` で他の取得もしていれば、`RUN` を分ける
 - TLS の検証を切る (`strict-ssl false`・`--trusted-host`・`curl -k` など)、`network: host`、プロキシの設定は使わない
 
 ### `.env`
@@ -70,7 +70,7 @@ OS の証明書を読まないツールには、同じ `RUN` で環境変数を�
 - リポジトリの外のパスの mount は、名前付き volume にする。ローカルのデータを引き継ぐ必要があるかは、ユーザーに確かめる
 
 ### 終了するサービス
-`docker compose up --wait` は、サービスが 1 つでも終了すると失敗します。migration など終了するサービスは、待つ側の `depends_on` を `condition: service_completed_successfully` にしてください。待つ側が無ければ `profiles` に入れ、既定では起動しないようにします。
+`docker compose up --wait` は、サービスが 1 つでも終了すると失敗します。migration など終了するサービスは、それを使うサービス (アプリなど) の `depends_on` に `condition: service_completed_successfully` で足してください。ローカルでも今までどおり、`up` で動きます。どのサービスが使うか分からなければ、ユーザーに聞いてください。`profiles` に入れると、ローカルの `up` で動かなくなるため使いません。
 
 ### ドメイン
 名前を解決できないドメインを一覧にし、環境の設定の「許可されたドメイン」に足すよう、ユーザーに頼んでください (例: Debian の `apt-get` → `deb.debian.org`)。Dockerfile の手順を消したり、別の経路で回避したりしないでください。足すまでは、そのビルドを確かめられないと伝えます。
