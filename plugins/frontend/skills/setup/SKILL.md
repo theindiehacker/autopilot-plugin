@@ -22,7 +22,7 @@ argument-hint: "[フォルダ]"
 揃っていない項目を一覧にして、項目ごとに行うかをユーザーに聞いてください。行わないと答えた項目は飛ばします。
 
 ## 2. 移行する
-聞いた順に、1 項目ずつ行ってください。各項目の後で、build が通ることを確かめてください。
+聞いた順に、1 項目ずつ行ってください。各項目の後で、Biome があれば `bunx biome check --write .` で書式を整え (ツールが生成したファイルは Biome の書式に合わないため)、build が通ることを確かめてください。
 
 ### bun
 1. `bun install` で `bun.lock` を作る。bun は古い lock ファイルの版を引き継ぐため、`bun.lock` ができてから古い lock ファイルを消す
@@ -30,32 +30,30 @@ argument-hint: "[フォルダ]"
 3. `scripts`・CI・Dockerfile・README の `npm`・`npx`・`yarn`・`pnpm` を `bun`・`bunx` に置き換える。CI には `oven-sh/setup-bun`、Dockerfile には `oven/bun` のイメージなどで bun を入れる手順を足す
 
 ### Biome
-1. `bun add -d -E @biomejs/biome` で入れ、`bunx biome init` で `biome.json` を作る
+1. `bun add -d -E @biomejs/biome` で入れ、`bunx biome init` で `biome.json` を作る。`files.includes` を `["**", "!**/public"]` にする (`public/` はソースではないため)
 2. ESLint・Prettier の設定があれば、Biome に移す
    - ESLint が `eslint-config-next` だけ (create-next-app の既定) なら、`migrate` を使わず、`linter.domains` の `next`・`react` を `recommended` にする。`migrate` は 300 行ほどの設定を作るため
-   - それ以外は `bunx biome migrate eslint --write` を 1 回だけ実行する (再実行すると `includes` が重複します)。`linter.rules.preset` が `none` になり Biome の推奨ルールが外れるので、`recommended` に戻す。移せないとき (`FlatCompat` を使った設定など) は、ESLint の設定を読んで `linter.domains` と `linter.rules` に手で書く
+   - それ以外は `bunx biome migrate eslint --write` で移し、`none` になる `linter.rules.preset` を `recommended` に戻す。移せないとき (`FlatCompat` を使った設定など) は、ESLint の設定を読んで `linter.domains` と `linter.rules` に手で書く
    - Prettier は `bunx biome migrate prettier --write` で移す
 3. Tailwind CSS を使うなら、`css.parser.tailwindDirectives` を `true` にする (`@theme` などを読めるようにするため)。後で Tailwind CSS を入れるときも同じ
 4. ESLint・Prettier の依存・設定ファイル・`scripts` を消し、`lint` を `biome check`、`format` を `biome format --write` にする
-5. `bunx biome check --write .` で全体を整え、残った問題を直す。`public/` の SVG は画像なので、`noSvgWithoutTitle` が出たら `files.includes` を `["**", "!public"]` にして除く
+5. `bunx biome check --write .` で全体を整え、残った問題を直す
 
 ### Tailwind CSS
 1. フレームワークの公式手順 (https://tailwindcss.com/docs/installation) で入れる。既存のスタイルは、頼まれたときだけ Tailwind CSS に書き換える
 2. 既存のグローバル CSS の要素セレクタのルール (`*`・`body`・`a` など) を `@layer base { }` で囲む。レイヤーの外のルールは Tailwind CSS のクラスより優先され、`* { padding: 0 }` があると `px-2` などが効かないため
-3. Biome があれば、`biome.json` の `css.parser.tailwindDirectives` を `true` にして、`bunx biome check --write .` で書式を整える
+3. Biome があれば、`biome.json` の `css.parser.tailwindDirectives` を `true` にする
 
 ### shadcn/ui
 1. フレームワークの公式手順 (https://ui.shadcn.com/docs/installation) で、import alias (`@/*` など) を用意する。無いと `init` が止まります (Vite など)
-2. `bunx shadcn@latest init -d` で入れる。Tailwind CSS が要ります。`-d` が無いと、端末の無い環境では選択画面を出したまま、何も作らず exit 0 で終わります。`components.json` ができたことを確かめてください
-3. Next.js では、`globals.css` の `--font-sans: var(--font-sans)` を、`layout.tsx` の `next/font` の `variable` に合わせて直す (`var(--font-geist-sans)` など)。自己参照のままだと本文の書体が効かないため
-4. 生成されたファイルは Biome の書式に合わないため、`bunx biome check --write .` で整える
+2. `bunx shadcn@latest init -d` で入れる (端末が無くても動くように)。Tailwind CSS が要ります。exit 0 でも何も作らないことがあるので、`components.json` ができたことを確かめてください
+3. Next.js では、`layout.tsx` の `next/font` の `variable` を `--font-sans` にして、`--font-geist-sans` を使っている CSS も合わせて直す。shadcn/ui の `globals.css` は `--font-sans` を読むため
 
 ### Playwright
 1. `bun add -d @playwright/test` で入れ、`bunx playwright install chromium` でブラウザを入れる
 2. `playwright.config.ts` を作る。`webServer` で開発サーバーを起動し、テストは `e2e/` に置く
 3. トップページが表示されることを確かめるテストを 1 つ書く
 4. `scripts` に `"test:e2e": "playwright test"` を足し、`.gitignore` に `/test-results/`・`/playwright-report/` を足す
-5. Biome があれば、`bunx biome check --write .` で書式を整える
 
 ### 型チェック
 `package.json` の `scripts` に `"typecheck": "tsc --noEmit"` を足してください (commit の前に precommit.sh がこれを動かします)。Next.js では `next typegen && tsc --noEmit` (`next-env.d.ts` などの型を先に作るため)、`tsconfig.json` が `references` で分かれている (Vite など) なら `tsc -b` にします。`typescript` が依存に無ければ `bun add -d typescript` で入れてください。
