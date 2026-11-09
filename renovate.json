@@ -29,9 +29,9 @@
       "versioningTemplate": "pep440"
     },
     {
-      "description": "plugins/*/bin/* と plugin.json で bunx に版を固定した npm のツール (biome・typescript-language-server) を更新する",
+      "description": "plugins/*/bin/* で bunx に版を固定した npm のツール (biome) を更新する",
       "customType": "regex",
-      "managerFilePatterns": ["/^plugins/[^/]+/bin/[^/]+$/", "/^plugins/[^/]+/\\.claude-plugin/plugin\\.json$/"],
+      "managerFilePatterns": ["/^plugins/[^/]+/bin/[^/]+$/"],
       "matchStrings": ["bunx (?<depName>@?[a-zA-Z0-9._/-]+)@(?<currentValue>[0-9][^\\s\"\\\\]*)"],
       "datasourceTemplate": "npm",
       "versioningTemplate": "npm"
