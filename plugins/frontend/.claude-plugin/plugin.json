@@ -1,7 +1,7 @@
 {
   "name": "frontend",
   "displayName": "frontend@indiehacker",
-  "version": "0.6.0",
+  "version": "0.6.1",
   "description": "TypeScript・Next.js・shadcn/ui・Tailwind CSS・Playwright・Biome のフロントエンド開発で使うプラグイン",
   "repository": "https://github.com/theindiehacker/dev-plugins",
   "dependencies": [
@@ -14,7 +14,7 @@
   "lspServers": {
     "typescript": {
       "command": "sh",
-      "args": ["-c", "exec \"$(ls node_modules/.bin/tsc */node_modules/.bin/tsc 2>/dev/null | head -1)\" --lsp --stdio"],
+      "args": ["-c", "t=$(ls node_modules/.bin/tsc */node_modules/.bin/tsc 2>/dev/null | head -1); case \"$(\"$t\" --version 2>/dev/null)\" in \"Version \"[1-6].*) exec bunx typescript-language-server@6.0.2 --stdio ;; esac; exec \"$t\" --lsp --stdio"],
       "extensionToLanguage": {
         ".ts": "typescript",
         ".tsx": "typescriptreact",
