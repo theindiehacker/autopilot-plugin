@@ -29,7 +29,7 @@
 </p>
 
 <p align="center">
-  <a href="plugins/cloud/README.md"><img src="docs/images/readme/plugin-cloud.svg" width="49%" alt="cloud の README を開く。対象: Claude Code on the Web のみ。Docker・Docker Compose・mise、起動時に dockerd・mise install・docker compose up を実行"></a>
+  <a href="plugins/cloud/README.md"><img src="docs/images/readme/plugin-cloud.svg" width="49%" alt="cloud の README を開く。対象: Claude Code on the Web のみ。Docker・Docker Compose・mise、起動時に dockerd・mise install・docker compose up を実行、コマンド /cloud:setup"></a>
   <a href="plugins/security/README.md"><img src="docs/images/readme/plugin-security.svg" width="49%" alt="security の README を開く。対象: すべてのリポジトリ。Gitleaks・Semgrep・Trivy・OWASP Top 10、一緒に入る security-guidance・security-audit・claude-security"></a>
 </p>
 
