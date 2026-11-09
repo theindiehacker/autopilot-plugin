@@ -21,5 +21,9 @@ if [ "${CLAUDE_CODE_REMOTE:-}" = "true" ]; then
 fi
 
 for t in semgrep gitleaks trivy; do
-  "$t" --version > /dev/null 2>&1 || echo "⚠️ $t がありません。コミットと push の前の検査は動きません。ユーザーに伝えてください (ローカルの Mac は brew install $t で入れられます)"
+  if ! command -v "$t" > /dev/null 2>&1; then
+    echo "⚠️ $t がありません。コミットと push の前の検査は動きません。ユーザーに伝えてください (ローカルの Mac は brew install $t で入れられます)"
+  elif ! "$t" --version > /dev/null 2>&1; then
+    echo "⚠️ $t は入っていますが、起動できません。コミットと push の前の検査は動きません。ユーザーに伝えてください ($t --version で原因を確かめられます)"
+  fi
 done

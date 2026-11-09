@@ -13,7 +13,7 @@ commit と push の前に、シークレットと脆弱性を検査するプラ�
 
 - **失敗時:** hook が exit 2 を返し、commit・push を止めて結果を Claude に渡します。Claude が修正してやり直すと再び検査します。
 - **検査の範囲:** 差分ではなくリポジトリ全体が対象です。Gitleaks と Trivy は、git に入るファイル (追跡中と、無視していない新規ファイル) だけを見ます。
-- **ローカルでの準備:** Mac では `brew install semgrep gitleaks trivy` で入れられます。無いと起動時に警告が出るだけで、検査は素通りします。
+- **ローカルでの準備:** Mac では `brew install semgrep gitleaks trivy` で入れられます。無いときや起動できないときは、起動時に警告が出るだけで、検査は素通りします。
 
 ## 🎁 一緒に入るプラグイン
 
