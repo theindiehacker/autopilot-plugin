@@ -13,8 +13,7 @@
   ],
   "lspServers": {
     "typescript": {
-      "command": "sh",
-      "args": ["-c", "t=$(ls node_modules/.bin/tsc */node_modules/.bin/tsc 2>/dev/null | head -1); case \"$(\"$t\" --version 2>/dev/null)\" in \"Version \"[1-6].*) exec bunx typescript-language-server@6.0.2 --stdio ;; esac; exec \"$t\" --lsp --stdio"],
+      "command": "${CLAUDE_PLUGIN_ROOT}/bin/typescript-lsp",
       "extensionToLanguage": {
         ".ts": "typescript",
         ".tsx": "typescriptreact",

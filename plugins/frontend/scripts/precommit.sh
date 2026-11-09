@@ -24,20 +24,22 @@ findtsc() {
 }
 
 FAIL=0
+ROOT=$PWD
 # 📦 tsconfig.json のあるフォルダごとに検査する
 while IFS= read -r -d '' CONF; do
   DIR=$(dirname -- "$CONF")
+  cd "$ROOT/$DIR" || continue
 
-  # 🔍 typecheck スクリプトがあれば、それを使う (Next.js の型の生成などを任せるため)。無ければ tsc で検査する
-  # node を動かせないとき (Mac で node の版が決まっていないなど) は検査しない。直すべき型の問題として Claude に伝えないため
-  if grep -qs '"typecheck" *:' "$DIR/package.json" && command -v bun > /dev/null 2>&1; then
-    # node が無いだけなら、bun が代わりを用意するので動く
-    if command -v node > /dev/null 2>&1 && ! (cd "$DIR" && node --version) > /dev/null 2>&1; then continue; fi
+  # node があるのに動かないとき (Mac で node の版が決まっていないなど) は検査しない。直すべき型の問題として Claude に伝えないため
+  if command -v node > /dev/null 2>&1 && ! node --version > /dev/null 2>&1; then continue; fi
+
+  # 🔍 typecheck スクリプトがあれば、それを使う (Next.js の型の生成などを任せるため。node が無くても bun が代わりを用意する)。無ければ tsc で検査する
+  if grep -qs '"typecheck" *:' package.json && command -v bun > /dev/null 2>&1; then
     NAME="bun run typecheck"
-    R=$(cd "$DIR" && bun run typecheck 2>&1)
-  elif TSC=$(findtsc "$DIR") && (cd "$DIR" && "$TSC" --version) > /dev/null 2>&1; then
+    R=$(bun run typecheck 2>&1)
+  elif TSC=$(findtsc .) && "$TSC" --version > /dev/null 2>&1; then
     NAME="tsc --noEmit"
-    R=$(cd "$DIR" && "$TSC" --noEmit --pretty false 2>&1)
+    R=$("$TSC" --noEmit --pretty false 2>&1)
   else
     continue
   fi || {
