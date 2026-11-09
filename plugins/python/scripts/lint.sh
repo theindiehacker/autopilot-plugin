@@ -10,7 +10,6 @@ command -v uv > /dev/null 2>&1 || exit 0
 FILE=$(uv run --no-project --no-config --quiet python -I -c \
   'import json, sys; print(json.load(sys.stdin).get("tool_input", {}).get("file_path", ""))' 2> /dev/null) || exit 0
 case "$FILE" in *.py | *.pyi) ;; *) exit 0 ;; esac
-case "$FILE" in /*) ;; *) FILE="$PWD/$FILE" ;; esac
 [ -f "$FILE" ] && [ ! -L "$FILE" ] || exit 0
 
 # プロジェクトの外は見ない (よそのフォルダの設定や .venv の ruff を動かさないため)。.. とシンボリックリンクを解決して比べる
