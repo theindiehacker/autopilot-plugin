@@ -1,0 +1,8 @@
+{
+  "name": "dev",
+  "displayName": "dev@indiehacker",
+  "version": "0.1.0",
+  "description": "Claude Code の開発の進め方を揃えるプラグイン",
+  "repository": "https://github.com/theindiehacker/dev-plugins",
+  "dependencies": []
+}

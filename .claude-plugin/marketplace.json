@@ -24,6 +24,10 @@
       "source": "./plugins/security"
     },
     {
+      "name": "dev",
+      "source": "./plugins/dev"
+    },
+    {
       "name": "security-audit",
       "description": "Cloudflare のセキュリティ監査スキル。偵察・網羅的な探索・独立した検証で、コードベースの脆弱性を見つけて報告する",
       "source": {
