@@ -9,6 +9,14 @@ Claude Code on the Web のセッションを準備するプラグインです。
 | 起動時 | `dockerd --registry-mirror=https://mirror.gcr.io` | 常に |
 | 起動時 | `mise install` | Web で、`mise.toml` がある |
 | 起動時 | `docker compose up --build -d --wait` (プロキシの CA をビルドと起動後のコンテナに渡す) | Web で、compose ファイルがある |
+| 起動時・再開時・要約の後 | 下の「Claude に渡す指示」を渡す | Web のみ |
+
+## 📝 Claude に渡す指示
+
+- 自分の作った PR を `claude[bot]` のレビューが下書きに戻したときは、指摘を直す (または返信する) push をして CI が通ったら、ユーザーに聞かずに「レビュー可能」に戻してよい
+- ほかの人が下書きに戻した PR は戻さない
+
+Claude は、自分以外が下書きに戻した PR を、ユーザーに頼まれない限り「レビュー可能」に戻しません。この指示で、bot が戻した場合だけ Claude が戻せるようにします。
 
 ## 🚀 Docker で動くようにする
 
