@@ -85,7 +85,6 @@
   claude plugin install security@indiehacker
   claude plugin install frontend@indiehacker
   claude plugin install python@indiehacker
-  claude plugin install dev@indiehacker
 
   # 2026-11-08
   ```
@@ -126,12 +125,11 @@ claude plugin marketplace add theindiehacker/dev-plugins
 claude plugin install security@indiehacker
 claude plugin install frontend@indiehacker
 claude plugin install python@indiehacker
-claude plugin install dev@indiehacker
 ```
 
 **3. 結果を確かめる**
 
-赤枠のように `✔` が 6 つ出れば成功です。
+赤枠のように `✔` が 5 つ出れば成功です。
 
 <img src="docs/images/pc-install.png" width="700" alt="ターミナルの画面。コマンドごとに出る ✔ Successfully の表示を赤枠で示している">
 
