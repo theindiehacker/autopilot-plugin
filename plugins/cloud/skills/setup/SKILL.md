@@ -13,6 +13,12 @@ description: Claude Code on the Web のクラウド環境で Docker (docker comp
 - マシンは x86_64 です
 
 ## 1. 調べて聞く
+まず、起動時と同じ処理を動かしてください。出た警告・エラー (依存を入れられない、ツールが無いなど) は、下の表の項目と一緒に「直す」項目に加えます。原因が許可されていないドメインなら、環境の設定の「許可されたドメイン」に足すよう、ユーザーに頼んでください。
+
+```bash
+CLAUDE_PROJECT_DIR="$PWD" bash "${CLAUDE_PLUGIN_ROOT}/scripts/setup.sh"
+```
+
 次の表で、今の状態を調べてください。
 
 | 項目 | 揃っている | 直す |
@@ -89,4 +95,7 @@ CLAUDE_PROJECT_DIR="$PWD" bash "${CLAUDE_PLUGIN_ROOT}/scripts/setup.sh"
 
 遮断されたドメインでビルドが止まるときは、ビルドの無いサービスだけを `docker compose up -d --wait <サービス>` で確かめてください。setup.sh が作る `.claude/session/` は、中の `.gitignore` で git から外れるため、リポジトリの `.gitignore` に足す必要はありません。
 
-動かせなかった確認があれば、理由と一緒に伝えてください。commit・PR は、頼まれたときだけ行ってください。
+動かせなかった確認があれば、理由と一緒に伝えてください。
+
+## 4. PR を作る
+PR を作るかユーザーに聞き、作ると答えたら、変更を commit して PR を作ってください。本文には、直した項目と、ユーザーがすること (許可されたドメインの追加など) を書きます。

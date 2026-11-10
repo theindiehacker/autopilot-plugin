@@ -143,6 +143,19 @@ Claude Code を開いていたら、起動し直します。
 
 </details>
 
+## 🔧 入れたら setup を実行する
+
+既存のリポジトリは、プラグインを入れただけでは、push 前の検査で止まったり、Claude Code on the Web で起動に失敗したりします。入れたプラグインの `setup` を Claude Code で実行すると、リポジトリを調べて環境を整え、PR を作ります。PR をマージすると、以後は問題なく動きます。
+
+| コマンド | 整えるもの |
+|---|---|
+| `/security:setup` | 既存のシークレット・脆弱性を直し、push 前の検査を通す |
+| `/cloud:setup` | Web で `docker compose` を起動できるようにする |
+| `/frontend:setup` | bun・Biome などの技術スタックに移行し、起動時の依存の導入を通す |
+| `/python:setup` | uv・Ruff などの技術スタックに移行し、起動時の依存の導入を通す |
+
+どれも、直す項目ごとに確認しながら進めます。
+
 ## ⚠️ 注意
 
 - hooks が動くのは Claude Code の操作だけです。ターミナルで直接 commit・push すると動きません。
