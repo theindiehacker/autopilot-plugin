@@ -38,9 +38,9 @@
 <text x="404" y="147.12" font-size="17" font-weight="500" fill="#E4E4E7" class="t">mise</text><line x1="28" y1="184" x2="538" y2="184" stroke="#FFFFFF" stroke-opacity=".08"/><use href="#i-play" x="28" y="215" width="20" height="20" stroke="#71717A" /><rect x="62" y="204" width="99" height="42" rx="12" fill="#38BDF8" fill-opacity=".08" stroke="#38BDF8" stroke-opacity=".35"/>
 <text x="78" y="230.5" font-size="16" fill="#BAE6FD" class="m">dockerd</text><rect x="171" y="204" width="147" height="42" rx="12" fill="#38BDF8" fill-opacity=".08" stroke="#38BDF8" stroke-opacity=".35"/>
 <text x="187" y="230.5" font-size="16" fill="#BAE6FD" class="m">mise install</text><rect x="328" y="204" width="195" height="42" rx="12" fill="#38BDF8" fill-opacity=".08" stroke="#38BDF8" stroke-opacity=".35"/>
-<text x="344" y="230.5" font-size="16" fill="#BAE6FD" class="m">docker compose up</text><rect x="28" y="306" width="197" height="44" rx="12" fill="#D97757" fill-opacity=".12" stroke="#D97757" stroke-opacity=".6"/>
+<text x="344" y="230.5" font-size="16" fill="#BAE6FD" class="m">docker compose up</text><rect x="28" y="306" width="219" height="44" rx="12" fill="#D97757" fill-opacity=".12" stroke="#D97757" stroke-opacity=".6"/>
 <use href="#i-terminal" x="42" y="317" width="22" height="22" stroke="#D97757" />
-<text x="74" y="334.5" font-size="18" font-weight="600" fill="#FDE7DD" class="m">/cloud:setup</text>
+<text x="74" y="334.5" font-size="18" font-weight="600" fill="#FDE7DD" class="m">/cloud:onboard</text>
 </g><text x="538" y="382" font-size="20" font-weight="700" fill="#38BDF8" text-anchor="end" class="t">README →</text></g>
 <g transform="skewX(-20)"><rect class="shine" x="0" y="0" width="260" height="422" fill="url(#sheen)"/></g>
 </g>

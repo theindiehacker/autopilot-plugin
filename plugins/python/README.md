@@ -27,7 +27,7 @@ Python・uv・Ruff・ty・import-linter・deptry の開発で使うプラグイ�
 
 ## 🚀 技術スタックの移行
 
-`/python:setup [フォルダ]` を実行すると、リポジトリを調べ、足りない項目ごとに確認しながら移行します。
+`/python:onboard [フォルダ]` を実行すると、起動時の処理を動かして失敗を集め、リポジトリを調べ、足りない項目ごとに確認しながら移行します。
 
 | 項目 | 内容 |
 |---|---|
@@ -38,7 +38,7 @@ Python・uv・Ruff・ty・import-linter・deptry の開発で使うプラグイ�
 | import-linter | パッケージの層と依存の向きを確認し、`layers` の契約を書く |
 | pytest | 無ければ導入し、テストを 1 つ書く |
 
-最後に `uv sync --locked`・`uv run ruff check .`・`uv run ruff format --check .`・`uv run ty check`・`deptry src`・`lint-imports`・`uv run pytest` が通ることを確かめます。commit と PR は、頼まれたときだけ行います。
+最後に `uv sync --locked`・`uv run ruff check .`・`uv run ruff format --check .`・`uv run ty check`・`deptry src`・`lint-imports`・`uv run pytest` が通ることを確かめます。PR を作るかを聞き、作ると答えたら PR を作ります。
 
 ## 🎁 一緒に入るプラグイン
 

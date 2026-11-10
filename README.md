@@ -24,12 +24,12 @@
 ## 🧩 プラグイン
 
 <p align="center">
-  <a href="plugins/frontend/README.md"><img src="docs/images/readme/plugin-frontend.svg" width="49%" alt="frontend の README を開く。対象: TypeScript・Next.js のフロントエンド。Bun・Biome・TypeScript・Next.js・Tailwind CSS・shadcn/ui・Playwright、一緒に入る superpowers・frontend-design・playwright・shadcn・security-guidance、コマンド /frontend:setup"></a>
-  <a href="plugins/python/README.md"><img src="docs/images/readme/plugin-python.svg" width="49%" alt="python の README を開く。対象: Python。Python・uv・Ruff・ty・deptry・import-linter、一緒に入る superpowers・security-guidance、コマンド /python:setup"></a>
+  <a href="plugins/frontend/README.md"><img src="docs/images/readme/plugin-frontend.svg" width="49%" alt="frontend の README を開く。対象: TypeScript・Next.js のフロントエンド。Bun・Biome・TypeScript・Next.js・Tailwind CSS・shadcn/ui・Playwright、一緒に入る superpowers・frontend-design・playwright・shadcn・security-guidance、コマンド /frontend:onboard"></a>
+  <a href="plugins/python/README.md"><img src="docs/images/readme/plugin-python.svg" width="49%" alt="python の README を開く。対象: Python。Python・uv・Ruff・ty・deptry・import-linter、一緒に入る superpowers・security-guidance、コマンド /python:onboard"></a>
 </p>
 
 <p align="center">
-  <a href="plugins/cloud/README.md"><img src="docs/images/readme/plugin-cloud.svg" width="49%" alt="cloud の README を開く。対象: Claude Code on the Web のみ。Docker・Docker Compose・mise、起動時に dockerd・mise install・docker compose up を実行、コマンド /cloud:setup"></a>
+  <a href="plugins/cloud/README.md"><img src="docs/images/readme/plugin-cloud.svg" width="49%" alt="cloud の README を開く。対象: Claude Code on the Web のみ。Docker・Docker Compose・mise、起動時に dockerd・mise install・docker compose up を実行、コマンド /cloud:onboard"></a>
   <a href="plugins/security/README.md"><img src="docs/images/readme/plugin-security.svg" width="49%" alt="security の README を開く。対象: すべてのリポジトリ。Gitleaks・Semgrep・Trivy・OWASP Top 10、一緒に入る security-guidance・security-audit・claude-security"></a>
 </p>
 
@@ -142,6 +142,19 @@ Claude Code を開いていたら、起動し直します。
 > - `security` のコミット・push 前の検査には、Semgrep・Gitleaks・Trivy が要ります。Mac では `brew install semgrep gitleaks trivy` で入れられます。
 
 </details>
+
+## 🔧 入れたら onboard を実行する
+
+既存のリポジトリは、プラグインを入れただけでは、push 前の検査で止まったり、Claude Code on the Web で起動に失敗したりします。入れたプラグインの `onboard` を Claude Code で実行すると、リポジトリを調べて環境を整え、PR を作ります。PR をマージすると、以後は問題なく動きます。
+
+| コマンド | 整えるもの |
+|---|---|
+| `/security:onboard` | 既存のシークレット・脆弱性を直し、push 前の検査を通す |
+| `/cloud:onboard` | Web で `docker compose` を起動できるようにする |
+| `/frontend:onboard` | bun・Biome などの技術スタックに移行し、起動時の依存の導入を通す |
+| `/python:onboard` | uv・Ruff などの技術スタックに移行し、起動時の依存の導入を通す |
+
+どれも、直す項目ごとに確認しながら進めます。
 
 ## ⚠️ 注意
 
