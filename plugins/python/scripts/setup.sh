@@ -37,7 +37,7 @@ if [ -n "$(git ls-files -- '*pyproject.toml' '*requirements*.txt' '*setup.py' 2>
 - 型の検査は ty。mypy・pyright は使わない
 - 依存の過不足は deptry、import の向きは import-linter で検査する
 - 機能を足す・変えるときは、pytest でテストを書く
-- このリポジトリが pip・flake8 など上と違う道具を使っていたら、/python:setup で移行できるとユーザーに伝える。頼まれるまで移行しない
+- このリポジトリが pip・flake8 など上と違う道具を使っていたら、/python:onboard で移行できるとユーザーに伝える。頼まれるまで移行しない
 EOF2
 fi
 

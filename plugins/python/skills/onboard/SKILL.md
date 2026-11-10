@@ -1,6 +1,6 @@
 ---
-name: setup
-description: Python のリポジトリを、統一の技術スタック (uv・ruff・ty・deptry・import-linter・pytest) に移行する。pip・poetry・pipenv・flake8・black・isort・pylint・mypy・pyright からの置き換えと、足りないものの導入を、ユーザーに確かめながら行う。使い方 → /python:setup [フォルダ]
+name: onboard
+description: Python のリポジトリを、統一の技術スタック (uv・ruff・ty・deptry・import-linter・pytest) に移行する。pip・poetry・pipenv・flake8・black・isort・pylint・mypy・pyright からの置き換えと、足りないものの導入を、ユーザーに確かめながら行う。使い方 → /python:onboard [フォルダ]
 argument-hint: "[フォルダ]"
 ---
 

@@ -1,6 +1,6 @@
 ---
-name: setup
-description: Claude Code on the Web のクラウド環境で Docker (docker compose) を起動して開発・動作確認できるよう、リポジトリの compose ファイルと Dockerfile を直す。プロキシの CA・遮断されたドメイン・.env・Mac 専用の設定などを、ユーザーに確かめながら直す。使い方 → /cloud:setup
+name: onboard
+description: Claude Code on the Web のクラウド環境で Docker (docker compose) を起動して開発・動作確認できるよう、リポジトリの compose ファイルと Dockerfile を直す。プロキシの CA・遮断されたドメイン・.env・Mac 専用の設定などを、ユーザーに確かめながら直す。使い方 → /cloud:onboard
 ---
 
 # 手順

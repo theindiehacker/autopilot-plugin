@@ -1,6 +1,6 @@
 ---
-name: setup
-description: フロントエンドのリポジトリを、統一の技術スタック (bun・Biome・Playwright・shadcn/ui・Tailwind CSS) に移行する。npm・yarn・pnpm・ESLint・Prettier からの置き換えと、足りないものの導入を、ユーザーに確かめながら行う。使い方 → /frontend:setup [フォルダ]
+name: onboard
+description: フロントエンドのリポジトリを、統一の技術スタック (bun・Biome・Playwright・shadcn/ui・Tailwind CSS) に移行する。npm・yarn・pnpm・ESLint・Prettier からの置き換えと、足りないものの導入を、ユーザーに確かめながら行う。使い方 → /frontend:onboard [フォルダ]
 argument-hint: "[フォルダ]"
 ---
 

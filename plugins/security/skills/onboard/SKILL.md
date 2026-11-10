@@ -1,6 +1,6 @@
 ---
-name: setup
-description: commit・push の前の検査 (Gitleaks・Semgrep・Trivy) が通るよう、リポジトリにすでにあるシークレットと脆弱性を直す。直せない指摘は、ユーザーに確かめて理由付きで除外ファイルに書く。最後に PR を作る。使い方 → /security:setup
+name: onboard
+description: commit・push の前の検査 (Gitleaks・Semgrep・Trivy) が通るよう、リポジトリにすでにあるシークレットと脆弱性を直す。直せない指摘は、ユーザーに確かめて理由付きで除外ファイルに書く。最後に PR を作る。使い方 → /security:onboard
 ---
 
 # 手順
