@@ -1,8 +1,0 @@
-{
-  "name": "cloud",
-  "displayName": "cloud@indiehacker",
-  "version": "0.7.0",
-  "description": "Claude Code on the web のセッションの準備",
-  "repository": "https://github.com/theindiehacker/dev-plugins",
-  "dependencies": []
-}

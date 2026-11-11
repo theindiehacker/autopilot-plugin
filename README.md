@@ -1,39 +1,86 @@
 <p align="center">
-  <img src="docs/images/readme/hero.svg" width="100%" alt="dev-plugins">
+  <img src="docs/images/readme/hero.svg" width="100%" alt="autopilot-plugin">
 </p>
 
 <p align="center">
   <a href="https://code.claude.com/docs/en/discover-plugins"><img src="https://img.shields.io/badge/Claude_Code-indiehacker-D97757?style=for-the-badge&logo=claude&logoColor=white&labelColor=0B0B12" alt="Claude Code"></a>
-  <a href="plugins/frontend"><img src="https://img.shields.io/badge/dynamic/json?url=https%3A%2F%2Fraw.githubusercontent.com%2Ftheindiehacker%2Fdev-plugins%2Fmain%2Fplugins%2Ffrontend%2F.claude-plugin%2Fplugin.json&query=%24.version&prefix=v&label=frontend&style=for-the-badge&color=A78BFA&labelColor=0B0B12" alt="frontend"></a>
-  <a href="plugins/python"><img src="https://img.shields.io/badge/dynamic/json?url=https%3A%2F%2Fraw.githubusercontent.com%2Ftheindiehacker%2Fdev-plugins%2Fmain%2Fplugins%2Fpython%2F.claude-plugin%2Fplugin.json&query=%24.version&prefix=v&label=python&style=for-the-badge&color=FACC15&labelColor=0B0B12" alt="python"></a>
-  <a href="plugins/cloud"><img src="https://img.shields.io/badge/dynamic/json?url=https%3A%2F%2Fraw.githubusercontent.com%2Ftheindiehacker%2Fdev-plugins%2Fmain%2Fplugins%2Fcloud%2F.claude-plugin%2Fplugin.json&query=%24.version&prefix=v&label=cloud&style=for-the-badge&color=38BDF8&labelColor=0B0B12" alt="cloud"></a>
-  <a href="plugins/security"><img src="https://img.shields.io/badge/dynamic/json?url=https%3A%2F%2Fraw.githubusercontent.com%2Ftheindiehacker%2Fdev-plugins%2Fmain%2Fplugins%2Fsecurity%2F.claude-plugin%2Fplugin.json&query=%24.version&prefix=v&label=security&style=for-the-badge&color=34D399&labelColor=0B0B12" alt="security"></a>
+  <a href=".claude-plugin/plugin.json"><img src="https://img.shields.io/badge/dynamic/json?url=https%3A%2F%2Fraw.githubusercontent.com%2Ftheindiehacker%2Fautopilot-plugin%2Fmain%2F.claude-plugin%2Fplugin.json&query=%24.version&prefix=v&label=autopilot&style=for-the-badge&color=38BDF8&labelColor=0B0B12" alt="autopilot"></a>
   <a href="renovate.json"><img src="https://img.shields.io/badge/Renovate-308BE3?style=for-the-badge&logo=renovate&logoColor=white" alt="Renovate"></a>
 </p>
 
-<p align="center"><b>Claude Code に、技術スタックの統一と、hooks による自動チェック (lint・型検査・シークレット検出・脆弱性スキャン) を追加するプラグイン集です。</b></p>
+<p align="center"><b>Claude Code に、Claude Code on the Web のセッションの準備、技術スタックの統一、hooks による自動チェック (lint・型検査・シークレット検出・脆弱性スキャン) を追加するプラグインです。</b></p>
 
 ## ✨ 入れるとどう変わる？
 
 <p align="center">
-  <img src="docs/images/readme/demo.svg" width="100%" alt="dev-plugins なしとありを、4 つの場面で比べるアニメーション。起動時: 依存を手で入れる → bun install --frozen-lockfile と uv sync --locked が自動で走る。編集後: format・lint は Claude の判断しだい → biome check --write が自動で走り、残った問題を exit 2 で Claude に通知する。commit 前: 型エラーや API キーが入ったまま commit → tsc・Gitleaks が検出して中止し、Claude が修正する。push 前: 脆弱なコード・依存のまま公開 → Semgrep・Trivy が検出して中止し、Claude が修正する。">
+  <img src="docs/images/readme/demo.svg" width="100%" alt="autopilot なしとありを、4 つの場面で比べるアニメーション。起動時: 依存を手で入れる → bun install --frozen-lockfile と uv sync --locked が自動で走る。編集後: format・lint は Claude の判断しだい → biome check --write が自動で走り、残った問題を exit 2 で Claude に通知する。commit 前: 型エラーや API キーが入ったまま commit → tsc・Gitleaks が検出して中止し、Claude が修正する。push 前: 脆弱なコード・依存のまま公開 → Semgrep・Trivy が検出して中止し、Claude が修正する。">
 </p>
 
 <p align="center"><sub>※ 出力はイメージです</sub></p>
 
-## 🧩 プラグイン
+## ⚙️ 自動で動くもの
 
-<p align="center">
-  <a href="plugins/frontend/README.md"><img src="docs/images/readme/plugin-frontend.svg" width="49%" alt="frontend の README を開く。対象: TypeScript・Next.js のフロントエンド。Bun・Biome・TypeScript・Next.js・Tailwind CSS・shadcn/ui・Playwright、一緒に入る superpowers・frontend-design・playwright・shadcn・security-guidance、コマンド /frontend:onboard"></a>
-  <a href="plugins/python/README.md"><img src="docs/images/readme/plugin-python.svg" width="49%" alt="python の README を開く。対象: Python。Python・uv・Ruff・ty・deptry・import-linter、一緒に入る superpowers・security-guidance、コマンド /python:onboard"></a>
-</p>
+| タイミング | 処理 | 動く条件 |
+|---|---|---|
+| 起動時 | `dockerd --registry-mirror=https://mirror.gcr.io` | Web のみ |
+| 起動時 | `mise install` | Web で、`mise.toml` がある |
+| 起動時 | `docker compose up --build -d --wait` (プロキシの CA をビルドと起動後のコンテナに渡す) | Web で、compose ファイルがある |
+| 起動時 | `packageManager` の版の bun を用意し、`bun install --frozen-lockfile` | `bun.lock` がある |
+| 起動時 | uv が無ければ導入し、Ruff・ty を導入 | `pyproject.toml`・`requirements*.txt`・`setup.py` がある |
+| 起動時 | `uv sync --locked` | `uv.lock` がある |
+| 起動時 | Gitleaks・Semgrep・Trivy を導入 | Web のみ。ローカルは無ければ警告だけ |
+| 起動時 | 下の「技術スタックの方針」を Claude に伝える | フロントエンドは `package.json`、Python は `pyproject.toml`・`requirements*.txt`・`setup.py` がある |
+| 起動時・再開時・要約の後 | 下の「Claude に渡す指示」を渡す | Web のみ |
+| 編集後 | `biome check --write` | `biome.json` がある |
+| 編集後 | `ruff check --fix` → `ruff format` → `ruff check`・`ty check` | `.py`・`.pyi` の編集で、`pyproject.toml` がある |
+| commit 前 | `bun run typecheck` (無ければ `tsc --noEmit`) | `tsconfig.json` がある |
+| commit 前 | `deptry` | `uv.lock` がある |
+| commit 前 | `lint-imports` | `uv.lock` と import-linter の設定がある |
+| commit 前 | `gitleaks dir` でシークレットを検出 | Gitleaks がある |
+| push 前 | `semgrep scan --config p/owasp-top-ten --severity ERROR` | Semgrep がある |
+| push 前 | `trivy fs --scanners vuln,misconfig,secret --severity HIGH,CRITICAL --ignore-unfixed` | Trivy がある |
 
-<p align="center">
-  <a href="plugins/cloud/README.md"><img src="docs/images/readme/plugin-cloud.svg" width="49%" alt="cloud の README を開く。対象: Claude Code on the Web のみ。Docker・Docker Compose・mise、起動時に dockerd・mise install・docker compose up を実行、コマンド /cloud:onboard"></a>
-  <a href="plugins/security/README.md"><img src="docs/images/readme/plugin-security.svg" width="49%" alt="security の README を開く。対象: すべてのリポジトリ。Gitleaks・Semgrep・Trivy・OWASP Top 10、一緒に入る security-guidance・security-audit・claude-security"></a>
-</p>
+- **失敗時:** hook が exit 2 を返し、結果を Claude に渡します。commit・push 前の検査では commit・push も止まり、Claude が修正してやり直すと再び検査します。
+- **検査の範囲:** 編集後は、編集したファイルだけを検査します。commit 前の型検査は `tsconfig.json`、`deptry`・`lint-imports` は `uv.lock` のあるフォルダごとに、全体を検査します。Gitleaks・Semgrep・Trivy は、差分ではなくリポジトリ全体が対象です。Gitleaks と Trivy は、git に入るファイル (追跡中と、無視していない新規ファイル) だけを見ます。
+- **LSP:** Claude が TypeScript と ty の LSP を使えます。
+- **ローカルでの準備:** Gitleaks・Semgrep・Trivy は、Mac では `brew install semgrep gitleaks trivy` で入れられます。無いときや起動できないときは、起動時に警告が出るだけで、検査は素通りします。
 
-カードを押すと、自動で動くものや技術スタックの移行を書いた README を開けます。
+### 📐 技術スタックの方針
+
+**フロントエンド**
+
+- パッケージの管理と実行は bun。npm・npx・yarn・pnpm は使わない
+- lint と整形は Biome。ESLint・Prettier は使わない
+- UI は shadcn/ui のコンポーネントを使う。無いものだけ、shadcn/ui を組み合わせて作る
+- スタイルは Tailwind CSS のクラスとテーマの変数で書く。`style` 属性・色コード・Tailwind の任意値は書かない
+- 画面を足す・変えるときは、Playwright で E2E テストを書く
+
+**Python**
+
+- パッケージの管理と実行は uv。pip・poetry・pipenv は使わない
+- lint と整形は Ruff。flake8・black・isort・pylint は使わない
+- 型の検査は ty。mypy・pyright は使わない
+- 依存の過不足は deptry、import の向きは import-linter で検査する
+- 機能を足す・変えるときは、pytest でテストを書く
+
+### 📝 Claude に渡す指示 (Web のみ)
+
+- 自分の作った PR を `claude[bot]` のレビューが下書きに戻したときは、指摘を直す (または返信する) push をして CI が通ったら、ユーザーに聞かずに「レビュー可能」に戻してよい
+- ほかの人が下書きに戻した PR は戻さない
+
+Claude は、自分以外が下書きに戻した PR を、ユーザーに頼まれない限り「レビュー可能」に戻しません。この指示で、bot が戻した場合だけ Claude が戻せるようにします。
+
+## 🎁 一緒に入るプラグイン
+
+| プラグイン | 内容 |
+|---|---|
+| superpowers | 設計・実装計画・TDD・サブエージェント開発 |
+| frontend-design | UI の見た目とタイポグラフィの方針 |
+| playwright | ブラウザ操作と E2E テストの MCP サーバー |
+| shadcn | shadcn/ui コンポーネントの追加・検索・修正 |
+| security-guidance | 編集時の警告と diff・commit のレビュー |
+| security-audit | Cloudflare のセキュリティ監査スキル |
+| claude-security | 脆弱性スキャンと修正パッチの提案 |
 
 ## 📥 入れ方
 
@@ -80,13 +127,10 @@
 
   ```bash
   claude plugin marketplace add anthropics/claude-plugins-official
-  claude plugin marketplace add theindiehacker/dev-plugins
-  claude plugin install cloud@indiehacker
-  claude plugin install security@indiehacker
-  claude plugin install frontend@indiehacker
-  claude plugin install python@indiehacker
+  claude plugin marketplace add theindiehacker/autopilot-plugin
+  claude plugin install autopilot@indiehacker
 
-  # 2026-11-08
+  # 2026-11-11
   ```
 
 - ② 「<」を押して、前の画面に戻ります。
@@ -120,41 +164,64 @@ Mac では、`⌘` + `スペース` を押して「ターミナル」と入力�
 
 ```bash
 claude plugin marketplace add anthropics/claude-plugins-official
-claude plugin marketplace add theindiehacker/dev-plugins
+claude plugin marketplace add theindiehacker/autopilot-plugin
 
-claude plugin install security@indiehacker
-claude plugin install frontend@indiehacker
-claude plugin install python@indiehacker
+claude plugin install autopilot@indiehacker
 ```
 
 **3. 結果を確かめる**
 
-赤枠のように `✔` が 5 つ出れば成功です。
-
-<img src="docs/images/pc-install.png" width="700" alt="ターミナルの画面。コマンドごとに出る ✔ Successfully の表示を赤枠で示している">
+`✔ Successfully` が 3 つ出れば成功です。
 
 **4. Claude Code を起動し直す**
 
 Claude Code を開いていたら、起動し直します。
 
 > [!NOTE]
-> - `cloud` は Claude Code on the Web のセッションを準備するプラグインなので、PC には入れません。
-> - `security` のコミット・push 前の検査には、Semgrep・Gitleaks・Trivy が要ります。Mac では `brew install semgrep gitleaks trivy` で入れられます。
+> - Web 用の処理 (`dockerd`・`mise install`・`docker compose up`・Claude に渡す指示) は、PC では動きません。
+> - commit・push 前の検査には、Semgrep・Gitleaks・Trivy が要ります。Mac では `brew install semgrep gitleaks trivy` で入れられます。
+
+</details>
+
+<details><summary><b>🔁 前のプラグイン (cloud・frontend・python・security) から移る</b></summary>
+
+前のプラグインを入れたままにすると、hook が 2 回ずつ動きます。
+
+**Claude Code on the Web**
+
+「セットアップスクリプト」を、上の手順 4 の内容に書き換えてください。
+
+**PC の Claude Code**
+
+次のコマンドを実行してから、Claude Code を起動し直します。
+
+```bash
+claude plugin uninstall security@indiehacker
+claude plugin uninstall frontend@indiehacker
+claude plugin uninstall python@indiehacker
+claude plugin marketplace update indiehacker
+
+claude plugin install autopilot@indiehacker
+```
 
 </details>
 
 ## 🔧 入れたら onboard を実行する
 
-既存のリポジトリは、プラグインを入れただけでは、push 前の検査で止まったり、Claude Code on the Web で起動に失敗したりします。入れたプラグインの `onboard` を Claude Code で実行すると、リポジトリを調べて環境を整え、PR を作ります。PR をマージすると、以後は問題なく動きます。
+既存のリポジトリは、プラグインを入れただけでは、push 前の検査で止まったり、Claude Code on the Web で起動に失敗したりします。Claude Code で `/autopilot:onboard` を実行すると、リポジトリを調べて環境を整え、PR を作ります。PR をマージすると、以後は問題なく動きます。
 
-| コマンド | 整えるもの |
-|---|---|
-| `/security:onboard` | 既存のシークレット・脆弱性を直し、push 前の検査を通す |
-| `/cloud:onboard` | Web で `docker compose` を起動できるようにする |
-| `/frontend:onboard` | bun・Biome などの技術スタックに移行し、起動時の依存の導入を通す |
-| `/python:onboard` | uv・Ruff などの技術スタックに移行し、起動時の依存の導入を通す |
+次の順に行います。どれも、起動時の処理を動かして失敗を集め、リポジトリを調べてから、直す項目ごとに確認しながら進めます。
 
-どれも、直す項目ごとに確認しながら進めます。
+| 順 | 手順 | 行う条件 | 直すもの |
+|---|---|---|---|
+| 1 | フロントエンドの技術スタックの移行 | `package.json` がある | npm・yarn・pnpm を bun に、ESLint・Prettier を Biome に置き換える。Tailwind CSS・shadcn/ui・Playwright が無ければ入れる。`package.json` に `typecheck` を足す |
+| 2 | Python の技術スタックの移行 | `pyproject.toml`・`requirements*.txt`・`setup.py` がある | pip・poetry・pipenv を uv に、flake8・black・isort・pylint を Ruff に、mypy・pyright を ty に置き換える。deptry の指摘を直し、import-linter の `layers` の契約を書く。pytest が無ければ入れる |
+| 3 | Web で Docker を起動できるようにする | 毎回 | compose ファイルを用意し、Dockerfile の通信する `RUN` でプロキシの CA を読む。`.env` が無くても起動できるようにし、Mac 専用の設定や終了するサービスを直す。遮断されたドメインは、環境の「許可されたドメイン」への追加を頼む |
+| 4 | 既存のシークレット・脆弱性を直す | 毎回 | Gitleaks・Semgrep・Trivy の指摘を直す。誤検出などでユーザーが選んだものだけ、理由を書いて除外する |
+
+技術スタックの移行を先に行うのは、3 で動かす `docker compose up --build` が、移行した後の lock ファイルでビルドするためです。セキュリティを最後に行うのは、移行で変わった依存も検査するためです。
+
+4 つが終わったら、PR を作るかを聞き、作ると答えたら PR を 1 つ作ります。
 
 ## ⚠️ 注意
 
