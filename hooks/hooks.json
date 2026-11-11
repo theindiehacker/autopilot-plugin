@@ -1,0 +1,98 @@
+{
+  "hooks": {
+    "SessionStart": [
+      {
+        "matcher": "startup|resume",
+        "hooks": [
+          {
+            "type": "command",
+            "command": "[ \"${CLAUDE_CODE_REMOTE:-}\" = true ] || exit 0; dockerd --registry-mirror=https://mirror.gcr.io >> /tmp/dockerd.log 2>&1 &"
+          },
+          {
+            "type": "command",
+            "command": "bash \"${CLAUDE_PLUGIN_ROOT}/scripts/cloud/setup.sh\"",
+            "timeout": 600
+          },
+          {
+            "type": "command",
+            "command": "bash \"${CLAUDE_PLUGIN_ROOT}/scripts/frontend/setup.sh\"",
+            "timeout": 600
+          },
+          {
+            "type": "command",
+            "command": "bash \"${CLAUDE_PLUGIN_ROOT}/scripts/python/setup.sh\"",
+            "timeout": 600
+          },
+          {
+            "type": "command",
+            "command": "bash \"${CLAUDE_PLUGIN_ROOT}/scripts/security/setup.sh\"",
+            "timeout": 300
+          }
+        ]
+      },
+      {
+        "matcher": "startup|resume|clear|compact",
+        "hooks": [
+          {
+            "type": "command",
+            "command": "bash \"${CLAUDE_PLUGIN_ROOT}/scripts/cloud/instructions.sh\""
+          }
+        ]
+      }
+    ],
+    "PostToolUse": [
+      {
+        "matcher": "Edit|Write|MultiEdit",
+        "hooks": [
+          {
+            "type": "command",
+            "command": "bash \"${CLAUDE_PLUGIN_ROOT}/scripts/frontend/lint.sh\"",
+            "timeout": 60
+          },
+          {
+            "type": "command",
+            "command": "bash \"${CLAUDE_PLUGIN_ROOT}/scripts/python/lint.sh\"",
+            "timeout": 60
+          }
+        ]
+      }
+    ],
+    "PreToolUse": [
+      {
+        "matcher": "Bash",
+        "hooks": [
+          {
+            "type": "command",
+            "if": "Bash(*git*commit*)",
+            "command": "bash \"${CLAUDE_PLUGIN_ROOT}/scripts/frontend/precommit.sh\"",
+            "timeout": 300
+          },
+          {
+            "type": "command",
+            "if": "Bash(*git*commit*)",
+            "command": "bash \"${CLAUDE_PLUGIN_ROOT}/scripts/python/precommit.sh\"",
+            "timeout": 300
+          },
+          {
+            "type": "command",
+            "if": "Bash(*git*commit*)",
+            "command": "bash \"${CLAUDE_PLUGIN_ROOT}/scripts/security/in-git-files.sh\" gitleaks dir . --redact --verbose --ignore-gitleaks-allow --exit-code 2",
+            "timeout": 120
+          },
+          {
+            "type": "command",
+            "if": "Bash(*git*push*)",
+            "command": "cd \"$CLAUDE_PROJECT_DIR\" || exit 2; semgrep --version > /dev/null 2>&1 || exit 0; semgrep scan --config p/owasp-top-ten --metrics off --severity ERROR --error --disable-nosem 1>&2 || [ $? -ne 1 ] || exit 2",
+            "timeout": 300
+          },
+          {
+            "type": "command",
+            "if": "Bash(*git*push*)",
+            "command": "bash \"${CLAUDE_PLUGIN_ROOT}/scripts/security/in-git-files.sh\" trivy fs --scanners vuln,misconfig,secret --severity HIGH,CRITICAL --ignore-unfixed --exit-code 2 .",
+            "timeout": 300
+          }
+        ]
+      }
+    ]
+  }
+}

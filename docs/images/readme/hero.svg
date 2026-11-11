@@ -87,12 +87,12 @@
 <circle r="44" fill="#0B0B14" stroke="#FFFFFF" stroke-opacity=".14"/>
 <use href="#i-claude" x="-26" y="-26" width="52" height="52" fill="#D97757" />
 </g>
-<text x="600" y="258" text-anchor="middle" font-size="86" font-weight="800" letter-spacing="-3" fill="url(#titleBase)" class="t">dev-plugins</text>
-<text x="600" y="258" text-anchor="middle" font-size="86" font-weight="800" letter-spacing="-3" fill="url(#title)" opacity=".9" class="t">dev-plugins</text>
+<text x="600" y="258" text-anchor="middle" font-size="86" font-weight="800" letter-spacing="-3" fill="url(#titleBase)" class="t">autopilot-plugin</text>
+<text x="600" y="258" text-anchor="middle" font-size="86" font-weight="800" letter-spacing="-3" fill="url(#title)" opacity=".9" class="t">autopilot-plugin</text>
 <g>
-<rect x="289.6" y="294" width="620.8" height="44" rx="22" fill="#0B0B14" fill-opacity=".7" stroke="#FFFFFF" stroke-opacity=".14"/>
-<text x="315.6" y="321.5" font-size="16" class="m"><tspan fill="#D97757" font-weight="700">$</tspan><tspan fill="#E4E4E7"> claude plugin marketplace add </tspan><tspan fill="#C4B5FD">theindiehacker/dev-plugins</tspan></text>
-<rect class="caret" x="876.4" y="307" width="9" height="18" rx="1.5" fill="#D97757"/>
+<rect x="265.6" y="294" width="668.8" height="44" rx="22" fill="#0B0B14" fill-opacity=".7" stroke="#FFFFFF" stroke-opacity=".14"/>
+<text x="291.6" y="321.5" font-size="16" class="m"><tspan fill="#D97757" font-weight="700">$</tspan><tspan fill="#E4E4E7"> claude plugin marketplace add </tspan><tspan fill="#C4B5FD">theindiehacker/autopilot-plugin</tspan></text>
+<rect class="caret" x="900.4" y="307" width="9" height="18" rx="1.5" fill="#D97757"/>
 </g>
 <g><rect x="360.9496" y="358" width="98.15200000000002" height="34" rx="17" fill="#38BDF8" fill-opacity=".10" stroke="#38BDF8" stroke-opacity=".45"/>
 <use href="#i-cloud" x="373.9496" y="366" width="18" height="18" stroke="#38BDF8" />

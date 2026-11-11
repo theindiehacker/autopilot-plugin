@@ -2,9 +2,9 @@
   "$schema": "https://docs.renovatebot.com/renovate-schema.json",
   "customManagers": [
     {
-      "description": "plugins/*/scripts/*.sh の GitHub Releases の URL の版を更新する (gitleaks・trivy・mise・uv。タグとファイル名の両方の版を置き換える。uv のタグには v が無い)",
+      "description": "scripts/*/*.sh の GitHub Releases の URL の版を更新する (gitleaks・trivy・mise・uv。タグとファイル名の両方の版を置き換える。uv のタグには v が無い)",
       "customType": "regex",
-      "managerFilePatterns": ["/^plugins/[^/]+/scripts/[^/]+\\.sh$/"],
+      "managerFilePatterns": ["/^scripts/[^/]+/[^/]+\\.sh$/"],
       "matchStrings": [
         "https://github\\.com/(?<depName>[^/\\s]+/[^/\\s]+)/releases/download/v?(?<currentValue>[^/\\s]+)/\\S+"
       ],
@@ -13,25 +13,25 @@
       "versioningTemplate": "semver"
     },
     {
-      "description": "plugins/*/scripts/*.sh で uv tool install に版を固定した PyPI のツール (semgrep など) を更新する",
+      "description": "scripts/*/*.sh で uv tool install に版を固定した PyPI のツール (semgrep など) を更新する",
       "customType": "regex",
-      "managerFilePatterns": ["/^plugins/[^/]+/scripts/[^/]+\\.sh$/"],
+      "managerFilePatterns": ["/^scripts/[^/]+/[^/]+\\.sh$/"],
       "matchStrings": ["uv tool install (?<depName>[a-zA-Z0-9._-]+)==(?<currentValue>[^\\s\"]+)"],
       "datasourceTemplate": "pypi",
       "versioningTemplate": "pep440"
     },
     {
-      "description": "plugins/*/tools/* で uv run --with に版を固定した PyPI のツール (deptry・import-linter) を更新する",
+      "description": "tools/* で uv run --with に版を固定した PyPI のツール (deptry・import-linter) を更新する",
       "customType": "regex",
-      "managerFilePatterns": ["/^plugins/[^/]+/tools/[^/]+$/"],
+      "managerFilePatterns": ["/^tools/[^/]+$/"],
       "matchStrings": ["--with (?<depName>[a-zA-Z0-9._-]+)==(?<currentValue>[^\\s\"]+)"],
       "datasourceTemplate": "pypi",
       "versioningTemplate": "pep440"
     },
     {
-      "description": "plugins/*/tools/* で bunx に版を固定した npm のツール (biome・typescript-language-server) を更新する",
+      "description": "tools/* で bunx に版を固定した npm のツール (biome・typescript-language-server) を更新する",
       "customType": "regex",
-      "managerFilePatterns": ["/^plugins/[^/]+/tools/[^/]+$/"],
+      "managerFilePatterns": ["/^tools/[^/]+$/"],
       "matchStrings": ["bunx (?<depName>@?[a-zA-Z0-9._/-]+)@(?<currentValue>[0-9][^\\s\"\\\\]*)"],
       "datasourceTemplate": "npm",
       "versioningTemplate": "npm"
