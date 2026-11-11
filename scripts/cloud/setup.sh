@@ -6,6 +6,9 @@ set -uo pipefail
 [ "${CLAUDE_CODE_REMOTE:-}" = "true" ] || exit 0
 cd "${CLAUDE_PROJECT_DIR:-.}" || exit 0
 
+# 🐳 Docker デーモンを起動
+dockerd --registry-mirror=https://mirror.gcr.io >> /tmp/dockerd.log 2>&1 &
+
 # 🧰 mise.toml があれば、インストールする
 if [ -f mise.toml ]; then
   # mise で入れたツールをコマンド名だけで呼べるようにする
