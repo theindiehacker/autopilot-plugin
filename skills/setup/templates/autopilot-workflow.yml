@@ -3,18 +3,19 @@ name: autopilot
 on:
   # pull_request_target の job は、PR のコードを checkout しない。
   # PR のコードを動かすのは、同じリポジトリの autopilot/ のブランチの fix だけ
-  pull_request_target: # zizmor: ignore[dangerous-triggers]
+  pull_request_target:
     types: [opened, synchronize, reopened, ready_for_review, labeled, closed]
   pull_request_review:
     types: [submitted, dismissed]
   # issue_comment の job (label) は、Bot か OWNER・MEMBER・COLLABORATOR のコメントだけで動き、
   # 中で書いた人をもう一度確かめる。PR のコードは動かさない
-  issue_comment: # zizmor: ignore[dangerous-triggers]
+  issue_comment:
     types: [created]
   issues:
     types: [labeled]
-  # workflow_run は、同じリポジトリの実行だけを受け、fix-round が PR の今の head の実行かを確かめる
-  workflow_run: # zizmor: ignore[dangerous-triggers]
+  # workflow_run の job のうち、fix は同じリポジトリの実行だけを受け、fix-round が PR の今の head の実行かを確かめる。
+  # irreversible-plan は workflow の名前だけで動き、PR のコードは動かさない
+  workflow_run:
     # リポジトリの CI のワークフロー名と autopilot-qa (setup が入れる)。
     # Terraform の plan を使うなら、その名前もここに入れる
     workflows: {{CI_WORKFLOWS}}

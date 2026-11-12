@@ -78,7 +78,12 @@ QA を別のファイルにするのは、別のイベントで起きた実行�
 - Terraform の plan が無いリポジトリでは、`# TERRAFORM_PLAN:BEGIN` から `# TERRAFORM_PLAN:END` までの行を消します
 - `autopilot QA` は、必ず必須のチェックにします。自動マージが QA の成功を待つためです
 - 書いたら `actionlint` で確かめます
-- リポジトリの CI がワークフローを ghalint・zizmor などで検査していれば、同じ版を手元で動かして通します (版は survey.md で見た CI から取る)。ひな形は ghalint v1.6.0 と zizmor v1.31.1 で通ることを確かめてあります
+- リポジトリの CI がワークフローを ghalint・zizmor などで検査していれば、同じ版を手元で動かして通します (版は survey.md で見た CI から取る)。ひな形は ghalint v1.6.0 で通ります
+- zizmor は、`autopilot.yml` の `pull_request_target`・`issue_comment`・`workflow_run` の 3 つを `dangerous-triggers` (high) として出します。3 つは設計で要るトリガーなので、除外します
+  - リポジトリに zizmor の設定 (`.github/zizmor.yml` か `zizmor.yml`) があれば、`rules.dangerous-triggers.ignore` に `autopilot.yml:<行>` を 3 つ足し、上に理由のコメントを書きます (理由は、ひな形のトリガーの上のコメントと同じ)。行番号は、書いた `autopilot.yml` で数えます。設定の変更に、組織のルールで承認が要ることがあります (設定のコメントや、ルールセットを見る)。そのときは PR の本文に書きます
+  - 設定が無ければ、`.github/zizmor.yml` を作って同じように書きます。インラインの除外のコメント (`# zizmor` で始まるコメント) は、禁じる CI があるので使いません
+  - 行番号で除外するので、`autopilot.yml` を書き直して行がずれたら、除外の行番号も直します
+- zizmor を手元で動かすときは、リポジトリの設定を読ませます: `zizmor --config .github/zizmor.yml .github/workflows/autopilot.yml .github/workflows/autopilot-qa.yml` → error が 0 件
 
 ## 4. Claude のレビューと CI
 - Claude のレビューが無ければ、[templates/claude-code-review-workflow.yml](templates/claude-code-review-workflow.yml) を `.github/workflows/claude-code-review.yml` に置きます。`review.trigger` が `ready_for_review` ならこのままで、`comment` ならコメントで起動します (合図は `review.command` に合わせる)。`review.reviewer: claude[bot]` と、ワークフローの `{{REVIEWER_BOTS}}: claude` は、同じ bot を 2 通りに書いたものです
