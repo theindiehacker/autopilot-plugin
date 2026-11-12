@@ -133,17 +133,19 @@ test("守りのファイルは、設定に無くても取り消せない変更�
     ".claude/hooks/pre.sh",
     ".mcp.json",
     "lefthook.yml",
-    "lefthook.yaml",
-    ".lefthook.yml",
-    ".lefthook.yaml",
-    "lefthook-local.yml",
-    "lefthook-local.yaml",
+    "lefthook.toml",
+    "lefthook-local.json",
+    ".lefthook/commit-msg/x.sh",
+    ".lefthook-local/pre-commit/y.sh",
+    ".config/lefthook.yml",
+    "sub/dir/.lefthook.yaml",
+    ".github/.x",
     ".pre-commit-config.yaml",
     ".husky/pre-commit",
   ];
   expect(
     detectIrreversible({
-      changedFiles: [...protectedFiles, "src/app.ts"],
+      changedFiles: [...protectedFiles, "src/app.ts", "docs/about-hooks.md"],
       config,
     }),
   ).toEqual(protectedFiles.map((f) => `パス: ${f}`));
