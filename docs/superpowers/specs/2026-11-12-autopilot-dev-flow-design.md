@@ -80,7 +80,8 @@ Issue を起票すれば、Claude Code が開発・テスト・レビュー・QA
 
 | 印 | 書く人 | 意味 |
 |---|---|---|
-| `<!-- autopilot:started -->` | 開発のルーティン (Issue に) | 開発を始めた |
+| `<!-- autopilot:developing -->` | 開発のルーティン (Draft PR の本文に) | 開発中。この印がある間は、対応のジョブを動かさない |
+| `<!-- autopilot:developed -->` | 開発のルーティン (PR のコメントに) | 開発が終わった。コメントの内容で PR の本文を書き換え、「レビュー可能」にしてほしい |
 | `<!-- autopilot:needs-human -->` | ルーティン・対応のジョブ | 進めない。理由は同じコメントに書く。GitHub Actions が `needs-human` を付けて Slack で知らせる |
 | `<!-- autopilot:fix-round -->` | 対応のジョブ (PR に) | 対応を 1 回行った。回数を数えるのに使う |
 
@@ -89,10 +90,10 @@ autopilot の PR は、同じリポジトリのブランチ `autopilot/<Issue �
 ### 4.3 Issue 1 件の流れ
 
 1. 人が Issue を書き、権限のある人が `autopilot:ready` を付ける
-2. 開発のルーティンが起動する。REST で Issue のラベルを読み、`autopilot:ready` が無いか `needs-human` があれば、何もせずに終える。始めたら `<!-- autopilot:started -->` 付きのコメントを書く
-3. 受入条件を Issue にコメントする。その条件を確かめるテストを書き、直す前のコードで失敗するのを確かめてから実装する。ユニット・受入・E2E テストを通す
-4. ブランチ `autopilot/<番号>-<名前>` に push し、PR を作る (`Closes #<番号>`)。判断の理由・試してだめだった方法・テストの結果を PR の本文に書く
-5. PR ができると、GitHub Actions で CI・Claude のレビュー・QA のジョブ・`autopilot/irreversible` が動き、autopilot の PR では自動マージが有効になる
+2. 開発のルーティンが起動する。REST で Issue のラベルを読み、`autopilot:ready` が無いか `needs-human` があれば、何もせずに終える。始めたら、デフォルトブランチから `autopilot/<番号>-dev` を作って空の commit を push し、本文に `Closes #<番号>` と `<!-- autopilot:developing -->` を入れた Draft PR を作る (GitHub のプロジェクトの画面で、作業中の Issue が見える。ブランチ名を番号だけで決めるので、ほぼ同時に 2 つ起動しても、後の push は断られる)
+3. 受入条件を Issue にコメントする (ヒアリングしないと分からないときは、4.4 のとおり聞いて止まる。小さな選択は自分で決め、決めたことを書く)。その条件を確かめるテストを書き、直す前のコードで失敗するのを確かめてから実装する。ユニット・受入・E2E テストを通す
+4. 同じブランチに push し、PR に `<!-- autopilot:developed -->` 付きのコメントで、PR の本文 (判断の理由・試してだめだった方法・テストの結果。最後の行は `Closes #<番号>`) を書く。GitHub Actions が、このコメントで PR の本文を書き換え、「レビュー可能」にする
+5. PR が「レビュー可能」になると、GitHub Actions で Claude のレビュー・QA のジョブが動く (CI・`autopilot/irreversible` は Draft のときから動く)。autopilot の PR では自動マージが有効になる
 6. Request changes・CI の失敗・QA の失敗・コンフリクトがあれば、対応のジョブが動く。PR の本文の記録と指摘を読み、指摘ごとに採否を決め、直して push し、返信する。Claude のレビューが PR を Draft に戻していれば、GitHub Actions が「レビュー可能」に戻す
 7. 必須のチェックと必須のレビュー (claude[bot] の Approve) がそろうと、GitHub の自動マージでマージされる
 8. マージの後、設定に書いたデプロイを動かし、本番で確かめる (4.8)
@@ -101,15 +102,15 @@ autopilot の PR は、同じリポジトリのブランチ `autopilot/<Issue �
 
 - 対応のジョブが 3 回動いた後に、また失敗した → 4 回目は Claude を動かさずに `needs-human` を付ける (回数は `<!-- autopilot:fix-round -->` を数える。上限は設定で変えられる)
 - 同じ失敗が 2 回続いた → 対応のジョブの Claude が止まり、`<!-- autopilot:needs-human -->` 付きのコメントで、何が同じかを書く
-- 開発のルーティンが進めない (Issue があいまいで受入条件が書けない、など) → 同じ印のコメントで理由を書く
+- 開発のルーティンが進めない (Issue があいまいで受入条件が書けない、受入条件は書けても、ヒアリングしないと成果物がずれそうなとき、など) → 同じ印のコメントで、質問と案 (おすすめつき) を書いて止まる。答えを Issue にコメントし、`needs-human` を外して `autopilot:ready` を付け直すと再開する
 - 見回り (4.5) で、長く動きの無い Issue・PR が見つかった → `needs-human`
 - `needs-human` の付いた Issue・PR では、ルーティンもジョブも動かない。人がラベルを外すと再開する
 - `needs-human` が付いたら、何が起きて何をしてほしいかを Slack で知らせる (4.11)
 
 ### 4.5 見回り (GitHub Actions、1 時間ごと)
 
-- `autopilot:ready` の Issue で、30 分たっても `<!-- autopilot:started -->` が無い → 起動に失敗したとみなし、ラベルを付け直す (App のトークンで付けたラベルでも起動することは確かめ済み)。付け直しても始まらなければ `needs-human`
-- `<!-- autopilot:started -->` から 3 時間たっても PR が無い Issue、3 時間動きの無い autopilot の PR → `needs-human`
+- `autopilot:ready` の Issue で、30 分たっても、開発の Draft PR (ラベルより後に作られたもの) が無い → 起動に失敗したとみなし、ラベルを付け直す (App のトークンで付けたラベルでも起動することは確かめ済み)。付け直しても始まらなければ `needs-human`
+- 開発の Draft PR (ラベルより後に作られたもの) が無いまま、`autopilot:ready` から 3 時間たった Issue、3 時間動きの無い autopilot の PR → `needs-human`
 - コンフリクトのある autopilot の PR → 対応のジョブを起動する
 - 1 時間ごとなので、GitHub Actions の時間は 1 リポジトリで月 720 分ほどになる (1 回を 1 分に切り上げて数える)
 
