@@ -1,7 +1,7 @@
 {
   "name": "autopilot",
   "displayName": "autopilot@indiehacker",
-  "version": "1.0.0",
+  "version": "2.0.0",
   "description": "Claude Code on the Web のセッションの準備、技術スタック (bun・Biome・uv・Ruff・ty) の統一、hooks による自動の検査 (lint・型検査・シークレット検出・脆弱性スキャン) を行うプラグイン",
   "repository": "https://github.com/theindiehacker/autopilot-plugin",
   "dependencies": [

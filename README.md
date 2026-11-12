@@ -206,9 +206,9 @@ claude plugin install autopilot@indiehacker
 
 </details>
 
-## 🔧 入れたら onboard を実行する
+## 🔧 入れたら setup を実行する
 
-既存のリポジトリは、プラグインを入れただけでは、push 前の検査で止まったり、Claude Code on the Web で起動に失敗したりします。Claude Code で `/autopilot:onboard` を実行すると、リポジトリを調べて環境を整え、PR を作ります。PR をマージすると、以後は問題なく動きます。
+既存のリポジトリは、プラグインを入れただけでは、push 前の検査で止まったり、Claude Code on the Web で起動に失敗したりします。Claude Code で `/autopilot:setup` を実行すると、リポジトリを調べて環境を整え、PR を作ります。PR をマージすると、以後は問題なく動きます。
 
 次の順に行います。どれも、起動時の処理を動かして失敗を集め、リポジトリを調べてから、直す項目ごとに確認しながら進めます。
 

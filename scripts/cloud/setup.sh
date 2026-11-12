@@ -52,6 +52,6 @@ fi
 
 for _ in $(seq 30); do docker info > /dev/null 2>&1 && break; sleep 1; done
 timeout -k 10 300 docker compose up --build -d --wait --wait-timeout 290 >&2 ||
-  echo "${COMPOSE} のサービスを起動できませんでした (時間切れを含む)。docker compose up --build -d --wait を実行し、エラーを確かめてください。リポジトリ側の問題なら、/autopilot:onboard で直せるとユーザーに伝えてください。頼まれるまで直さないでください。"
+  echo "${COMPOSE} のサービスを起動できませんでした (時間切れを含む)。docker compose up --build -d --wait を実行し、エラーを確かめてください。リポジトリ側の問題なら、/autopilot:setup で直せるとユーザーに伝えてください。頼まれるまで直さないでください。"
 
 exit 0

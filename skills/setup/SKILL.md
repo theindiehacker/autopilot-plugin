@@ -1,6 +1,6 @@
 ---
-name: onboard
-description: リポジトリを、Claude Code on the Web で開発・テストできるように整える。フロントエンド (bun・Biome・Playwright・shadcn/ui・Tailwind CSS) と Python (uv・ruff・ty・deptry・import-linter・pytest) の技術スタックへの移行、Web で docker compose を起動するための compose ファイルと Dockerfile の修正、commit・push の前の検査 (Gitleaks・Semgrep・Trivy) を通すための既存のシークレット・脆弱性の修正を、ユーザーに確かめながら行い、最後に PR を作る。使い方 → /autopilot:onboard
+name: setup
+description: リポジトリを、Claude Code on the Web で開発・テストできるように整える。フロントエンド (bun・Biome・Playwright・shadcn/ui・Tailwind CSS) と Python (uv・ruff・ty・deptry・import-linter・pytest) の技術スタックへの移行、Web で docker compose を起動するための compose ファイルと Dockerfile の修正、commit・push の前の検査 (Gitleaks・Semgrep・Trivy) を通すための既存のシークレット・脆弱性の修正を、ユーザーに確かめながら行い、最後に PR を作る。使い方 → /autopilot:setup
 ---
 
 # 手順
