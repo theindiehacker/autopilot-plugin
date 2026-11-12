@@ -27,6 +27,15 @@ export function findTerraformDestroys(plan: unknown): string[] {
   return addresses;
 }
 
+function isValidPlan(plan: unknown): boolean {
+  if (typeof plan !== "object" || plan === null) return false;
+  const p = plan as { format_version?: unknown; resource_changes?: unknown };
+  return (
+    typeof p.format_version === "string" &&
+    (p.resource_changes === undefined || Array.isArray(p.resource_changes))
+  );
+}
+
 export function detectIrreversible(input: {
   changedFiles: string[];
   config: AutopilotConfig;
@@ -36,8 +45,12 @@ export function detectIrreversible(input: {
     input.changedFiles,
     input.config.irreversible.paths,
   );
+  const planUnreadable =
+    input.config.irreversible.terraformPlanArtifact !== undefined &&
+    !isValidPlan(input.terraformPlan);
   return [
     ...paths.map((f) => `パス: ${f}`),
+    ...(planUnreadable ? ["Terraform: plan を読めませんでした"] : []),
     ...findTerraformDestroys(input.terraformPlan).map(
       (a) => `Terraform: ${a} を削除または作り直し`,
     ),

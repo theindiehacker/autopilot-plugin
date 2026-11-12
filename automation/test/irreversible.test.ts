@@ -61,3 +61,59 @@ test("理由を日本語でまとめる", () => {
     "Terraform: google_sql_database.main を削除または作り直し",
   ]);
 });
+
+test("パターンに合うものが無ければ空", () => {
+  expect(
+    findIrreversiblePaths(["README.md"], ["backend/migration/**"]),
+  ).toEqual([]);
+});
+
+test('["create","delete"] の replace も拾う', () => {
+  expect(
+    findTerraformDestroys({
+      resource_changes: [
+        { address: "a.b", change: { actions: ["create", "delete"] } },
+      ],
+    }),
+  ).toEqual(["a.b"]);
+});
+
+const unreadable = "Terraform: plan を読めませんでした";
+const withArtifact = {
+  irreversible: { paths: [], terraformPlanArtifact: "tfplan" },
+} as unknown as AutopilotConfig;
+const withoutArtifact = {
+  irreversible: { paths: [] },
+} as unknown as AutopilotConfig;
+
+test("plan の成果物を設定していて plan が無いと理由を返す", () => {
+  expect(
+    detectIrreversible({ changedFiles: [], config: withArtifact }),
+  ).toContain(unreadable);
+});
+
+test("plan の成果物を設定していて plan の形が違うと理由を返す", () => {
+  expect(
+    detectIrreversible({
+      changedFiles: [],
+      config: withArtifact,
+      terraformPlan: {},
+    }),
+  ).toContain(unreadable);
+});
+
+test("resource_changes が無い正しい plan は理由にしない", () => {
+  expect(
+    detectIrreversible({
+      changedFiles: [],
+      config: withArtifact,
+      terraformPlan: { format_version: "1.2" },
+    }),
+  ).toEqual([]);
+});
+
+test("plan の成果物を設定していなければ plan が無くても理由にしない", () => {
+  expect(
+    detectIrreversible({ changedFiles: [], config: withoutArtifact }),
+  ).toEqual([]);
+});
