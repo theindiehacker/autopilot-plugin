@@ -123,14 +123,63 @@ Terraform の apply がマージで動くときだけ行います。plan のワ�
 
 | 頼むこと | 手順 |
 |---|---|
-| GitHub App を作る | [templates/github-app-manifest.json](templates/github-app-manifest.json) の権限で作る (下の表)。webhook は無効 |
+| 組織にもうあるかを確かめる | 下の「7-A」。org のときだけ |
+| GitHub App を作る | 7-A で見つからなかったとき、[templates/github-app-manifest.json](templates/github-app-manifest.json) をもとに、ボタンで作る (下の「7-B」)。権限は下の表。webhook は無効 |
 | GitHub App を入れる | **autopilot を使うリポジトリにだけ**入れる |
-| Slack の Incoming Webhook | Slack の画面で作り、通知先のチャンネルを選ぶ |
-| シークレットを登録 | 下の表 |
+| Slack の App と Incoming Webhook | 7-A で見つからなかったとき、manifest で作る (下の「7-C」) |
+| シークレットを登録 | 下の表。7-B・7-C で登録したものと、7-A で足したものは飛ばす |
 | Web の環境を作る | README の手順 |
 
 GitHub App を、autopilot を使うリポジトリにだけ入れるのは、QA と対応のジョブが PR のコードを動かすためです。ほかのリポジトリに入れると、App の権限が、そのリポジトリにも及びます。
 
+### 7-A. 組織にもうあるかを確かめる
+リポジトリの持ち主が org のときだけ行います。個人のアカウントなら飛ばします (App もシークレットもリポジトリごと)。App は会社ごとに 1 つです。人ごとに作りません。
+
+1. GitHub App: `gh api orgs/<org>/installations --jq '.installations[] | {id, app_slug, repository_selection}'` で、入っている App を読みます (org の owner の権限が要る)。
+   - autopilot の App (名前に autopilot を含むものなど) があれば、どれかをユーザーに確かめ、新しく作りません。その App を入れるリポジトリに、このリポジトリを足してもらいます (`https://github.com/organizations/<org>/settings/installations/<id>` の「Only select repositories」)。権限が下の表と合っているかは、下の「権限の照らし合わせ」のとおり照らします
+   - 読めない (403) ときは、org の owner に確かめてもらいます。**自分で新しい App を作りません** (人ごとに App ができるのを防ぐため)
+2. シークレット: `gh api orgs/<org>/actions/secrets --jq '.secrets[] | {name, visibility}'` で、`AUTOPILOT_APP_ID`・`AUTOPILOT_APP_PRIVATE_KEY`・`AUTOPILOT_SLACK_WEBHOOK_URL`・`CLAUDE_CODE_OAUTH_TOKEN`・`ANTHROPIC_API_KEY` があるかを見ます。
+   - `visibility` が `selected` なら、値を変えずに、このリポジトリを足します: `gh api -X PUT orgs/<org>/actions/secrets/<名前>/repositories/<リポジトリの id>` (id は `gh api repos/{owner}/{repo} --jq .id`)
+   - `all`・`private` なら、もう使えます。何もしません
+3. Slack: org のシークレットに `AUTOPILOT_SLACK_WEBHOOK_URL` があれば、同じチャンネルでよいかをユーザーに聞きます。別のチャンネルにするときだけ、組織の Slack の App (7-C で作ったもの) に Webhook を足し (App の設定の Incoming Webhooks の「Add New Webhook to Workspace」)、リポジトリのシークレットとして登録します (リポジトリのシークレットが org のものより優先される)
+
+### 7-B. GitHub App を manifest で作る
+7-A で見つからなかったときに行います。
+
+1. `github-app-manifest.json` の `{{APP_NAME}}` を、org なら `autopilot-<org>` (組織で 1 つと分かる名前) にし、`{{REPO_URL}}` をこのリポジトリの URL にします (`redirect_url` も同じ。作った後に、ここへ `?code=...&state=...` が付いて戻る)
+2. [templates/github-app-create.html](templates/github-app-create.html) の `{{CREATE_URL}}`・`{{MANIFEST}}` を置き換えます。
+   - `{{CREATE_URL}}`: org なら `https://github.com/organizations/<org>/settings/apps/new?state=<ランダム>`、個人なら `https://github.com/settings/apps/new?state=<ランダム>`。`state` は setup が覚えておく
+   - `{{MANIFEST}}`: 1 の JSON を、HTML の属性値として escape したもの (`&`・`"`・`<`・`>`)
+3. HTML を一時フォルダに書き、ブラウザで開きます (`open` (Mac)・`xdg-open` (Linux)・WSL なら `explorer.exe`)。開けない環境 (Web のセッションなど) では、手順 2 以降をやめ、下の「画面で作るとき」にします。
+4. ユーザーに「GitHub App を作る」を押して作ってもらい、戻った先のアドレスの `code` と `state` を教えてもらいます。`state` が送ったものと同じかを確かめます。
+5. `code` は 1 時間だけ、1 回だけ、App の ID と秘密鍵に替えられます。秘密鍵が会話に出ないよう、ユーザーに自分のターミナルで次を動かしてもらいます (setup が値を入れたコマンドを示す。`--org` の行は org のとき、`--repo` の行は個人のとき)。
+
+```bash
+read -rs -p 'code: ' CODE; echo
+out=$(mktemp); chmod 600 "$out"
+gh api -X POST "/app-manifests/$CODE/conversions" > "$out"
+jq -r .id "$out" | gh secret set AUTOPILOT_APP_ID --org <org> --visibility selected --repos <repo>
+jq -r .pem "$out" | gh secret set AUTOPILOT_APP_PRIVATE_KEY --org <org> --visibility selected --repos <repo>
+jq -r '"App: \(.slug) (ID \(.id))"' "$out"
+rm -f "$out"
+```
+
+   個人のアカウントでは、`gh secret set` の `--org <org> --visibility selected --repos <repo>` を `--repo <owner>/<repo>` に替えます。
+6. 次に、App をこのリポジトリにだけ入れてもらいます: `https://github.com/apps/<slug>/installations/new` で「Only select repositories」を選びます。
+
+org では、シークレットを org のシークレット (`--visibility selected`) にします。次のリポジトリの setup が、7-A の 2 で足すだけで済むようにするためです。
+
+### 7-C. Slack App を manifest で作る
+7-A で見つからなかったときに行います。組織の Slack に、もう autopilot の App があれば作りません (7-A の 3)。
+
+[templates/slack-app-manifest.json](templates/slack-app-manifest.json) は、Incoming Webhook だけの App です (ほかの権限は付けない)。次の手順で作ってもらいます。
+
+1. https://api.slack.com/apps の「Create New App」→「From an app manifest」を選ぶ
+2. ワークスペースを選び、manifest を貼って作る
+3. 「Install to Workspace」で、通知先のチャンネルを選ぶ
+4. 「Incoming Webhooks」に出る URL を、自分のターミナルで `gh secret set AUTOPILOT_SLACK_WEBHOOK_URL --org <org> --visibility selected --repos <repo>` (個人なら `--repo <owner>/<repo>`) に貼る。値は会話に書かない
+
+### 権限の照らし合わせ
 | App の権限 | 値 | 使うところ |
 |---|---|---|
 | Contents・Pull requests・Issues・Commit statuses・Actions | Read and write | ラベル・コメント・ステータス・自動マージ・push・ワークフローの起動 |
@@ -139,7 +188,9 @@ GitHub App を、autopilot を使うリポジトリにだけ入れるのは、QA
 | Metadata | Read | 常に付く |
 | Organization の Members | Read | 承認する人の team を読む (`irreversible`) |
 
-作成の画面は、個人のアカウントなら `https://github.com/settings/apps/new`、org なら `https://github.com/organizations/<org>/settings/apps/new` です。manifest の権限を、画面で同じにしてもらいます。作り終えたら、App の設定の「Permissions & events」の画面を見せてもらい (または、スクリーンショットか、`gh api` で読める範囲の値)、上の表と 1 つずつ照らします。すでに App があるリポジトリでは、Variables (Read and write) が足りないので、App の設定で足してもらいます (足したら、導入先で権限の更新を承認してもらう)。ロールバックを入れないなら、要りません。違いがあれば直してもらいます。App の ID も控えてもらいます (手順 9 で使います)。
+画面で作るとき (7-B の 3 で開けないとき) は、作成の画面を、個人のアカウントなら `https://github.com/settings/apps/new`、org なら `https://github.com/organizations/<org>/settings/apps/new` として、manifest の権限を、画面で同じにしてもらいます。
+
+作り終えたら (7-A で見つけた App も同じ)、App の設定の「Permissions & events」の画面を見せてもらい (または、スクリーンショットか、`gh api` で読める範囲の値)、上の表と 1 つずつ照らします。すでに App があるリポジトリや、7-A で見つけた App では、Variables (Read and write) が足りないので、App の設定で足してもらいます (足したら、導入先で権限の更新を承認してもらう)。ロールバックを入れないなら、要りません。違いがあれば直してもらいます。App の ID も控えてもらいます (手順 9 で使います)。
 
 | シークレット | 内容 |
 |---|---|
@@ -148,7 +199,7 @@ GitHub App を、autopilot を使うリポジトリにだけ入れるのは、QA
 | `AUTOPILOT_SLACK_WEBHOOK_URL` | Slack の Incoming Webhook の URL |
 | `CLAUDE_CODE_OAUTH_TOKEN` か `ANTHROPIC_API_KEY` | claude-code-action の認証 (どちらか) |
 
-登録は `gh secret set <名前>` (org で共有するなら `--org <org> --repos <リポジトリ>`) です。環境変数とシークレットは、使う操作に要る最小の権限にしてもらいます。値は、会話や commit に書きません。
+登録は `gh secret set <名前>` (org で共有するなら `--org <org> --visibility selected --repos <リポジトリ>`) です。7-B・7-C で登録したものと、7-A で組織のものを足したものは、飛ばします。環境変数とシークレットは、使う操作に要る最小の権限にしてもらいます。値は、会話や commit に書きません。
 
 ## 8. PR にまとめて、マージしてもらう
 SKILL.md の「PR を作る」の節のとおりに、ここまでの変更を 1 つの PR にまとめます。本文には、次も書きます。

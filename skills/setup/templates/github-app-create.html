@@ -1,0 +1,20 @@
+<!doctype html>
+<html lang="ja">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1">
+<title>GitHub App を作る</title>
+<style>
+  body { font-family: system-ui, sans-serif; max-width: 36rem; margin: 3rem auto; padding: 0 1rem; line-height: 1.7; }
+  button { font-size: 1rem; padding: 0.6rem 1.2rem; cursor: pointer; }
+</style>
+</head>
+<body>
+<h1>GitHub App を作る</h1>
+<p>ボタンを押すと、GitHub の画面に移ります。名前を確かめて、作成を押してください。作った後に戻る先のアドレスの <code>code=</code> の値を、控えてください (アドレスバーに出ます)。</p>
+<form method="post" action="{{CREATE_URL}}">
+  <input type="hidden" name="manifest" value="{{MANIFEST}}">
+  <button type="submit">GitHub App を作る</button>
+</form>
+</body>
+</html>

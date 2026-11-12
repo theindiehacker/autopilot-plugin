@@ -1,7 +1,7 @@
 {
   "name": "{{APP_NAME}}",
   "url": "{{REPO_URL}}",
-  "redirect_url": "https://github.com",
+  "redirect_url": "{{REPO_URL}}",
   "public": false,
   "hook_attributes": {
     "url": "https://example.com/unused",
