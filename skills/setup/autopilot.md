@@ -151,7 +151,7 @@ GitHub App を、autopilot を使うリポジトリにだけ入れるのは、QA
    - `{{CREATE_URL}}`: org なら `https://github.com/organizations/<org>/settings/apps/new?state=<ランダム>`、個人なら `https://github.com/settings/apps/new?state=<ランダム>`。`state` は setup が覚えておく
    - `{{MANIFEST}}`: 1 の JSON を、HTML の属性値として escape したもの (`&`・`"`・`<`・`>`)
 3. HTML を一時フォルダに書き、ブラウザで開きます (`open` (Mac)・`xdg-open` (Linux)・WSL なら `explorer.exe`)。開けない環境 (Web のセッションなど) では、手順 2 以降をやめ、下の「画面で作るとき」にします。
-4. ユーザーに「GitHub App を作る」を押して作ってもらい、戻った先のアドレスの `code` と `state` を教えてもらいます。`state` が送ったものと同じかを確かめます。
+4. ユーザーに「GitHub App を作る」を押して作ってもらい、戻った先のアドレスの `state` だけを教えてもらいます。送ったものと同じかを確かめます (違えば、5 に進まず作り直す)。`code` は会話に書かず、5 のコマンドに入れてもらいます。
 5. `code` は 1 時間だけ、1 回だけ、App の ID と秘密鍵に替えられます。秘密鍵が会話に出ないよう、ユーザーに自分のターミナルで次を動かしてもらいます (setup が値を入れたコマンドを示す。`--org` の行は org のとき、`--repo` の行は個人のとき)。
 
 ```bash
@@ -190,7 +190,7 @@ org では、シークレットを org のシークレット (`--visibility sele
 
 画面で作るとき (7-B の 3 で開けないとき) は、作成の画面を、個人のアカウントなら `https://github.com/settings/apps/new`、org なら `https://github.com/organizations/<org>/settings/apps/new` として、manifest の権限を、画面で同じにしてもらいます。
 
-作り終えたら (7-A で見つけた App も同じ)、App の設定の「Permissions & events」の画面を見せてもらい (または、スクリーンショットか、`gh api` で読める範囲の値)、上の表と 1 つずつ照らします。すでに App があるリポジトリや、7-A で見つけた App では、Variables (Read and write) が足りないので、App の設定で足してもらいます (足したら、導入先で権限の更新を承認してもらう)。ロールバックを入れないなら、要りません。違いがあれば直してもらいます。App の ID も控えてもらいます (手順 9 で使います)。
+作り終えたら (7-A で見つけた App も同じ)、App の設定の「Permissions & events」の画面を見せてもらい (または、スクリーンショットか、`gh api` で読める範囲の値)、上の表と 1 つずつ照らします。すでに App があるリポジトリや、7-A で見つけた App で、Variables (Read and write) が足りなければ、App の設定で足してもらいます (足したら、導入先で権限の更新を承認してもらう)。ロールバックを入れないなら、要りません。違いがあれば直してもらいます。App の ID も控えてもらいます (手順 9 で使います)。
 
 | シークレット | 内容 |
 |---|---|
