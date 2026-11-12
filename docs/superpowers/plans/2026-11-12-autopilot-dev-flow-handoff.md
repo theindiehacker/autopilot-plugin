@@ -16,22 +16,62 @@ PC の Claude Code のセッションから、Claude Code on the Web のセッ�
 | 13 onboard を setup に改名 | 完了 |
 | 14 setup の手順 | 完了 |
 | 20 検査の hook をリポジトリの lefthook に移す | 完了 |
-| 15 試験 1 (デプロイの無いテンプレートのリポジトリ) | **途中**。下の「次にすること」 |
+| 15 試験 1 (デプロイの無いテンプレートのリポジトリ) | **途中**。setup の PR は claude[bot] が承認済みで、ユーザーのマージ待ち (2026-11-12、Web のセッション) |
 | 16〜18 試験 2〜4 | 未着手 |
 | 19 README と完了の確かめ | 未着手 |
 | ブランチ全体のレビュー | 未着手 (最も性能の高いモデルで行う) |
 
+プラグインの PR は #46 (CI はすべて通っている。試験が終わるまでマージしない)。
+
+### 2026-11-12 の Web のセッションでしたこと
+
+- セキュリティの自動レビューの指摘 2 つを直した。QA と対応の job は、デフォルトブランチの `mise.toml` でツールを入れ、shim を PATH に足さない。`in-git-files.sh` は、元の mise の設定が信頼済みのときだけ一時フォルダを信頼する
+- 試験 1 の setup の PR を最新のひな形で作り直し、claude[bot] のレビュー 6 回の必須の指摘を直した (プラグインのひな形に戻して直し、PR は描き直した)
+  - fix の起動を、`pr` 付きの手動の実行・設定のレビュアー (`{{REVIEWER}}`、新しい置き換え文字列)・`autopilot/` のブランチ・CI の `failure`/`timed_out`/`startup_failure` に絞った
+  - ベースの変更 (`edited` の `changes.base`) で `autopilot/irreversible` を付け直す
+  - QA と対応の job の中の commit では git の hook を止める (`LEFTHOOK=0`・`HUSKY=0`・`core.hooksPath=/dev/null`)
+  - setup-bun・setup-uv のキャッシュを、PR のコードの後に保存しない
+  - すべての job に `permissions` と `timeout-minutes` (ghalint)。zizmor の `dangerous-triggers` は、リポジトリの `.github/zizmor.yml` に行番号で除外する (組織の CI がインラインの除外を禁じるため)
+  - 対応の Claude が失敗しても `ready` で Draft から戻す
+  - 編集後の hook: 入っている Biome だけを動かす (`bunx` をやめた)、`uv run --frozen`、Ruff は `--force-exclude` で、F401 を自動で直さない
+- 組織の CI のために `automation/` に knip を入れ、試験用の偽の鍵の 1 件を `.gitleaksignore` で除いた
+
 ## 次にすること
 
-1. **残っている指摘を直す (セキュリティの自動レビュー):**
-   - **HIGH:** `skills/setup/templates/autopilot-workflow.yml` の fix ジョブ (と QA のひな形) が、PR 側の `mise.toml` で `jdx/mise-action` を動かしている。PR が `[env]`・`[hooks]`・`exec(` などで、秘密を持つジョブの中で処理を動かせる。デフォルトブランチの `mise.toml` で道具を入れてから PR を checkout するか、SHA で固定した setup-* の action だけで入れる
-   - **MEDIUM:** `scripts/security/in-git-files.sh` の mise の信頼が、コメントの説明より広い。元のリポジトリの設定が信頼済み (`mise trust --show`) のときだけ一時フォルダを信頼する
-2. **試験 1 の setup の PR を作り直す:** 試験 1 のリポジトリに、setup の PR (ブランチ `chore/autopilot-setup`) が開いている。その後でプラグインを直したので、最新のひな形で作り直す。`{{AUTOPILOT_REF}}` は、このブランチの HEAD の commit の SHA にする
-3. **ユーザーにマージしてもらう**
-4. **setup の残りの手順 (9・10):** ルールセット (GitHub App の ID が要るのでユーザーに聞く)・ワークフローの権限・ルーティン。**ルーティンは Web のセッションでは作れない** (`/schedule` と RemoteTrigger が使えない)。PC の Claude Code か、Web の画面で作ってもらう。作り方は `skills/setup/autopilot.md` の手順 10
-5. **試験 1 を通す:** 計画の Task 15 の Step 5〜8。最初に、ルーティンからの git push と PR の作成ができるかを確かめる (設計書 9.1 の未確認の行)
-6. **ユーザーに使ってもらう:** 試験 1 の後に、ユーザーが Issue を 1 つ書いて試し、フィードバックをもらう (ユーザーと決めた確認の時点)
-7. 試験 2〜4・README・ブランチ全体のレビュー
+1. **ユーザーが試験 1 の setup の PR をマージする** (`.github/zizmor.yml` の変更に、組織のセキュリティチームの承認が要る)
+2. **ルールセットとワークフローの権限 (setup の手順 9):** GitHub App の ID をユーザーに聞き、`skills/setup/autopilot.md` の手順 9 のコマンドを示して、PC で動かしてもらう (Web のセッションにはルールセットの API が無い)
+3. **ルーティンを作ってもらう (手順 10):** Web のセッションでは作れない。claude.ai/code の画面で、リポジトリ = 試験 1 のリポジトリ、環境 = プラグインを `#feat/40-autopilot-dev-flow` で入れる環境、プロンプト = `/autopilot:develop を実行する`、トリガー = GitHub の `issues.labeled` (絞り込みなし)
+4. **試験 1 を通す:** 計画の Task 15 の Step 5〜8。最初に、ルーティンからの git push と PR の作成ができるかを確かめる (設計書 9.1 の未確認の行)
+5. **ユーザーに使ってもらう:** 試験 1 の後に、ユーザーが Issue を 1 つ書いて試し、フィードバックをもらう
+6. **#47 (検査の基準を Taskfile にそろえる):** ユーザーと合意済みの方針。設計書 4.12 から直す。試験 1 のリポジトリの hook は、別の PR で入れ替える
+7. 試験 2〜4・README・ブランチ全体のレビュー。試験の範囲は次のとおり (2026-11-12 にユーザーが指示)
+   - デプロイを別のリポジトリで行うリポジトリ: Issue からマージまで
+   - マージで本番へデプロイするリポジトリ 2 つ (うち 1 つは Cloudflare に Astro をデプロイし、docker compose と DB が無い): Issue から本番へのデプロイまで
+   - 他社のリポジトリ 3 つ: PC の Claude Code で、手元で setup を動かすだけ (Web のセッションでは行わない)
+   - 計画の試験 3 (`dispatch` 方式) は今回の範囲に無い。`dispatch` は未試験のまま残る
+   - 取り消せない変更の承認の試験は、ユーザー以外の GitHub アカウントが無いので飛ばす
+
+## プラグインの残りの指摘 (試験 1 のレビューで出て、直していないもの)
+
+ブランチ全体のレビューで、直すかを決める。
+
+| 指摘 | メモ |
+|---|---|
+| QA を Draft で `if:` で飛ばすと、skipped が必須のチェックを通る | 承認を必須にするリポジトリでは、push で承認が外れ、新しい承認より先に QA が pending になるので通らない。承認を必須にしないリポジトリで効く |
+| QA の job で、PR のプロセスと書き込みのトークン・Claude の認証が同じ runner に同居する | 設計の既知の残りのリスク (R28)。アプリを別のユーザーやコンテナで動かす案 |
+| fix の PR の checkout がブランチ名で、`fix-round` が確かめた SHA ではない | 確かめた SHA を出力し、それを checkout する |
+| `irreversible-plan` は workflow の名前だけで動き、fork の PR の plan の実行でも、その artifact を読む | fork が plan の JSON を作れるなら、削除の無い plan で success にできないか (セキュリティ) |
+| `label` の Bot の条件を、App の slug に絞る | CLI が中で書いた人を確かめ直すので、今は無駄に動くだけ |
+| `qa.start`・`review.reviewer` がワークフローに手で写されている | デフォルトブランチの checkout の `.github/autopilot.yml` から読む形にする |
+| QA と fix で、ツールを入れる手順が重複している | composite action にまとめる |
+| mise-action の `install_args` と mise の版を固定していない | 試験で時間を見て決める |
+| zizmor の除外が行番号で、ワークフローを書き直すとずれる | ファイルごとの除外にするかは、承認する人が決める |
+| hook の `up()` が `/` で止まらない | `[ "$d" = / ] && return 1` を足す (#47 で hook ごと入れ替えるなら不要) |
+| setup-bun・setup-uv の `hashFiles` がルートの lock だけを見る | `frontend/`・`backend/` に lock があるリポジトリで効かない |
+| hook の `uv run` が新しい checkout で同期する | #47 で入れ替えるなら不要 |
+| 起動に失敗したときのログを残さない | ログに秘密が出うるので、出し方を決める |
+| `deploy: none` でも deploy の job が動く | Slack の `done` を送るため。設計どおり |
+| 手元の bun 1.4 で、automation のテスト 12 件が YAML の読み取りで落ちる | テストの入力のフロー形式の `claude[bot]` が 1.4 の YAML で不正。固定の 1.3.10 では通る |
 
 ## 片付け (試験がすべて終わってから、ユーザーに確かめて行う)
 
@@ -67,6 +107,11 @@ PC の Claude Code のセッションから、Claude Code on the Web のセッ�
 | R33 | ルールセットとルーティンは、setup の PR のマージの後に作る | setup が 2 回に分かれる |
 | R35・R36 | CI の失敗からの対応は、同じリポジトリの最新のコミットのときだけ。lefthook の設定は、場所と形式を問わず守る | — |
 | R37 | 各リポジトリは、プラグインの action をコミットの SHA で固定する | 版を上げるときに SHA を書き換える |
+| R38 | 試験の間は、`{{AUTOPILOT_REF}}` を、このブランチの commit の SHA と行末の `# feat/40-autopilot-dev-flow` にする (`v2.0.0` のタグがまだ無い) | Renovate が版を読めず、更新しない |
+| R39 | QA と対応の job の中の commit では git の hook を止める。検査は push の後の CI が行う | CI の失敗が push の後で見つかり、対応がもう一度動く |
+| R40 | `in-git-files.sh` は、元のフォルダと親の mise の設定を確かめるだけで、サブフォルダの mise.toml は確かめずに信頼する (呼び出し元はルートで検査するだけ) | サブフォルダでコマンドを動かす呼び出し元が増えると、信頼していない設定が動く |
+| R41 | 試験用の偽の鍵は、履歴を書き換えず `.gitleaksignore` で 1 件だけ除く | 履歴から消したいなら、マージで squash する |
+| R42 | レビューの指摘のうち、設計の範囲・既知のリスク・組織の書き方に関わるものは、直さず理由を返信した (上の「残りの指摘」) | ブランチ全体のレビューで直す |
 
 ## ユーザーへの確認が要ること
 
