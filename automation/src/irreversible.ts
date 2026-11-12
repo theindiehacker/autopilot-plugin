@@ -1,5 +1,17 @@
 import type { AutopilotConfig } from "./types";
 
+// 設定に書かなくても、いつも取り消せない変更として扱うパス
+// (自動化の設定・ワークフロー・検査の仕組みを、人の承認なしに書き換えさせない)
+export const BUILTIN_IRREVERSIBLE_PATHS: string[] = [
+  ".github/autopilot.yml",
+  ".github/workflows/**",
+  ".claude/settings.json",
+  "lefthook.yml",
+  "lefthook.yaml",
+  ".lefthook.yml",
+  ".pre-commit-config.yaml",
+];
+
 export function findIrreversiblePaths(
   changedFiles: string[],
   patterns: string[],
@@ -41,10 +53,10 @@ export function detectIrreversible(input: {
   config: AutopilotConfig;
   terraformPlan?: unknown;
 }): string[] {
-  const paths = findIrreversiblePaths(
-    input.changedFiles,
-    input.config.irreversible.paths,
-  );
+  const paths = findIrreversiblePaths(input.changedFiles, [
+    ...input.config.irreversible.paths,
+    ...BUILTIN_IRREVERSIBLE_PATHS,
+  ]);
   const planUnreadable =
     input.config.irreversible.terraformPlanArtifact !== undefined &&
     !isValidPlan(input.terraformPlan);

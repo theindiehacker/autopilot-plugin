@@ -27,6 +27,7 @@ export interface Issue {
   title: string;
   body: string | null;
   html_url: string;
+  created_at: string;
   updated_at: string;
   labels: { name: string }[];
 }
@@ -94,7 +95,10 @@ export interface GitHubClient {
   getWorkflowRun(id: number): Promise<WorkflowRun>;
   listTeamMembers(org: string, team: string): Promise<string[]>;
   listOpenIssuesByLabel(label: string): Promise<Issue[]>;
+  listOpenIssues(): Promise<Issue[]>;
   listOpenPulls(): Promise<Pull[]>;
+  getCommitParents(sha: string): Promise<string[]>;
+  mergePull(n: number, sha: string): Promise<void>;
   listArtifacts(name: string): Promise<ArtifactInfo[]>;
   downloadArtifactJson(runId: number, name: string): Promise<unknown>;
   enableAutoMerge(pullNodeId: string): Promise<void>;
@@ -191,6 +195,14 @@ export function createGitHubClient(opts: {
     return items;
   }
 
+  async function openIssues(query: string): Promise<Issue[]> {
+    return (
+      await paginate<Issue & { pull_request?: unknown }>(
+        `${repoPath}/issues${query}`,
+      )
+    ).filter((i) => i.pull_request === undefined);
+  }
+
   async function graphql(query: string, variables: object): Promise<void> {
     const res = await json<{ errors?: { message: string }[] }>(
       "POST",
@@ -282,12 +294,22 @@ export function createGitHubClient(opts: {
       (
         await paginate<{ login: string }>(`/orgs/${org}/teams/${team}/members`)
       ).map((m) => m.login),
-    listOpenIssuesByLabel: async (label) =>
+    listOpenIssuesByLabel: (label) =>
+      openIssues(`?state=open&labels=${encodeURIComponent(label)}`),
+    listOpenIssues: () => openIssues("?state=open"),
+    getCommitParents: async (sha) =>
       (
-        await paginate<Issue & { pull_request?: unknown }>(
-          `${repoPath}/issues?state=open&labels=${encodeURIComponent(label)}`,
+        await json<{ parents: { sha: string }[] }>(
+          "GET",
+          `${repoPath}/commits/${sha}`,
         )
-      ).filter((i) => i.pull_request === undefined),
+      ).parents.map((p) => p.sha),
+    mergePull: async (n, sha) => {
+      await call("PUT", `${repoPath}/pulls/${n}/merge`, {
+        merge_method: "squash",
+        sha,
+      });
+    },
     listOpenPulls: () => paginate(`${repoPath}/pulls?state=open`),
     listArtifacts: async (name) =>
       (

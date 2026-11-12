@@ -10,6 +10,13 @@ export async function automerge(ctx: Ctx): Promise<void> {
     return;
   const pull = await ctx.gh.getPull(ctx.event.pull_request.number);
   if (!isAutopilotPull(pull, ctx.repo) || pull.state !== "open") return;
-  if (pull.auto_merge) return;
-  await ctx.gh.enableAutoMerge(pull.node_id);
+  // Draft は、ready_for_review のときに改めて処理する
+  if (pull.draft || pull.auto_merge) return;
+  try {
+    await ctx.gh.enableAutoMerge(pull.node_id);
+  } catch (e) {
+    // 検査がすべて終わっていると、自動マージは有効にできない。直接マージする
+    if (!/clean status/i.test((e as Error).message)) throw e;
+    await ctx.gh.mergePull(pull.number, pull.head.sha);
+  }
 }

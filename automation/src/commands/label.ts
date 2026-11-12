@@ -1,5 +1,5 @@
 import { LABELS, MARKERS } from "../types";
-import { type Ctx, isTrustedAuthor } from "./context";
+import { type Ctx, DEPLOY_FAILURE_MARKER, isTrustedAuthor } from "./context";
 
 function firstParagraph(body: string): string | undefined {
   return body
@@ -22,6 +22,8 @@ async function notifyNeedsHuman(ctx: Ctx): Promise<void> {
   if (event.action !== "labeled" || event.label?.name !== LABELS.needsHuman)
     return;
   const item = event.issue ?? event.pull_request;
+  // デプロイの失敗の Issue は、デプロイの処理が Slack に送っている
+  if (item.body?.includes(DEPLOY_FAILURE_MARKER)) return;
   const comments = await ctx.gh.listComments(item.number);
   const marked = comments.filter(
     (c) =>

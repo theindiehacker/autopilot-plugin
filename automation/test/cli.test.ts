@@ -3,6 +3,9 @@ import { mkdtempSync, readFileSync, writeFileSync } from "node:fs";
 import { tmpdir } from "node:os";
 import { join } from "node:path";
 import { main } from "../src/cli";
+import { type Deps, defaultRunShell } from "../src/commands/context";
+
+const realConsoleError = console.error;
 
 const CONFIG = `
 routine_github_user: routine-user
@@ -28,8 +31,18 @@ interface PullData {
   updated_at?: string;
 }
 
+interface RunData {
+  id: number;
+  head_sha?: string;
+  created_at?: string;
+  // getWorkflowRun が順に返す状態 (最後のものは繰り返す)
+  states: { status: string; conclusion: string | null }[];
+}
+
 interface IssueData {
   number: number;
+  body?: string;
+  created_at?: string;
   labels?: string[];
   events?: { event: string; created_at: string; label: { name: string } }[];
   comments?: { body: string; login: string; created_at?: string }[];
@@ -51,6 +64,20 @@ interface World {
   slack: string[];
   removed: string[];
   createdIssues: { title: string; body: string; labels: string[] }[];
+  configs: Record<string, string>;
+  runs: RunData[];
+  runQueries: string[];
+  artifacts: {
+    runId: number;
+    headSha: string;
+    expired?: boolean;
+    plan?: unknown;
+  }[];
+  merged: { n: number; body: unknown }[];
+  graphqlError?: string;
+  events: string[];
+  failCreateIssue?: boolean;
+  throwOnPull?: string;
 }
 
 function newWorld(): World {
@@ -64,6 +91,12 @@ function newWorld(): World {
     slack: [],
     removed: [],
     createdIssues: [],
+    configs: {},
+    runs: [],
+    runQueries: [],
+    artifacts: [],
+    merged: [],
+    events: [],
   };
 }
 
@@ -111,19 +144,66 @@ function fakeFetch(w: World): typeof fetch {
     };
     const pull = (n: number) => w.pulls.find((p) => p.number === n);
     const pullNo = id(/^\/pulls\/(\d+)/);
+    if (pullNo !== undefined && w.throwOnPull) throw new Error(w.throwOnPull);
     const issueNo = id(/^\/issues\/(\d+)/);
 
     if (url.host === "slack.test") {
+      w.events.push("slack");
       w.slack.push(body.text);
       return new Response("ok");
     }
     if (url.pathname === "/graphql") {
       w.graphql.push(body.query);
+      if (w.graphqlError)
+        return Response.json({ errors: [{ message: w.graphqlError }] });
       return Response.json({ data: {} });
     }
     if (path === "")
       return Response.json({ default_branch: "main", full_name: "o/r" });
-    if (path.startsWith("/contents/")) return new Response(CONFIG);
+    if (path.startsWith("/contents/"))
+      return new Response(
+        w.configs[url.searchParams.get("ref") ?? ""] ??
+          w.configs["*"] ??
+          CONFIG,
+      );
+    if (path.startsWith("/commits/"))
+      return Response.json({ parents: [{ sha: "base123" }] });
+    if (path.startsWith("/actions/workflows/") && path.endsWith("/runs")) {
+      w.runQueries.push(url.search);
+      return Response.json({
+        workflow_runs: w.runs.map((r) => ({
+          id: r.id,
+          status: "queued",
+          conclusion: null,
+          head_sha: r.head_sha ?? "",
+          html_url: `https://github.com/o/r/actions/runs/${r.id}`,
+          created_at: r.created_at ?? "2026-11-12T12:00:05Z",
+        })),
+      });
+    }
+    if (path === "/actions/artifacts")
+      return Response.json({
+        artifacts: w.artifacts.map((a) => ({
+          expired: a.expired ?? false,
+          workflow_run: { id: a.runId, head_sha: a.headSha },
+        })),
+      });
+    const runNo = id(/^\/actions\/runs\/(\d+)$/);
+    if (runNo !== undefined) {
+      const r = w.runs.find((x) => x.id === runNo) as RunData;
+      const state = r.states.length > 1 ? r.states.shift() : r.states[0];
+      return Response.json({
+        id: runNo,
+        ...state,
+        head_sha: r.head_sha ?? "",
+        html_url: `https://github.com/o/r/actions/runs/${runNo}`,
+        created_at: r.created_at ?? "",
+      });
+    }
+    if (pullNo !== undefined && method === "PUT" && path.endsWith("/merge")) {
+      w.merged.push({ n: pullNo, body });
+      return Response.json({ merged: true });
+    }
     if (pullNo !== undefined && path.endsWith("/files"))
       return Response.json(
         (pull(pullNo)?.files ?? []).map((filename) => ({ filename })),
@@ -136,19 +216,22 @@ function fakeFetch(w: World): typeof fetch {
     if (path === "/issues" && method === "GET")
       return Response.json(
         w.issues
-          .filter((i) =>
-            i.labels?.includes(url.searchParams.get("labels") ?? ""),
-          )
+          .filter((i) => {
+            const label = url.searchParams.get("labels");
+            return label === null || i.labels?.includes(label);
+          })
           .map((i) => ({
             number: i.number,
             title: `Issue ${i.number}`,
-            body: null,
+            body: i.body ?? null,
+            created_at: i.created_at ?? "2026-11-01T00:00:00Z",
             html_url: `https://github.com/o/r/issues/${i.number}`,
             updated_at: i.updated_at ?? "2026-11-12T00:00:00Z",
             labels: (i.labels ?? []).map((name) => ({ name })),
           })),
       );
     if (path === "/issues") {
+      if (w.failCreateIssue) return new Response("{}", { status: 500 });
       w.createdIssues.push(body);
       return Response.json({ number: 99 });
     }
@@ -160,6 +243,7 @@ function fakeFetch(w: World): typeof fetch {
       if (method === "POST") {
         if (!w.issues.some((i) => i.number === issueNo))
           w.issues.push({ number: issueNo });
+        w.events.push("comment");
         commentsOf(w, issueNo).push({ body: body.body, login: "app[bot]" });
         return Response.json({});
       }
@@ -218,12 +302,18 @@ async function run(
   eventName: string,
   event: unknown,
   extra: Record<string, string> = {},
+  deps: Partial<Deps> = {},
 ) {
   const dir = mkdtempSync(join(tmpdir(), "autopilot-"));
   const eventPath = join(dir, "event.json");
   const outPath = join(dir, "output");
   writeFileSync(eventPath, JSON.stringify(event));
   writeFileSync(outPath, "");
+  let clock = Date.parse("2026-11-12T12:00:00Z");
+  const origLog = console.log;
+  const origErr = console.error;
+  console.log = () => {};
+  if (console.error === realConsoleError) console.error = () => {};
   const code = await main(
     [command],
     {
@@ -239,10 +329,15 @@ async function run(
     },
     {
       fetchImpl: fakeFetch(w),
-      now: () => new Date("2026-11-12T12:00:00Z"),
-      sleep: async () => {},
+      now: () => new Date(clock),
+      sleep: async (ms) => {
+        clock += ms;
+      },
+      ...deps,
     },
   );
+  console.log = origLog;
+  console.error = origErr;
   return { code, output: readFileSync(outPath, "utf8") };
 }
 
@@ -526,4 +621,393 @@ test("不明なコマンドは 2 を返す", async () => {
   } finally {
     console.error = orig;
   }
+});
+
+// ---- 修正の周回 1 ----
+
+const withIrr = (irr: string, extra = "") =>
+  `${CONFIG.replace('irreversible: { paths: ["db/migrations/**"] }', irr)}${extra}`;
+const ON_MERGE = `deploy: { mode: on_merge, workflow: deploy.yml, verify: "check.sh", rollback: "rollback.sh", timeout_minutes: 5 }\n`;
+const done = (conclusion: string) => ({ status: "completed", conclusion });
+const closed = { action: "closed", pull_request: { number: 1 } };
+
+function deployWorld(config: string, files = ["app/main.ts"]) {
+  const w = newWorld();
+  w.configs["*"] = config;
+  w.pulls.push({ number: 1, merged: true, files });
+  w.runs.push({ id: 50, head_sha: "merge123", states: [done("success")] });
+  return w;
+}
+
+function shell(results: { code: number; output?: string }[]) {
+  const commands: string[] = [];
+  const runShell: Deps["runShell"] = async (c) => {
+    commands.push(c);
+    const r = results.shift() ?? { code: 0 };
+    return { code: r.code, output: r.output ?? "" };
+  };
+  return { commands, runShell };
+}
+
+const runDeploy = (w: World, deps: Partial<Deps>) =>
+  run(w, "deploy", "pull_request_target", closed, {}, deps);
+
+test("deploy は plan が無いときは取り消せない変更とみなし、ロールバックしない (C1)", async () => {
+  const w = deployWorld(
+    withIrr(
+      'irreversible: { paths: ["db/migrations/**"], terraform_plan_artifact: plan }',
+      ON_MERGE,
+    ),
+    ["db/migrations/1.sql"],
+  );
+  const sh = shell([{ code: 1, output: "boom" }]);
+  await runDeploy(w, { runShell: sh.runShell });
+  expect(sh.commands).toEqual(["check.sh"]);
+  expect(w.createdIssues[0]?.labels).toEqual(["needs-human"]);
+  expect(w.slack[0]).toContain("ロールバックしていません");
+});
+
+test("deploy は plan が無いだけでもロールバックしない (C1)", async () => {
+  const w = deployWorld(
+    withIrr(
+      "irreversible: { paths: [], terraform_plan_artifact: plan }",
+      ON_MERGE,
+    ),
+  );
+  const sh = shell([{ code: 1, output: "boom" }]);
+  await runDeploy(w, { runShell: sh.runShell });
+  expect(sh.commands).toEqual(["check.sh"]);
+  expect(w.slack[0]).toContain("ロールバックしていません");
+});
+
+test("deploy は設定を、マージの前の親 commit から読む (I6)", async () => {
+  const w = deployWorld(withIrr("irreversible: { paths: [] }", ON_MERGE));
+  await runDeploy(w, { runShell: shell([]).runShell });
+  expect(w.urls).toContain(
+    "GET /repos/o/r/contents/.github/autopilot.yml?ref=base123",
+  );
+});
+
+test("deploy (on_merge) はマージの commit の実行を探し、成功まで待って verify する (I8)", async () => {
+  const w = deployWorld(withIrr("irreversible: { paths: [] }", ON_MERGE));
+  const first = w.runs[0] as RunData;
+  first.states = [
+    { status: "in_progress", conclusion: null },
+    { status: "in_progress", conclusion: null },
+    done("success"),
+  ];
+  const sh = shell([{ code: 0 }]);
+  await runDeploy(w, { runShell: sh.runShell });
+  expect(decodeURIComponent(w.runQueries[0] ?? "")).toContain(
+    "head_sha=merge123",
+  );
+  expect(sh.commands).toEqual(["check.sh"]);
+  expect(w.slack[0]).toContain("対応が終わりました");
+  expect(w.createdIssues).toHaveLength(0);
+});
+
+test("deploy (dispatch) は環境ごとに起動し、created を秒まで、2 分前から探す (I1)", async () => {
+  const w = deployWorld(
+    withIrr(
+      "irreversible: { paths: [] }",
+      // biome-ignore lint/suspicious/noTemplateCurlyInString: 設定ファイルの置き換え記号そのもの
+      'deploy: { mode: dispatch, workflow: deploy.yml, environments: [stg, prod], inputs: { env: "${environment}" } }\n',
+    ),
+  );
+  await runDeploy(w, { runShell: shell([]).runShell });
+  expect(w.dispatches.map((d) => d.inputs)).toEqual([
+    { env: "stg" },
+    { env: "prod" },
+  ]);
+  const q = decodeURIComponent(w.runQueries[0] ?? "");
+  expect(q).toContain("event=workflow_dispatch");
+  expect(q).toContain("created=>=2026-11-12T11:58:00Z");
+  expect(w.slack[0]).toContain("対応が終わりました");
+});
+
+test("deploy は timeoutMinutes を過ぎたら失敗とし、コマンドでロールバックする (I8)", async () => {
+  const w = deployWorld(withIrr("irreversible: { paths: [] }", ON_MERGE));
+  (w.runs[0] as RunData).states = [{ status: "in_progress", conclusion: null }];
+  const sh = shell([{ code: 0 }]);
+  await runDeploy(w, { runShell: sh.runShell });
+  expect(sh.commands).toEqual(["rollback.sh"]);
+  expect(w.createdIssues[0]?.labels).toEqual(["autopilot:ready"]);
+  expect(w.slack[0]).toContain("ロールバックしました");
+});
+
+test("deploy は実行を探す時間を timeoutMinutes までにする (I1)", async () => {
+  const w = deployWorld(withIrr("irreversible: { paths: [] }", ON_MERGE));
+  w.runs.length = 0;
+  let clock = Date.parse("2026-11-12T12:00:00Z");
+  const sh = shell([{ code: 0 }]);
+  await runDeploy(w, {
+    runShell: sh.runShell,
+    now: () => new Date(clock),
+    sleep: async (ms) => {
+      clock += ms;
+    },
+  });
+  expect(w.runQueries.length).toBeGreaterThan(12);
+  expect(clock - Date.parse("2026-11-12T12:00:00Z")).toBeGreaterThanOrEqual(
+    5 * 60_000,
+  );
+  expect(sh.commands).toEqual(["rollback.sh"]);
+});
+
+test("deploy は実行が失敗なら、ワークフローでロールバックし、Issue に出力を含めない (I8, I9)", async () => {
+  const w = deployWorld(
+    withIrr(
+      "irreversible: { paths: [] }",
+      'deploy: { mode: on_merge, workflow: deploy.yml, verify: "check.sh", rollback: "rollback.yml" }\n',
+    ),
+  );
+  (w.runs[0] as RunData).states = [done("failure")];
+  await runDeploy(w, { runShell: shell([]).runShell });
+  expect(w.dispatches.map((d) => d.workflow)).toEqual(["rollback.yml"]);
+  const issue = w.createdIssues[0];
+  expect(issue?.body.trim().split("\n").at(-1)).toMatch(
+    /^<!-- autopilot:deploy-failure:.* -->$/,
+  );
+  expect(issue?.body).toContain("https://github.com/o/r/actions/runs/7");
+});
+
+test("Issue と Slack に、コマンドの出力を入れない (I9)", async () => {
+  const w = deployWorld(withIrr("irreversible: { paths: [] }", ON_MERGE));
+  const sh = shell([
+    { code: 3, output: "boom 5\nTOKEN=SECRET-xyz" },
+    { code: 0 },
+  ]);
+  await runDeploy(w, { runShell: sh.runShell });
+  const issue = w.createdIssues[0];
+  expect(issue?.body).not.toContain("SECRET-xyz");
+  expect(issue?.body).toContain("終了コード: 3");
+  expect(issue?.body).toContain("<!-- autopilot:deploy-failure:boom # -->");
+  expect(w.slack.join("")).not.toContain("SECRET-xyz");
+});
+
+test("同じ印のある開いた Issue があれば needs-human にする。ラベルは問わない (I8, I9)", async () => {
+  const w = deployWorld(withIrr("irreversible: { paths: [] }", ON_MERGE));
+  w.issues.push({
+    number: 30,
+    labels: ["bug"],
+    body: "古い\n\n<!-- autopilot:deploy-failure:boom # -->",
+  });
+  const sh = shell([{ code: 1, output: "boom 42" }, { code: 0 }]);
+  await runDeploy(w, { runShell: sh.runShell });
+  expect(w.createdIssues[0]?.labels).toEqual(["needs-human"]);
+});
+
+test("deploy は cancelled の実行を失敗とせず、何もしないで終わる (I1)", async () => {
+  const w = deployWorld(withIrr("irreversible: { paths: [] }", ON_MERGE));
+  (w.runs[0] as RunData).states = [done("cancelled")];
+  const sh = shell([]);
+  const { code } = await runDeploy(w, { runShell: sh.runShell });
+  expect(code).toBe(0);
+  expect(sh.commands).toEqual([]);
+  expect(w.createdIssues).toHaveLength(0);
+  expect(w.slack).toHaveLength(0);
+});
+
+test("Issue を作れなくても、エラーを添えて Slack に知らせる (I2)", async () => {
+  const w = deployWorld(withIrr("irreversible: { paths: [] }", ON_MERGE));
+  w.failCreateIssue = true;
+  const { code } = await runDeploy(w, {
+    runShell: shell([{ code: 1 }, { code: 0 }]).runShell,
+  });
+  expect(code).toBe(1);
+  expect(w.slack).toHaveLength(1);
+  expect(w.slack[0]).toContain("HTTP 500");
+});
+
+test("main は必須の環境変数が無ければ動かない (I3)", async () => {
+  const errors: string[] = [];
+  const orig = console.error;
+  console.error = (...a: unknown[]) => errors.push(a.join(" "));
+  try {
+    const env = { GITHUB_TOKEN: "t", GITHUB_REPOSITORY: "o/r" };
+    expect(await main(["sweep"], env)).toBe(1);
+    expect(await main(["sweep"], { ...env, AUTOPILOT_APP_SLUG: "" })).toBe(1);
+  } finally {
+    console.error = orig;
+  }
+  expect(errors[0]).toContain("AUTOPILOT_APP_SLUG");
+});
+
+test("人の判断が必要な理由のコメントには、印を入れる (I4)", async () => {
+  const w = newWorld();
+  w.pulls.push({ number: 4 });
+  const marker = {
+    body: "<!-- autopilot:fix-round --> 対応",
+    login: "app[bot]",
+  };
+  w.issues.push({ number: 4, comments: [marker, marker, marker] });
+  await run(w, "fix-round", "workflow_dispatch", { inputs: { pr: "4" } });
+  expect(commentsOf(w, 4).at(-1)?.body).toContain(
+    "<!-- autopilot:needs-human -->",
+  );
+});
+
+test("automerge は Draft の PR を飛ばす (I5)", async () => {
+  const w = newWorld();
+  w.pulls.push({ number: 1, draft: true });
+  await run(w, "automerge", "pull_request_target", prEvent(1, "opened"));
+  expect(w.graphql).toHaveLength(0);
+});
+
+test("automerge は clean status で断られたら、直接 squash でマージする (I5)", async () => {
+  const w = newWorld();
+  w.pulls.push({ number: 1 });
+  w.graphqlError = "Pull request is in clean status";
+  const { code } = await run(
+    w,
+    "automerge",
+    "pull_request_target",
+    prEvent(1, "opened"),
+  );
+  expect(code).toBe(0);
+  expect(w.merged).toEqual([
+    { n: 1, body: { merge_method: "squash", sha: "sha1" } },
+  ]);
+});
+
+test("automerge はそのほかの GraphQL の失敗では直接マージしない (I5)", async () => {
+  const w = newWorld();
+  w.pulls.push({ number: 1 });
+  w.graphqlError = "Something else";
+  expect(
+    (await run(w, "automerge", "pull_request_target", prEvent(1, "opened")))
+      .code,
+  ).toBe(1);
+  expect(w.merged).toEqual([]);
+});
+
+test("守りのファイルを変える PR は、設定に無くても取り消せない変更として扱う (I6)", async () => {
+  const w = newWorld();
+  w.pulls.push({ number: 5, files: [".github/workflows/ci.yml"] });
+  w.issues.push({ number: 5 });
+  await run(w, "irreversible", "pull_request_target", prEvent(5, "opened"));
+  expect(w.statuses[0]?.state).toBe("pending");
+  expect(w.statuses[0]?.description).toContain(".github/workflows/ci.yml");
+});
+
+test("sweep は readyLabeledAt より前の開始の印を数えない (I7)", async () => {
+  const w = newWorld();
+  const ev = (t: string) => ({
+    event: "labeled",
+    created_at: t,
+    label: { name: "autopilot:ready" },
+  });
+  w.issues.push({
+    number: 12,
+    labels: ["autopilot:ready"],
+    events: [ev("2026-11-12T07:00:00Z"), ev("2026-11-12T09:00:00Z")],
+    comments: [
+      {
+        body: "<!-- autopilot:started -->",
+        login: "routine-user",
+        created_at: "2026-11-12T07:30:00Z",
+      },
+    ],
+  });
+  await run(w, "sweep", "schedule", {});
+  // 開始の印が無いものとして扱い、2 回付いているので needs-human
+  expect(w.issues[0]?.labels).toContain("needs-human");
+});
+
+test("sweep は labeled の event が無ければ Issue の作成時刻を使う (M7)", async () => {
+  const w = newWorld();
+  w.issues.push({
+    number: 13,
+    labels: ["autopilot:ready"],
+    created_at: "2026-11-12T08:00:00Z",
+  });
+  await run(w, "sweep", "schedule", {});
+  expect(w.removed).toEqual(["/issues/13/labels/autopilot%3Aready"]);
+});
+
+test("fix-round と ready は、PR ではない Issue のコメントでは何もしない (M1)", async () => {
+  const w = newWorld();
+  const issueComment = { action: "created", issue: { number: 4 } };
+  const a = await run(w, "fix-round", "issue_comment", issueComment);
+  expect(a.output).toContain("run=false");
+  expect(
+    await run(w, "ready", "issue_comment", issueComment).then((r) => r.code),
+  ).toBe(0);
+  expect(w.graphql).toHaveLength(0);
+});
+
+test("irreversible は、理由が無ければレビューもチームも読まない (M2)", async () => {
+  const w = newWorld();
+  w.pulls.push({ number: 5, files: ["README.md"] });
+  await run(w, "irreversible", "pull_request_target", prEvent(5, "opened"));
+  expect(
+    w.urls.some((u) => u.includes("/reviews") || u.includes("/orgs/")),
+  ).toBe(false);
+  expect(w.statuses[0]?.state).toBe("success");
+});
+
+test("エラーに秘密を出さない。メッセージにトークンが入っていても伏せる (M5)", async () => {
+  const w = newWorld();
+  w.pulls.push({ number: 1 });
+  w.throwOnPull = "connect failed tok-secret";
+  const errors: string[] = [];
+  const orig = console.error;
+  console.error = (...a: unknown[]) => errors.push(a.join(" "));
+  try {
+    const { code } = await run(
+      w,
+      "automerge",
+      "pull_request_target",
+      prEvent(1, "opened"),
+    );
+    expect(code).toBe(1);
+  } finally {
+    console.error = orig;
+  }
+  expect(errors.join("\n")).toContain("connect failed");
+  expect(errors.join("\n")).not.toContain("tok-secret");
+});
+
+test("Slack を送ってから、印のコメントを書く (M6)", async () => {
+  const w = newWorld();
+  w.pulls.push({ number: 5, files: ["db/migrations/001.sql"] });
+  w.issues.push({ number: 5 });
+  await run(w, "irreversible", "pull_request_target", prEvent(5, "opened"));
+  expect(w.events).toEqual(["slack", "comment"]);
+});
+
+test("デプロイの失敗の Issue では、label は Slack を送らない (M8)", async () => {
+  const w = newWorld();
+  w.issues.push({ number: 3, comments: [{ body: "x", login: "app[bot]" }] });
+  await run(w, "label", "issues", {
+    action: "labeled",
+    label: { name: "needs-human" },
+    issue: {
+      number: 3,
+      title: "T",
+      html_url: "u",
+      body: "失敗\n\n<!-- autopilot:deploy-failure:boom -->",
+    },
+  });
+  expect(w.slack).toHaveLength(0);
+});
+
+test("verify のコマンドの環境から、秘密と同じ値の変数を外し、時間切れを失敗にする (M3, M4)", async () => {
+  const out = await defaultRunShell('echo "[$LEAK][$KEEP]"', {
+    env: {
+      PATH: process.env.PATH ?? "",
+      LEAK: "tok-secret",
+      KEEP: "ok",
+      GITHUB_TOKEN: "tok-secret",
+    },
+    secrets: ["tok-secret", "hook"],
+    timeoutMs: 5000,
+  });
+  expect(out.output.trim()).toBe("[][ok]");
+  const slow = await defaultRunShell("sleep 5", {
+    env: { PATH: process.env.PATH ?? "" },
+    secrets: [],
+    timeoutMs: 100,
+  });
+  expect(slow.code).not.toBe(0);
 });

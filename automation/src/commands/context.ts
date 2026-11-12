@@ -2,7 +2,10 @@ import { appendFileSync } from "node:fs";
 import { parseConfig } from "../config";
 import type { GitHubClient, Pull } from "../github";
 import { formatSlackMessage, type Notification, sendSlack } from "../slack";
-import { type AutopilotConfig, LABELS } from "../types";
+import { type AutopilotConfig, LABELS, MARKERS } from "../types";
+
+/** デプロイの失敗の Issue の本文の最後の印 (この後ろに指紋と --> が続く) */
+export const DEPLOY_FAILURE_MARKER = "<!-- autopilot:deploy-failure:";
 
 export interface RunResult {
   code: number;
@@ -59,6 +62,8 @@ export const hasLabel = (labels: { name: string }[], name: string) =>
   labels.some((l) => l.name === name);
 
 export function eventNumber(event: EventPayload): number | undefined {
+  // PR ではない Issue のコメントは対象にしない
+  if (event.issue && !event.issue.pull_request) return undefined;
   const n =
     event.pull_request?.number ??
     event.issue?.number ??
@@ -73,30 +78,52 @@ export async function needsHuman(
   n: number,
   reason: string,
 ): Promise<void> {
-  await ctx.gh.createComment(n, reason);
+  await ctx.gh.createComment(n, `${MARKERS.needsHuman}\n${reason}`);
   await ctx.gh.addLabels(n, [LABELS.needsHuman]);
 }
 
-async function defaultRunShell(
+const SHELL_TIMEOUT_MS = 10 * 60_000;
+
+// verify・rollback のコマンドには、トークンも、それと同じ値の変数も渡さない。
+// 10 分で終わらなければ失敗とする。
+export async function defaultRunShell(
   command: string,
-  secrets: string[],
+  opts: {
+    env: Record<string, string | undefined>;
+    secrets: string[];
+    timeoutMs?: number;
+  },
 ): Promise<RunResult> {
-  const env = { ...process.env };
-  for (const key of ["GITHUB_TOKEN", "AUTOPILOT_SLACK_WEBHOOK_URL"])
-    delete env[key];
+  const secrets = opts.secrets.filter((s) => s !== "");
+  const env: Record<string, string> = {};
+  for (const [key, value] of Object.entries(opts.env)) {
+    if (value === undefined) continue;
+    if (key === "GITHUB_TOKEN" || key === "AUTOPILOT_SLACK_WEBHOOK_URL")
+      continue;
+    if (secrets.includes(value)) continue;
+    env[key] = value;
+  }
   const proc = Bun.spawn(["bash", "-c", command], {
     env,
     stdout: "pipe",
     stderr: "pipe",
   });
+  let timedOut = false;
+  const timer = setTimeout(() => {
+    timedOut = true;
+    proc.kill();
+  }, opts.timeoutMs ?? SHELL_TIMEOUT_MS);
   const [out, err, code] = await Promise.all([
     new Response(proc.stdout).text(),
     new Response(proc.stderr).text(),
     proc.exited,
   ]);
+  clearTimeout(timer);
   let output = out + err;
-  for (const s of secrets) if (s) output = output.replaceAll(s, "***");
-  return { code, output };
+  for (const s of secrets) output = output.replaceAll(s, "***");
+  return timedOut
+    ? { code: 124, output: `${output}\n時間切れで止めました` }
+    : { code, output };
 }
 
 export async function createCtx(
@@ -143,6 +170,6 @@ export async function createCtx(
     },
     now: deps.now ?? (() => new Date()),
     sleep: deps.sleep ?? ((ms) => new Promise((r) => setTimeout(r, ms))),
-    runShell: deps.runShell ?? ((c) => defaultRunShell(c, secrets)),
+    runShell: deps.runShell ?? ((c) => defaultRunShell(c, { env, secrets })),
   };
 }

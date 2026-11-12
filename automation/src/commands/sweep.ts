@@ -13,13 +13,16 @@ async function issueItem(
     (e) => e.event === "labeled" && e.label?.name === LABELS.ready,
   );
   const comments = await ctx.gh.listComments(issue.number);
+  // ラベルの event が無ければ (古い Issue など) 作成時刻を使う
+  const readyLabeledAt = ready.at(-1)?.created_at ?? issue.created_at;
+  // 付け直す前の開始の印は、前の試みのもの
   const started = comments.filter(
     (c) =>
       c.user !== null &&
       sameLogin(c.user.login, ctx.config.routineGithubUser) &&
-      c.body.includes(MARKERS.started),
+      c.body.includes(MARKERS.started) &&
+      Date.parse(c.created_at) >= Date.parse(readyLabeledAt),
   );
-  const readyLabeledAt = ready.at(-1)?.created_at;
   const startedAt = started.at(-1)?.created_at;
   return {
     kind: "issue",
@@ -27,7 +30,7 @@ async function issueItem(
     title: issue.title,
     url: issue.html_url,
     labels: issue.labels.map((l) => l.name),
-    ...(readyLabeledAt ? { readyLabeledAt } : {}),
+    readyLabeledAt,
     readyRetries: Math.max(0, ready.length - 1),
     ...(startedAt ? { startedAt } : {}),
     hasPr: pulls.some((p) =>

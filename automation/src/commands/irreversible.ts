@@ -26,9 +26,15 @@ export async function expandApprovers(ctx: Ctx): Promise<string[]> {
   return logins;
 }
 
-type Reasons = { waiting: true } | { waiting: false; reasons: string[] };
+interface Reasons {
+  /** Terraform の plan がまだ無い。取り消せない変更かどうか決められない */
+  waiting: boolean;
+  /** パスから分かる理由 (plan があれば、その理由も) */
+  reasons: string[];
+}
 
-// 変更したファイルと、あれば Terraform の plan から、取り消せない変更の理由を出す
+// 変更したファイルと、あれば Terraform の plan から、取り消せない変更の理由を出す。
+// plan が無くても、パスの理由はいつも出す。
 export async function irreversibleReasons(
   ctx: Ctx,
   pull: Pull,
@@ -40,7 +46,10 @@ export async function irreversibleReasons(
     const found = (await ctx.gh.listArtifacts(name)).find(
       (a) => a.headSha === pull.head.sha && !a.expired,
     );
-    if (!found) return { waiting: true };
+    if (!found) {
+      const reasons = detectIrreversible({ changedFiles, config: ctx.config });
+      return { waiting: true, reasons };
+    }
     try {
       terraformPlan = await ctx.gh.downloadArtifactJson(found.runId, name);
     } catch {
@@ -82,6 +91,8 @@ export async function irreversible(ctx: Ctx): Promise<void> {
     );
     return;
   }
+  // 理由が無ければ、レビューもチームも読まない (チームの取得の失敗で PR を止めない)
+  const hasReasons = found.reasons.length > 0;
   const decision = evaluateIrreversible({
     pr: {
       number: n,
@@ -90,10 +101,10 @@ export async function irreversible(ctx: Ctx): Promise<void> {
       headSha: sha,
       author: pull.user.login,
     },
-    reviews: await ctx.gh.listReviews(n),
-    approverLogins: await expandApprovers(ctx),
+    reviews: hasReasons ? await ctx.gh.listReviews(n) : [],
+    approverLogins: hasReasons ? await expandApprovers(ctx) : [],
     irreversible: found.reasons,
-    notified: await notifiedKeys(ctx, n),
+    notified: hasReasons ? await notifiedKeys(ctx, n) : [],
   });
   await ctx.gh.setStatus(
     sha,

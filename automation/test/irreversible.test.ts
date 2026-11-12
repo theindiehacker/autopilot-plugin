@@ -1,5 +1,6 @@
 import { expect, test } from "bun:test";
 import {
+  BUILTIN_IRREVERSIBLE_PATHS,
   detectIrreversible,
   findIrreversiblePaths,
   findTerraformDestroys,
@@ -116,4 +117,24 @@ test("plan の成果物を設定していなければ plan が無くても理由
   expect(
     detectIrreversible({ changedFiles: [], config: withoutArtifact }),
   ).toEqual([]);
+});
+
+test("守りのファイルは、設定に無くても取り消せない変更にする", () => {
+  const config = {
+    irreversible: { paths: [] },
+  } as unknown as AutopilotConfig;
+  const files = [
+    ".github/autopilot.yml",
+    ".github/workflows/ci.yml",
+    ".claude/settings.json",
+    "lefthook.yml",
+    "lefthook.yaml",
+    ".lefthook.yml",
+    ".pre-commit-config.yaml",
+    "src/app.ts",
+  ];
+  expect(detectIrreversible({ changedFiles: files, config })).toEqual(
+    files.slice(0, 7).map((f) => `パス: ${f}`),
+  );
+  expect(BUILTIN_IRREVERSIBLE_PATHS).toContain(".github/workflows/**");
 });
