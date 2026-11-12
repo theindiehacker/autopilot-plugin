@@ -70,26 +70,27 @@ function requiredCheckNames(
     })
     .map((check) => check.name);
   if (input.pr.isAutopilot) names.push(STATUS.qa);
-  return names;
+  return [...new Set(names)].filter((name) => name !== STATUS.gate);
 }
 
-function latestReviewerVerdict(
-  input: GateInput,
-  config: AutopilotConfig,
-): Review | undefined {
-  return input.reviews
-    .filter((r) => r.user === config.review.reviewer && r.state !== "COMMENTED")
+// ユーザーごとの最新の判定 (COMMENTED は除く)。
+function latestVerdict(reviews: Review[], user: string): Review | undefined {
+  return reviews
+    .filter((r) => r.user === user && r.state !== "COMMENTED")
     .sort((a, b) => Date.parse(b.submittedAt) - Date.parse(a.submittedAt))[0];
 }
 
+// 最新のコミットに対する、取り下げられていない判定だけを返す。
+function currentVerdict(input: GateInput, user: string): Review | undefined {
+  const latest = latestVerdict(input.reviews, user);
+  if (!latest || latest.state === "DISMISSED") return undefined;
+  return latest.commitId === input.pr.headSha ? latest : undefined;
+}
+
 function hasApproval(input: GateInput): boolean {
-  return input.reviews.some(
-    (r) =>
-      r.state === "APPROVED" &&
-      r.commitId === input.pr.headSha &&
-      r.user !== input.pr.author &&
-      input.approverLogins.includes(r.user),
-  );
+  return input.approverLogins
+    .filter((login) => login !== input.pr.author)
+    .some((login) => currentVerdict(input, login)?.state === "APPROVED");
 }
 
 export function evaluateGate(
@@ -120,7 +121,7 @@ export function evaluateGate(
     if (checkState(name) === "failure") failures.push(`チェック失敗: ${name}`);
   }
   const verdict = pr.isAutopilot
-    ? latestReviewerVerdict(input, config)
+    ? currentVerdict(input, config.review.reviewer)
     : undefined;
   if (pr.isAutopilot && verdict?.state === "CHANGES_REQUESTED") {
     failures.push(`${config.review.reviewer} のレビューが修正を求めています`);

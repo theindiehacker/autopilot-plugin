@@ -144,6 +144,9 @@ test("上限に達したら needs-human", () => {
     label: "autopilot:fix",
   });
   expect(d.actions[0]?.type).toBe("comment");
+  expect(d.state).toBe("failure");
+  const comment = d.actions.find((a) => a.type === "comment");
+  expect(comment && "body" in comment && comment.body).toContain("task test");
 });
 
 test("autopilot:fix が付いていれば何もしない", () => {
@@ -243,6 +246,7 @@ test("承認者が最新のコミットを Approve すれば success", () => {
     config,
   );
   expect(d.state).toBe("success");
+  expect(d.actions).toEqual([{ type: "enableAutoMerge" }]);
 });
 
 test("autopilot 以外の PR はラベルも自動マージもしない", () => {
@@ -282,4 +286,158 @@ test("description は 140 文字以内", () => {
   const c = { ...config, requiredChecks: names.map((name) => ({ name })) };
   const d = evaluateGate(makeGateInput({ checks: {} }), c);
   expect([...d.description].length).toBeLessThanOrEqual(140);
+});
+
+const rev = (
+  user: string,
+  state: "APPROVED" | "CHANGES_REQUESTED" | "COMMENTED" | "DISMISSED",
+  commitId: string,
+  submittedAt: string,
+) => ({ user, state, commitId, submittedAt });
+
+const claude = "claude[bot]";
+
+test("Claude の DISMISSED だけなら pending", () => {
+  const d = evaluateGate(
+    makeGateInput({
+      reviews: [rev(claude, "DISMISSED", "sha1", "2026-01-01T00:00:00Z")],
+    }),
+    config,
+  );
+  expect(d.state).toBe("pending");
+  expect(d.actions).toEqual([]);
+});
+
+test("Claude の APPROVED が古いコミットなら pending", () => {
+  const d = evaluateGate(
+    makeGateInput({
+      reviews: [rev(claude, "APPROVED", "old", "2026-01-01T00:00:00Z")],
+    }),
+    config,
+  );
+  expect(d.state).toBe("pending");
+  expect(d.actions).toEqual([]);
+});
+
+test("Claude の APPROVED のあとに DISMISSED なら pending", () => {
+  const d = evaluateGate(
+    makeGateInput({
+      reviews: [
+        rev(claude, "APPROVED", "sha1", "2026-01-01T00:00:00Z"),
+        rev(claude, "DISMISSED", "sha1", "2026-01-02T00:00:00Z"),
+      ],
+    }),
+    config,
+  );
+  expect(d.state).toBe("pending");
+  expect(d.actions).toEqual([]);
+});
+
+test("古いコミットへの CHANGES_REQUESTED だけでは autopilot:fix を付けない", () => {
+  const d = evaluateGate(
+    makeGateInput({
+      reviews: [
+        rev(claude, "CHANGES_REQUESTED", "old", "2026-01-01T00:00:00Z"),
+      ],
+    }),
+    config,
+  );
+  expect(d.state).toBe("pending");
+  expect(d.actions).toEqual([]);
+});
+
+test("承認者が Approve のあとに Request changes したら数えない", () => {
+  const base = makeGateInput({ irreversible: ["パス: x"] });
+  const d = evaluateGate(
+    {
+      ...base,
+      reviews: [
+        ...base.reviews,
+        rev("boss", "APPROVED", "sha1", "2026-01-02T00:00:00Z"),
+        rev("boss", "CHANGES_REQUESTED", "sha1", "2026-01-03T00:00:00Z"),
+      ],
+    },
+    config,
+  );
+  expect(d.state).toBe("pending");
+});
+
+test("承認者が Approve のあとに DISMISSED なら数えない", () => {
+  const base = makeGateInput({ irreversible: ["パス: x"] });
+  const d = evaluateGate(
+    {
+      ...base,
+      reviews: [
+        ...base.reviews,
+        rev("boss", "APPROVED", "sha1", "2026-01-02T00:00:00Z"),
+        rev("boss", "DISMISSED", "sha1", "2026-01-03T00:00:00Z"),
+      ],
+    },
+    config,
+  );
+  expect(d.state).toBe("pending");
+});
+
+test("承認者の COMMENTED は最新の判定を打ち消さない", () => {
+  const base = makeGateInput({ irreversible: ["パス: x"] });
+  const d = evaluateGate(
+    {
+      ...base,
+      reviews: [
+        ...base.reviews,
+        rev("boss", "APPROVED", "sha1", "2026-01-02T00:00:00Z"),
+        rev("boss", "COMMENTED", "sha1", "2026-01-03T00:00:00Z"),
+      ],
+    },
+    config,
+  );
+  expect(d.state).toBe("success");
+});
+
+test("autopilot 以外の PR でも、取り消せない変更は承認を待つ", () => {
+  const d = evaluateGate(
+    makeGateInput({
+      pr: { isAutopilot: false },
+      irreversible: ["パス: x"],
+      checks: { "task test": "success" },
+      reviews: [],
+    }),
+    config,
+  );
+  expect(d.state).toBe("pending");
+});
+
+test("autopilot 以外の PR は Claude の CHANGES_REQUESTED を見ない", () => {
+  const d = evaluateGate(
+    makeGateInput({
+      pr: { isAutopilot: false },
+      checks: { "task test": "success" },
+      reviews: [
+        rev(claude, "CHANGES_REQUESTED", "sha1", "2026-01-01T00:00:00Z"),
+      ],
+    }),
+    config,
+  );
+  expect(d.state).toBe("success");
+  expect(d.actions).toEqual([]);
+});
+
+test("設定に autopilot/qa があっても二重に数えない", () => {
+  const c = { ...config, requiredChecks: [{ name: "autopilot/qa" }] };
+  const d = evaluateGate(
+    makeGateInput({ checks: { "autopilot/qa": "failure" } }),
+    c,
+  );
+  const comment = d.actions.find((a) => a.type === "comment");
+  const body = comment && "body" in comment ? comment.body : "";
+  expect(body.match(/autopilot\/qa/g)?.length).toBe(1);
+});
+
+test("設定に autopilot/gate があっても必須にしない", () => {
+  const c = { ...config, requiredChecks: [{ name: "autopilot/gate" }] };
+  const d = evaluateGate(
+    makeGateInput({ checks: { "autopilot/qa": "success" } }),
+    c,
+  );
+  expect(d.state).toBe("success");
 });
