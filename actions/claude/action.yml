@@ -26,6 +26,10 @@ inputs:
     description: claude-code-action が動かしてよいボットのログイン (カンマ区切り)。App 自身は常に入る
     required: false
     default: claude
+  mcp-servers:
+    description: 'QA の Claude に足す MCP サーバー。Claude Code の mcpServers と同じ形の JSON の object (例: {"app":{"type":"http","url":"http://127.0.0.1:8002/mcp"}})。mode が qa のときだけ使う'
+    required: false
+    default: "{}"
 runs:
   using: composite
   steps:
@@ -34,10 +38,31 @@ runs:
       env:
         MODE: ${{ inputs.mode }}
         PR: ${{ inputs.pr }}
+        MCP_SERVERS: ${{ inputs.mcp-servers }}
         SKILLS: ${{ github.action_path }}/../../skills
       run: |
         case "$MODE" in
-          qa) tools='Bash,Read,Write,Glob,Grep,mcp__playwright__*' ;;
+          qa)
+            tools='Bash,Read,Write,Glob,Grep,mcp__playwright__*'
+            # Playwright の MCP サーバーは版を固定する
+            playwright='{"playwright":{"command":"npx","args":["-y","@playwright/mcp@0.0.85","--headless"]}}'
+            if ! printf '%s' "$MCP_SERVERS" | jq -e 'type == "object"' > /dev/null 2>&1; then
+              echo "mcp-servers は JSON の object にしてください" >&2
+              exit 1
+            fi
+            if ! printf '%s' "$MCP_SERVERS" | jq -e 'keys | all(test("\\A[A-Za-z0-9_-]+\\z")) and (index("playwright") | not)' > /dev/null 2>&1; then
+              echo "mcp-servers の名前は英数字・_・- だけにし、playwright は使わないでください" >&2
+              exit 1
+            fi
+            for name in $(printf '%s' "$MCP_SERVERS" | jq -r 'keys[]'); do
+              tools="$tools,mcp__${name}__*"
+            done
+            mcp_config=$(jq -cn --argjson playwright "$playwright" --argjson extra "$MCP_SERVERS" '{mcpServers: ($playwright + $extra)}')
+            # --mcp-config の値はシングルクォートで囲むため、' が入ると引数の区切りが崩れる
+            case "$mcp_config" in
+              *"'"*) echo "mcp-servers に ' は使えません" >&2; exit 1 ;;
+            esac
+            ;;
           fix) tools='Bash,Read,Edit,Write,Glob,Grep' ;;
           *) echo "mode は qa か fix にしてください: $MODE" >&2; exit 1 ;;
         esac
@@ -55,8 +80,7 @@ runs:
           # 環境変数や /proc から秘密を出すコマンドを断る (完全な防ぎではない)
           printf ' %s' "--disallowedTools \"Bash(env:*),Bash(printenv:*),Bash(set),Bash(export -p),Bash(cat /proc/*)\""
           if [ "$MODE" = qa ]; then
-            # Playwright の MCP サーバーは版を固定する
-            printf ' %s' "--mcp-config '{\"mcpServers\":{\"playwright\":{\"command\":\"npx\",\"args\":[\"-y\",\"@playwright/mcp@0.0.85\",\"--headless\"]}}}'"
+            printf ' %s' "--mcp-config '$mcp_config'"
             printf ' %s' "--json-schema '{\"type\":\"object\",\"properties\":{\"passed\":{\"type\":\"boolean\"},\"summary\":{\"type\":\"string\"}},\"required\":[\"passed\",\"summary\"]}'"
           fi
           echo
