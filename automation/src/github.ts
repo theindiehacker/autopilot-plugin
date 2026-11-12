@@ -82,7 +82,6 @@ export interface GitHubClient {
   addLabels(n: number, labels: string[]): Promise<void>;
   removeLabel(n: number, label: string): Promise<void>;
   createComment(n: number, body: string): Promise<void>;
-  updatePullBody(n: number, body: string): Promise<void>;
   createIssue(input: {
     title: string;
     body: string;
@@ -291,9 +290,6 @@ export function createGitHubClient(opts: {
     },
     createComment: async (n, body) => {
       await call("POST", `${repoPath}/issues/${n}/comments`, { body });
-    },
-    updatePullBody: async (n, body) => {
-      await call("PATCH", `${repoPath}/pulls/${n}`, { body });
     },
     createIssue: async (input) =>
       (await json<{ number: number }>("POST", `${repoPath}/issues`, input))

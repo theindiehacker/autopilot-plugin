@@ -1,7 +1,6 @@
 import { automerge } from "./commands/automerge";
 import { type Ctx, createCtx, type Deps } from "./commands/context";
 import { createDeployCtx, deploy } from "./commands/deploy";
-import { developed } from "./commands/developed";
 import { fixRound } from "./commands/fixRound";
 import { irreversible } from "./commands/irreversible";
 import { label } from "./commands/label";
@@ -13,7 +12,6 @@ const COMMANDS: Record<string, (ctx: Ctx) => Promise<void>> = {
   irreversible,
   automerge,
   label,
-  developed,
   "fix-round": fixRound,
   ready,
   sweep,

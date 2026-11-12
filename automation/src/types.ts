@@ -44,7 +44,6 @@ export const STATUS = { irreversible: "autopilot/irreversible" } as const;
 export const MARKERS = {
   started: "<!-- autopilot:started -->",
   developing: "<!-- autopilot:developing -->",
-  developed: "<!-- autopilot:developed -->",
   needsHuman: "<!-- autopilot:needs-human -->",
   fixRound: "<!-- autopilot:fix-round -->",
 } as const;
