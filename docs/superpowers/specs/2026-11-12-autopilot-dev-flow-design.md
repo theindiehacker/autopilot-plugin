@@ -367,7 +367,7 @@ claude.ai と GitHub のどちらも、自動化専用のアカウントと個�
 | 4. Web のセッションから REST で書き込めるか | コメントは書けた。ラベルとステータスは、ルーティンの自動モードに拒否された (「頼まれていない連携アプリへの書き込み」「自分の作業を自分で承認している」)。リポジトリの `.claude/settings.json` で許可しても変わらなかった。REST でのブランチ作成は、GitHub のプロキシに拒否された (403) | ルーティンは開発だけにし、書き込みは git push・PR の作成・コメントに絞る。状態の変更は GitHub Actions が行う (4.1・4.9) |
 | (追加) プラグインの commit 前の hook | `Bash(*git*commit*)` が commit 以外のコマンドにも合い、Web では `next typegen` が無く型検査が失敗して、ルーティンの commit を止めた | 4.12 のとおり、リポジトリの lefthook に移す |
 | 2. App のトークンで付けたラベルで起動するか | 起動する (`autopilot-theindiehacker[bot]` が付けた 2 秒後に起動) | 変えない |
-| 5. Draft から「レビュー可能」への切り替え | 未確認 (書き込みの拒否で試せず)。切り替えは GitHub Actions が行うので、結果は設計に影響しない | — |
+| 5. Draft から「レビュー可能」への切り替え | 未確認 (書き込みの拒否で試せず)。試験で、開発のルーティンが GitHub の MCP (`update_pull_request`) で試し、断られたら GitHub Actions に頼む (`developed`) | 通れば、`developed` の job は要らない |
 | (追加) ルーティンからの git push と PR の作成 | 未確認 (Web の環境の古いプラグインの hook が push を止めた)。新しいプラグインを入れた環境で、試験 (10 章) の最初に確かめる | — |
 
 ## 10. 試験
