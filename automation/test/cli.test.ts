@@ -33,6 +33,10 @@ interface PullData {
 
 interface RunData {
   id: number;
+  /** ワークフローのファイル名 (無ければ deploy.yml) */
+  workflow?: string;
+  /** 実行のブランチ (無ければ main) */
+  branch?: string;
   head_sha?: string;
   created_at?: string;
   event?: string;
@@ -85,6 +89,11 @@ interface World {
   /** この名前のワークフローの起動が 500 になる */
   failDispatch?: string;
   throwOnPull?: string;
+  /** Slack への送信が 500 になる回数 */
+  slackFailures?: number;
+  /** Slack への送信を試した回数 */
+  slackCalls: number;
+  failPullFiles?: boolean;
 }
 
 function newWorld(): World {
@@ -105,6 +114,7 @@ function newWorld(): World {
     merged: [],
     events: [],
     runGetFailures: 0,
+    slackCalls: 0,
   };
 }
 
@@ -138,6 +148,8 @@ function pullJson(p: PullData) {
   };
 }
 
+const createdAt = (r: RunData) => r.created_at ?? "2026-11-12T12:00:05Z";
+
 function fakeFetch(w: World): typeof fetch {
   return (async (input: string, init?: RequestInit) => {
     const url = new URL(input);
@@ -156,6 +168,11 @@ function fakeFetch(w: World): typeof fetch {
     const issueNo = id(/^\/issues\/(\d+)/);
 
     if (url.host === "slack.test") {
+      w.slackCalls++;
+      if ((w.slackFailures ?? 0) > 0) {
+        w.slackFailures = (w.slackFailures ?? 0) - 1;
+        return new Response("no", { status: 500 });
+      }
       w.events.push("slack");
       w.slack.push(body.text);
       return new Response("ok");
@@ -181,11 +198,13 @@ function fakeFetch(w: World): typeof fetch {
     if (path.startsWith("/actions/workflows/") && path.endsWith("/runs")) {
       w.runQueries.push(url.search);
       const q = url.searchParams;
-      const createdAt = (r: RunData) => r.created_at ?? "2026-11-12T12:00:05Z";
+      const workflow = decodeURIComponent(path.split("/")[3] ?? "");
       return Response.json({
         workflow_runs: w.runs
           .filter(
             (r) =>
+              (r.workflow ?? "deploy.yml") === workflow &&
+              (!q.get("branch") || (r.branch ?? "main") === q.get("branch")) &&
               (!q.get("head_sha") || r.head_sha === q.get("head_sha")) &&
               (!q.get("created") ||
                 Date.parse(createdAt(r)) >=
@@ -198,7 +217,7 @@ function fakeFetch(w: World): typeof fetch {
             conclusion: null,
             head_sha: r.head_sha ?? "",
             html_url: `https://github.com/o/r/actions/runs/${r.id}`,
-            created_at: r.created_at ?? "2026-11-12T12:00:05Z",
+            created_at: createdAt(r),
           })),
       });
     }
@@ -222,13 +241,15 @@ function fakeFetch(w: World): typeof fetch {
         ...state,
         head_sha: r.head_sha ?? "",
         html_url: `https://github.com/o/r/actions/runs/${runNo}`,
-        created_at: r.created_at ?? "",
+        created_at: createdAt(r),
       });
     }
     if (pullNo !== undefined && method === "PUT" && path.endsWith("/merge")) {
       w.merged.push({ n: pullNo, body });
       return Response.json({ merged: true });
     }
+    if (pullNo !== undefined && path.endsWith("/files") && w.failPullFiles)
+      return new Response("{}", { status: 500 });
     if (pullNo !== undefined && path.endsWith("/files"))
       return Response.json(
         (pull(pullNo)?.files ?? []).map((filename) => ({ filename })),
@@ -745,7 +766,7 @@ test("deploy (on_merge) はマージの commit の実行を探し、成功まで
   expect(w.createdIssues).toHaveLength(0);
 });
 
-test("deploy (dispatch) は環境ごとに起動し、created を秒まで、2 分前から探す (I1)", async () => {
+test("deploy (dispatch) は環境ごとに起動し、created を秒まで、起動の 10 秒前から探す (I1, R24)", async () => {
   const w = deployWorld(
     withIrr(
       "irreversible: { paths: [] }",
@@ -765,7 +786,7 @@ test("deploy (dispatch) は環境ごとに起動し、created を秒まで、2 �
   ]);
   const q = decodeURIComponent(w.runQueries[0] ?? "");
   expect(q).toContain("event=workflow_dispatch");
-  expect(q).toContain("created=>=2026-11-12T11:58:00Z");
+  expect(q).toContain("created=>=2026-11-12T11:59:50Z");
   expect(w.slack[0]).toContain("対応が終わりました");
 });
 
@@ -811,6 +832,12 @@ test("deploy は実行が失敗なら、ワークフローでロールバック�
     ),
   );
   (w.runs[0] as RunData).states = [done("failure")];
+  w.runs.push({
+    id: 70,
+    workflow: "rollback.yml",
+    event: "workflow_dispatch",
+    states: [done("success")],
+  });
   await runDeploy(w, { runShell: shell([]).runShell });
   expect(w.dispatches.map((d) => d.workflow)).toEqual(["rollback.yml"]);
   const issue = w.createdIssues[0];
@@ -1252,4 +1279,291 @@ test("Slack の設定 (承認者のメンション) も、マージの前の設�
   await runDeploy(w, { runShell: shell([]).runShell });
   expect(w.slack[0]).toContain("<@U9>");
   expect(w.slack[0]).not.toContain("<@U1>");
+});
+
+// ---- 修正の周回 4 ----
+
+const HOLD_HEADLINE =
+  ":rotating_light: デプロイの後の対応を止めました (自動でロールバックしていません): <";
+const ROLLBACK_WF = withIrr(
+  "irreversible: { paths: [] }",
+  'deploy: { mode: on_merge, workflow: deploy.yml, rollback: "rollback.yml", timeout_minutes: 5 }\n',
+);
+const DISPATCH_ONE = withIrr(
+  "irreversible: { paths: [] }",
+  'deploy: { mode: dispatch, workflow: deploy.yml, environments: [prod], rollback: "rollback.sh", timeout_minutes: 5 }\n',
+);
+const running = { status: "in_progress", conclusion: null };
+const BASIC = withIrr("irreversible: { paths: [] }", ON_MERGE);
+
+test.each([
+  ["startup_failure", "startup_failure"],
+  ["timed_out", "timed_out"],
+  ["neutral", "neutral"],
+  ["action_required", "action_required"],
+  ["stale", "stale"],
+  ["知らない値", "mystery"],
+  ["null", null],
+] as const)(
+  "deploy は実行が %s で終わったら、ロールバックせず hold にする (R23, R24)",
+  async (_, conclusion) => {
+    const w = deployWorld(BASIC);
+    (w.runs[0] as RunData).states = [{ status: "completed", conclusion }];
+    const sh = shell([]);
+    await runDeploy(w, { runShell: sh.runShell });
+    expect(sh.commands).toEqual([]);
+    expect(w.createdIssues[0]?.labels).toEqual(["needs-human"]);
+    expect(w.createdIssues[0]?.title).toContain("デプロイの結果が分かりません");
+    expect(w.slack[0]).toContain("<@U1>");
+  },
+);
+
+function rollbackWorld(states?: RunData["states"]) {
+  const w = deployWorld(ROLLBACK_WF);
+  (w.runs[0] as RunData).states = [done("failure")];
+  if (states)
+    w.runs.push({
+      id: 70,
+      workflow: "rollback.yml",
+      event: "workflow_dispatch",
+      created_at: "2026-11-12T12:00:03Z",
+      states,
+    });
+  return w;
+}
+
+test("ロールバックのワークフローは、実行が success で終わってから、ロールバックしたと知らせる", async () => {
+  const w = rollbackWorld([running, done("success")]);
+  await runDeploy(w, { runShell: shell([]).runShell });
+  expect(w.dispatches.map((d) => d.workflow)).toEqual(["rollback.yml"]);
+  expect(w.urls).toContain("GET /repos/o/r/actions/runs/70");
+  expect(w.createdIssues[0]?.labels).toEqual(["autopilot:ready"]);
+  expect(w.slack[0]).toContain("ロールバックしました");
+});
+
+test.each([
+  ["failure で終わった", [done("failure")], "ロールバックに失敗しました"],
+  ["cancelled で終わった", [done("cancelled")], "ロールバックに失敗しました"],
+  ["時間内に終わらない", [running], "ロールバックの結果が分かりません"],
+  ["実行が見つからない", undefined, "ロールバックの結果が分かりません"],
+] as const)(
+  "ロールバックのワークフローが %s ときは、hold にする",
+  async (_, states, reason) => {
+    const w = rollbackWorld(states ? [...states] : undefined);
+    await runDeploy(w, { runShell: shell([]).runShell });
+    expect(w.createdIssues[0]?.labels).toEqual(["needs-human"]);
+    expect(w.createdIssues[0]?.title).toContain(reason);
+    expect(w.slack[0]?.startsWith(HOLD_HEADLINE)).toBe(true);
+    expect(w.slack[0]).toContain("<@U1>");
+  },
+);
+
+test("ロールバックの実行も、起動の 10 秒より前のものは選ばない (R24)", async () => {
+  const w = rollbackWorld();
+  w.runs.push({
+    id: 71,
+    workflow: "rollback.yml",
+    event: "workflow_dispatch",
+    created_at: "2026-11-12T11:00:00Z",
+    states: [done("success")],
+  });
+  await runDeploy(w, { runShell: shell([]).runShell });
+  expect(w.urls).not.toContain("GET /repos/o/r/actions/runs/71");
+  expect(w.createdIssues[0]?.labels).toEqual(["needs-human"]);
+});
+
+test("dispatch では、起動の 10 秒より前に作られた実行を選ばず、10 秒前からの実行を選ぶ (R24)", async () => {
+  const w = deployWorld(DISPATCH_ONE);
+  w.runs.length = 0;
+  w.runs.push(
+    {
+      id: 40,
+      event: "workflow_dispatch",
+      created_at: "2026-11-12T11:59:49Z",
+      states: [done("failure")],
+    },
+    {
+      id: 41,
+      event: "workflow_dispatch",
+      created_at: "2026-11-12T11:59:50Z",
+      states: [done("success")],
+    },
+  );
+  const sh = shell([]);
+  await runDeploy(w, { runShell: sh.runShell });
+  expect(sh.commands).toEqual([]);
+  expect(w.slack[0]).toContain("対応が終わりました");
+});
+
+test("dispatch では、起動の 10 秒より前の実行しか無ければ、見つからないとして hold にする (R24)", async () => {
+  const w = deployWorld(DISPATCH_ONE);
+  w.runs.length = 0;
+  w.runs.push({
+    id: 40,
+    event: "workflow_dispatch",
+    created_at: "2026-11-12T11:59:49Z",
+    states: [done("failure")],
+  });
+  const sh = shell([]);
+  await runDeploy(w, { runShell: sh.runShell });
+  expect(sh.commands).toEqual([]);
+  expect(w.createdIssues[0]?.labels).toEqual(["needs-human"]);
+  expect(w.createdIssues[0]?.body).toContain("見つかりませんでした");
+});
+
+test("dispatch では、cancelled の実行は、新しい実行があっても置き換わったとみなさず hold にする (R24)", async () => {
+  const w = deployWorld(DISPATCH_ONE);
+  (w.runs[0] as RunData).states = [done("cancelled")];
+  w.runs.push({
+    id: 60,
+    event: "workflow_dispatch",
+    created_at: "2026-11-12T12:30:00Z",
+    states: [running],
+  });
+  const sh = shell([]);
+  await runDeploy(w, { runShell: sh.runShell });
+  expect(sh.commands).toEqual([]);
+  expect(w.createdIssues[0]?.labels).toEqual(["needs-human"]);
+  expect(w.createdIssues[0]?.title).toContain("デプロイの結果が分かりません");
+});
+
+test.each([
+  ["同じ commit", { head_sha: "merge123" }],
+  ["ほかのブランチ", { head_sha: "later", branch: "feature/x" }],
+] as const)(
+  "on_merge では、cancelled の後の %s の実行は、置き換わったとみなさない (R24)",
+  async (_, run) => {
+    const w = deployWorld(BASIC);
+    (w.runs[0] as RunData).states = [done("cancelled")];
+    w.runs.push({
+      id: 60,
+      created_at: "2026-11-12T12:30:00Z",
+      states: [running],
+      ...run,
+    });
+    const sh = shell([]);
+    await runDeploy(w, { runShell: sh.runShell });
+    expect(sh.commands).toEqual([]);
+    expect(w.createdIssues[0]?.labels).toEqual(["needs-human"]);
+  },
+);
+
+const NO_ROLLBACK = withIrr(
+  "irreversible: { paths: [] }",
+  'deploy: { mode: on_merge, workflow: deploy.yml, verify: "check.sh", timeout_minutes: 5 }\n',
+);
+const PLAN = withIrr(
+  "irreversible: { paths: [], terraform_plan_artifact: plan }",
+  ON_MERGE,
+);
+
+test.each([
+  [
+    "デプロイの結果が分かりません",
+    BASIC,
+    (w: World) => {
+      (w.runs[0] as RunData).states = [running];
+    },
+  ],
+  ["ロールバックに失敗しました", BASIC, () => {}],
+  ["ロールバックの設定がありません", NO_ROLLBACK, () => {}],
+  [
+    "取り消せない変更を含みます",
+    withIrr('irreversible: { paths: ["app/**"] }', ON_MERGE),
+    () => {},
+  ],
+  ["Terraform の plan がありません", PLAN, () => {}],
+  [
+    "Terraform の plan を読めません",
+    PLAN,
+    (w: World) => {
+      w.artifacts.push({ runId: 9, headSha: "sha1" });
+    },
+  ],
+  [
+    "取り消せない変更かどうかを調べられません",
+    BASIC,
+    (w: World) => {
+      w.failPullFiles = true;
+    },
+  ],
+  [
+    "設定を読めません",
+    BASIC,
+    (w: World) => {
+      w.failCommits = true;
+    },
+  ],
+  [
+    "PR を読めません",
+    BASIC,
+    (w: World) => {
+      w.throwOnPull = "connect failed";
+    },
+  ],
+] as const)(
+  "hold の Issue と Slack は、止めた理由「%s」を書く (finding 4)",
+  async (reason, config, setup) => {
+    const w = deployWorld(config);
+    setup(w);
+    await runDeploy(w, {
+      runShell: shell([{ code: 1 }, { code: 2 }]).runShell,
+    });
+    const issue = w.createdIssues[0];
+    expect(issue?.labels).toEqual(["needs-human"]);
+    expect(issue?.title).toStartWith(
+      `デプロイの後の対応を止めました (${reason}): `,
+    );
+    expect(issue?.body.split("\n")).toContain(`止めた理由: ${reason}`);
+    expect(issue?.body).not.toContain("確認に失敗しました");
+    expect(w.slack[0]?.startsWith(HOLD_HEADLINE)).toBe(true);
+    expect(w.slack[0]?.split("\n")).toContain(`止めた理由: ${reason}`);
+    expect(w.slack[0]).toContain("<@U1>");
+  },
+);
+
+test("ロールバックの設定が無いときは、失敗ではなく、していないと書く (finding 4)", async () => {
+  const w = deployWorld(NO_ROLLBACK);
+  await runDeploy(w, { runShell: shell([{ code: 1 }]).runShell });
+  const body = w.createdIssues[0]?.body ?? "";
+  expect(body).toContain(
+    "ロールバックの設定が無いため、ロールバックしていません。",
+  );
+  expect(body).not.toContain("ロールバックに失敗しました");
+  expect(w.slack[0]).not.toContain("ロールバックに失敗しました");
+});
+
+test("PR を読めなくても、Issue と Slack で人に知らせて、失敗にする (finding 5)", async () => {
+  const w = deployWorld(BASIC);
+  w.throwOnPull = "connect failed";
+  const sh = shell([]);
+  const { code } = await runDeploy(w, { runShell: sh.runShell });
+  expect(code).toBe(1);
+  expect(sh.commands).toEqual([]);
+  expect(w.createdIssues).toHaveLength(1);
+  expect(w.createdIssues[0]?.labels).toEqual(["needs-human"]);
+  expect(w.slack).toHaveLength(1);
+  expect(w.slack[0]).toContain("<@U1>");
+});
+
+test("deploy の Slack は、送れなければ 3 回までやり直す (finding 6)", async () => {
+  const w = deployWorld(BASIC);
+  w.slackFailures = 3;
+  const { code } = await runDeploy(w, {
+    runShell: shell([{ code: 0 }]).runShell,
+  });
+  expect(code).toBe(0);
+  expect(w.slackCalls).toBe(4);
+  expect(w.slack).toHaveLength(1);
+  expect(w.slack[0]).toContain("対応が終わりました");
+});
+
+test("deploy の Slack は、やり直しても送れなければ、失敗にする (finding 6)", async () => {
+  const w = deployWorld(BASIC);
+  w.slackFailures = 100;
+  (w.runs[0] as RunData).states = [running];
+  const { code } = await runDeploy(w, { runShell: shell([]).runShell });
+  expect(code).toBe(1);
+  expect(w.slackCalls).toBe(4);
+  expect(w.createdIssues).toHaveLength(1);
 });

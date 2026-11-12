@@ -12,10 +12,28 @@ import { irreversibleReasons } from "./irreversible";
 
 const POLL_MS = 30_000;
 const FIND_MS = 5_000;
-const RETRIES = 3;
 const RETRY_MS = 2_000;
-// 起動した実行は、時計のずれを見込んで、起動の少し前から探す
-const FIND_MARGIN_MS = 2 * 60_000;
+// GitHub の読み取りは、3 回まで試す
+const READ_TRIES = 3;
+// Slack は、最初の 1 回のあとに 3 回までやり直す
+const SLACK_TRIES = 4;
+// 起動した実行は、起動の 10 秒前より後に作られたものだけを選ぶ (R24)
+const DISPATCH_MARGIN_MS = 10_000;
+
+// 止めた理由。Issue の題と、Issue と Slack の「止めた理由」に書く
+const HOLD_REASONS = {
+  unknown: "デプロイの結果が分かりません",
+  rollbackFailed: "ロールバックに失敗しました",
+  rollbackUnknown: "ロールバックの結果が分かりません",
+  noRollback: "ロールバックの設定がありません",
+  irreversible: "取り消せない変更を含みます",
+  planMissing: "Terraform の plan がありません",
+  planUnreadable: "Terraform の plan を読めません",
+  checkFailed: "取り消せない変更かどうかを調べられません",
+  config: "設定を読めません",
+  pull: "PR を読めません",
+} as const;
+type HoldReason = keyof typeof HOLD_REASONS;
 
 type Step =
   | { kind: "ok" }
@@ -39,104 +57,144 @@ const isoSeconds = (ms: number) =>
 
 const messageOf = (e: unknown) => (e instanceof Error ? e.message : String(e));
 
-// 読み取りの一時的な失敗は、間を置いてやり直す
-async function withRetry<T>(ctx: Ctx, fn: () => Promise<T>): Promise<T> {
+// 失敗したら、間を置いてやり直す
+async function withRetry<T>(
+  ctx: Ctx,
+  fn: () => Promise<T>,
+  tries = READ_TRIES,
+): Promise<T> {
   for (let i = 1; ; i++) {
     try {
       return await fn();
     } catch (e) {
-      if (i >= RETRIES) throw e;
+      if (i >= tries) throw e;
       await ctx.sleep(RETRY_MS * 2 ** (i - 1));
     }
   }
 }
 
+/** 実行の探し方: マージの commit の実行か、起動した後の workflow_dispatch の実行か */
+type RunQuery =
+  | { kind: "commit"; sha: string }
+  | { kind: "dispatched"; since: number };
+
+// 起動の 10 秒前を秒に切り上げ、それより前に作られた実行は選ばない
+const dispatchedSince = (dispatchedAt: number): RunQuery => ({
+  kind: "dispatched",
+  since: Math.ceil((dispatchedAt - DISPATCH_MARGIN_MS) / 1000) * 1000,
+});
+
+// 合う実行のうち、まだ使っていない一番古いものを選び、使ったことにする
 async function findRun(
   ctx: Ctx,
-  target: DeployTarget,
-  mergeSha: string,
-  startedAt: number,
+  workflow: string,
+  q: RunQuery,
   deadline: number,
   used: Set<number>,
 ): Promise<WorkflowRun | undefined> {
-  const since = startedAt - FIND_MARGIN_MS;
   const query: Record<string, string> =
-    target.kind === "wait"
-      ? { head_sha: mergeSha }
-      : { event: "workflow_dispatch", created: `>=${isoSeconds(since)}` };
+    q.kind === "commit"
+      ? { head_sha: q.sha }
+      : { event: "workflow_dispatch", created: `>=${isoSeconds(q.since)}` };
   for (;;) {
-    const runs = (
-      await withRetry(ctx, () =>
-        ctx.gh.listWorkflowRuns(target.workflow, query),
-      )
+    const run = (
+      await withRetry(ctx, () => ctx.gh.listWorkflowRuns(workflow, query))
     )
       .filter(
         (r) =>
           !used.has(r.id) &&
-          (target.kind === "wait"
-            ? r.head_sha === mergeSha
-            : Date.parse(r.created_at) >= Math.floor(since / 1000) * 1000),
+          (q.kind === "commit"
+            ? r.head_sha === q.sha
+            : Date.parse(r.created_at) >= q.since),
       )
-      .sort((a, b) => a.created_at.localeCompare(b.created_at));
-    if (runs[0]) return runs[0];
+      .sort((a, b) => Date.parse(a.created_at) - Date.parse(b.created_at))[0];
+    if (run) {
+      used.add(run.id);
+      return run;
+    }
     if (ctx.now().getTime() > deadline) return undefined;
     await ctx.sleep(FIND_MS);
   }
 }
 
-// cancelled の実行より新しい実行があれば、後のマージのデプロイに置き換わった
+type Watched =
+  | { kind: "completed"; run: WorkflowRun }
+  | { kind: "unknown"; what: string };
+
+// 実行を探し、終わるまで待つ。API の失敗が続いたら投げる
+async function watchRun(
+  ctx: Ctx,
+  workflow: string,
+  q: RunQuery,
+  deadline: number,
+  used: Set<number>,
+): Promise<Watched> {
+  const found = await findRun(ctx, workflow, q, deadline, used);
+  if (!found)
+    return {
+      kind: "unknown",
+      what: `${workflow} の実行が見つかりませんでした`,
+    };
+  for (;;) {
+    const run = await withRetry(ctx, () => ctx.gh.getWorkflowRun(found.id));
+    if (run.status === "completed") return { kind: "completed", run };
+    if (ctx.now().getTime() > deadline)
+      return {
+        kind: "unknown",
+        what: `${workflow} が ${ctx.config.deploy.timeoutMinutes} 分たっても終わりません`,
+      };
+    await ctx.sleep(POLL_MS);
+  }
+}
+
+// on_merge で cancelled になった実行が、デフォルトブランチの新しい commit の実行に置き換わったか
 async function superseded(
+  ctx: Ctx,
+  workflow: string,
+  run: WorkflowRun,
+  mergeSha: string,
+): Promise<boolean> {
+  const runs = await withRetry(ctx, () =>
+    ctx.gh.listWorkflowRuns(workflow, { branch: ctx.defaultBranch }),
+  );
+  return runs.some(
+    (r) =>
+      r.id !== run.id &&
+      r.head_sha !== mergeSha &&
+      Date.parse(r.created_at) > Date.parse(run.created_at),
+  );
+}
+
+// 失敗とみなすのは failure だけ。success・skipped・置き換わった cancelled のほかは、
+// 結果が分からないとして、ロールバックしない (R23, R24)
+async function judgeRun(
   ctx: Ctx,
   target: DeployTarget,
   run: WorkflowRun,
-): Promise<boolean> {
-  const query: Record<string, string> =
-    target.kind === "wait"
-      ? { branch: ctx.defaultBranch }
-      : { event: "workflow_dispatch" };
-  const runs = await withRetry(ctx, () =>
-    ctx.gh.listWorkflowRuns(target.workflow, query),
-  );
-  return runs.some((r) => r.id !== run.id && r.created_at > run.created_at);
-}
-
-async function pollRun(
-  ctx: Ctx,
-  target: DeployTarget,
-  found: WorkflowRun,
-  deadline: number,
+  mergeSha: string,
 ): Promise<Step> {
-  for (;;) {
-    const run = await withRetry(ctx, () => ctx.gh.getWorkflowRun(found.id));
-    if (run.status === "completed") {
-      if (run.conclusion === "success") return { kind: "ok" };
-      if (run.conclusion === "skipped")
-        return {
-          kind: "silent",
-          reason: `${target.workflow} の実行が skipped になりました: ${run.html_url}`,
-        };
-      if (run.conclusion === "cancelled") {
-        return (await superseded(ctx, target, found))
-          ? {
-              kind: "silent",
-              reason: `${target.workflow} の実行は、新しい実行に置き換わりました: ${run.html_url}`,
-            }
-          : {
-              kind: "unknown",
-              what: `${target.workflow} の実行が cancelled になり、置き換える実行も見つかりません。デプロイの結果が分かりません`,
-            };
-      }
-      return failed(
-        `${target.workflow} の実行が ${run.conclusion} で終わりました`,
-      );
-    }
-    if (ctx.now().getTime() > deadline) {
-      return {
-        kind: "unknown",
-        what: `${target.workflow} が ${ctx.config.deploy.timeoutMinutes} 分たっても終わりません。デプロイの結果が分かりません`,
-      };
-    }
-    await ctx.sleep(POLL_MS);
+  const ended = `${target.workflow} の実行が ${run.conclusion} で終わりました`;
+  switch (run.conclusion) {
+    case "success":
+      return { kind: "ok" };
+    case "failure":
+      return failed(ended);
+    case "skipped":
+      return { kind: "silent", reason: `${ended}: ${run.html_url}` };
+    case "cancelled":
+      // dispatch の実行は、置き換わったとはみなさない
+      if (target.kind === "dispatch") return { kind: "unknown", what: ended };
+      return (await superseded(ctx, target.workflow, run, mergeSha))
+        ? {
+            kind: "silent",
+            reason: `${target.workflow} の実行は、新しい commit の実行に置き換わりました: ${run.html_url}`,
+          }
+        : {
+            kind: "unknown",
+            what: `${ended}。新しい commit の実行もありません`,
+          };
+    default:
+      return { kind: "unknown", what: ended };
   }
 }
 
@@ -157,25 +215,21 @@ async function runTarget(
         target.inputs,
       );
     }
-    const found = await findRun(
+    const watched = await watchRun(
       ctx,
-      target,
-      mergeSha,
-      startedAt,
+      target.workflow,
+      target.kind === "wait"
+        ? { kind: "commit", sha: mergeSha }
+        : dispatchedSince(startedAt),
       deadline,
       used,
     );
-    if (!found)
-      return {
-        kind: "unknown",
-        what: `${target.workflow} の実行が見つかりませんでした。デプロイの結果が分かりません`,
-      };
-    used.add(found.id);
-    return await pollRun(ctx, target, found, deadline);
+    if (watched.kind === "unknown") return watched;
+    return await judgeRun(ctx, target, watched.run, mergeSha);
   } catch (e) {
     return {
       kind: "unknown",
-      what: `${target.workflow} の確認中に GitHub の呼び出しに失敗しました。デプロイの結果が分かりません: ${messageOf(e)}`,
+      what: `${target.workflow} の確認中に GitHub の呼び出しに失敗しました: ${messageOf(e)}`,
     };
   }
 }
@@ -184,8 +238,8 @@ async function runAndVerify(
   ctx: Ctx,
   targets: DeployTarget[],
   mergeSha: string,
+  used: Set<number>,
 ): Promise<Step> {
-  const used = new Set<number>();
   for (const target of targets) {
     const step = await runTarget(ctx, target, mergeSha, used);
     if (step.kind !== "ok") return step;
@@ -198,22 +252,73 @@ async function runAndVerify(
     : failed("deploy.verify が失敗しました", result.code, result.output);
 }
 
-// ロールバックできたときだけ ok。理由は note に入れる
-async function rollback(ctx: Ctx): Promise<{ ok: boolean; note: string }> {
-  const command = ctx.config.deploy.rollback;
-  if (!command) return { ok: false, note: "ロールバックの設定がありません。" };
-  if (command.endsWith(".yml")) {
-    await ctx.gh.dispatchWorkflow(command, ctx.defaultBranch, {});
+type RollbackResult =
+  | { ok: true; note: string }
+  | { ok: false; reason: HoldReason; note: string };
+
+// ロールバックのワークフローも、デプロイと同じ決まりで実行を探して待つ。success のときだけ ok
+async function rollbackByWorkflow(
+  ctx: Ctx,
+  workflow: string,
+  used: Set<number>,
+): Promise<RollbackResult> {
+  const name = `ロールバックのワークフロー ${workflow}`;
+  const startedAt = ctx.now().getTime();
+  const deadline = startedAt + ctx.config.deploy.timeoutMinutes * 60_000;
+  try {
+    await ctx.gh.dispatchWorkflow(workflow, ctx.defaultBranch, {});
+  } catch (e) {
     return {
-      ok: true,
-      note: `ロールバックのワークフロー ${command} を起動しました。`,
+      ok: false,
+      reason: "rollbackFailed",
+      note: `${name} を起動できませんでした: ${messageOf(e)}`,
     };
   }
+  try {
+    const watched = await watchRun(
+      ctx,
+      workflow,
+      dispatchedSince(startedAt),
+      deadline,
+      used,
+    );
+    if (watched.kind === "unknown")
+      return {
+        ok: false,
+        reason: "rollbackUnknown",
+        note: `ロールバック: ${watched.what}。`,
+      };
+    return watched.run.conclusion === "success"
+      ? { ok: true, note: `${name} が成功しました。` }
+      : {
+          ok: false,
+          reason: "rollbackFailed",
+          note: `${name} の実行が ${watched.run.conclusion} で終わりました。`,
+        };
+  } catch (e) {
+    return {
+      ok: false,
+      reason: "rollbackUnknown",
+      note: `${name} の確認中に GitHub の呼び出しに失敗しました: ${messageOf(e)}`,
+    };
+  }
+}
+
+async function rollback(ctx: Ctx, used: Set<number>): Promise<RollbackResult> {
+  const command = ctx.config.deploy.rollback;
+  if (!command)
+    return {
+      ok: false,
+      reason: "noRollback",
+      note: "ロールバックの設定が無いため、ロールバックしていません。",
+    };
+  if (command.endsWith(".yml")) return rollbackByWorkflow(ctx, command, used);
   const result = await ctx.runShell(command);
   return result.code === 0
     ? { ok: true, note: "ロールバックのコマンドを実行しました。" }
     : {
         ok: false,
+        reason: "rollbackFailed",
         note: `ロールバックのコマンドが失敗しました (終了コード ${result.code})。`,
       };
 }
@@ -224,10 +329,14 @@ async function sameCauseCount(ctx: Ctx, marker: string): Promise<number> {
 }
 
 interface Irreversibility {
-  irreversible: boolean;
-  /** hold にしたときに添える理由 */
-  why: string;
+  /** 空なら、取り消せる変更 */
+  reasons: HoldReason[];
+  /** hold にしたときに添える文 */
+  lines: string[];
 }
+
+// detectIrreversible が、plan を読めないときに出す理由
+const PLAN_UNREADABLE = "Terraform: plan を読めませんでした";
 
 // デプロイの前に決める。調べられなければ、取り消せないものとして扱う
 async function checkIrreversible(
@@ -236,18 +345,31 @@ async function checkIrreversible(
 ): Promise<Irreversibility> {
   try {
     const found = await irreversibleReasons(ctx, pull);
-    const why: string[] = [];
-    if (found.reasons.some((r) => !found.waiting || r.startsWith("パス:")))
-      why.push("取り消せない変更を含みます");
-    if (found.waiting)
-      why.push(
+    const out: Irreversibility = { reasons: [], lines: [] };
+    // plan が無いときの「読めない」は、plan が無いこととして扱う
+    const changes = found.reasons.filter((r) => r !== PLAN_UNREADABLE);
+    if (changes.length > 0) {
+      out.reasons.push("irreversible");
+      out.lines.push(`取り消せない変更: ${changes.join("、")}`);
+    }
+    if (found.waiting) {
+      out.reasons.push("planMissing");
+      out.lines.push(
         "Terraform の plan が無いため、取り消せない変更かどうか決められません",
       );
-    return { irreversible: why.length > 0, why: why.join("。") };
+    } else if (found.reasons.includes(PLAN_UNREADABLE)) {
+      out.reasons.push("planUnreadable");
+      out.lines.push(
+        "Terraform の plan を読めないため、取り消せない変更かどうか決められません",
+      );
+    }
+    return out;
   } catch (e) {
     return {
-      irreversible: true,
-      why: `取り消せない変更かどうかを調べられませんでした: ${messageOf(e)}`,
+      reasons: ["checkFailed"],
+      lines: [
+        `取り消せない変更かどうかを調べられませんでした: ${messageOf(e)}`,
+      ],
     };
   }
 }
@@ -259,43 +381,95 @@ const markerOf = (source: string) =>
     .digest("hex")
     .slice(0, 16)} -->`;
 
-interface Report {
-  kind: "hold" | "rolled_back";
-  label: string;
+/** Issue と Slack で名前を出す PR */
+type Subject = Pick<Pull, "number" | "title" | "html_url">;
+
+type Report = {
   /** Issue と Slack に書く、何があったかの行 */
   lines: string[];
   /** 指紋にする文 (ハッシュにして印に入れる) */
   fingerprintSource: string;
   errors: string[];
-}
+} & (
+  | { kind: "hold"; reasons: HoldReason[] }
+  | { kind: "rolled_back"; label: string }
+);
 
 // Issue を作り、Slack に送る。Slack は最後に必ず試し、失敗があれば最後に落とす
-async function report(ctx: Ctx, pull: Pull, r: Report): Promise<void> {
+async function report(ctx: Ctx, subject: Subject, r: Report): Promise<void> {
   const marker = markerOf(r.fingerprintSource);
   const errors = [...r.errors];
+  const pr = `${subject.title} (#${subject.number})`;
+  const why =
+    r.kind === "hold" ? r.reasons.map((x) => HOLD_REASONS[x]).join("、") : "";
+  const issue =
+    r.kind === "hold"
+      ? {
+          title: `デプロイの後の対応を止めました (${why}): ${pr}`,
+          lead: [
+            `PR #${subject.number} のマージの後のデプロイで、自動の対応を止めました。`,
+            `止めた理由: ${why}`,
+          ],
+          label: LABELS.needsHuman,
+        }
+      : {
+          title: `デプロイ後の確認に失敗したため、ロールバックしました: ${pr}`,
+          lead: [
+            `PR #${subject.number} のマージの後のデプロイが失敗したため、ロールバックしました。`,
+          ],
+          label: r.label,
+        };
   try {
     await ctx.gh.createIssue({
-      title: `デプロイ後の確認に失敗しました: ${pull.title} (#${pull.number})`,
+      title: issue.title,
       body: [
-        `PR #${pull.number} のマージ後のデプロイが失敗しました。`,
+        ...issue.lead,
         r.lines.join("\n"),
         `[実行のログ](${ctx.runUrl})`,
         marker,
       ].join("\n\n"),
-      labels: [r.label],
+      labels: [issue.label],
     });
   } catch (e) {
     errors.push(`Issue の作成に失敗しました: ${messageOf(e)}`);
   }
-  await ctx.notify({
-    kind: r.kind === "hold" ? "deploy_hold" : "deploy_rolled_back",
-    title: pull.title,
-    url: pull.html_url,
-    details: [...r.lines, ...errors],
-    links: [{ label: "実行のログ", url: ctx.runUrl }],
-  });
+  try {
+    await withRetry(
+      ctx,
+      () =>
+        ctx.notify({
+          kind: r.kind === "hold" ? "deploy_hold" : "deploy_rolled_back",
+          title: subject.title,
+          url: subject.html_url,
+          details: [
+            ...(r.kind === "hold" ? [`止めた理由: ${why}`] : []),
+            ...r.lines,
+            ...errors,
+          ],
+          links: [{ label: "実行のログ", url: ctx.runUrl }],
+        }),
+      SLACK_TRIES,
+    );
+  } catch (e) {
+    errors.push(messageOf(e));
+  }
   if (errors.length > 0) throw new Error(errors.join("; "));
 }
+
+// デプロイを始める前に止める
+const holdBefore = (
+  ctx: Ctx,
+  subject: Subject,
+  reason: HoldReason,
+  what: string,
+) =>
+  report(ctx, subject, {
+    kind: "hold",
+    reasons: [reason],
+    lines: [what],
+    fingerprintSource: what,
+    errors: [],
+  });
 
 async function sameCause(
   ctx: Ctx,
@@ -315,12 +489,13 @@ async function handleFailure(
   pull: Pull,
   step: Exclude<Step, { kind: "ok" | "silent" }>,
   irr: Irreversibility,
+  used: Set<number>,
 ): Promise<void> {
   const errors: string[] = [];
   if (step.kind === "unknown") {
     return report(ctx, pull, {
       kind: "hold",
-      label: LABELS.needsHuman,
+      reasons: ["unknown"],
       lines: [step.what],
       fingerprintSource: step.what,
       errors,
@@ -333,33 +508,38 @@ async function handleFailure(
   const fingerprintSource = step.output;
   const count = await sameCause(ctx, markerOf(fingerprintSource), errors);
   const outcome = decideAfterVerify(
-    { ok: false, irreversible: irr.irreversible, sameCauseCount: count },
+    {
+      ok: false,
+      irreversible: irr.reasons.length > 0,
+      sameCauseCount: count,
+    },
     ctx.config,
   );
   if (outcome.kind === "done") return;
   if (outcome.kind === "hold") {
     return report(ctx, pull, {
       kind: "hold",
-      label: LABELS.needsHuman,
-      lines: [...what, irr.why],
+      reasons: irr.reasons,
+      lines: [...what, ...irr.lines],
       fingerprintSource,
       errors,
     });
   }
-  let result: { ok: boolean; note: string };
+  let result: RollbackResult;
   try {
-    result = await rollback(ctx);
+    result = await rollback(ctx, used);
   } catch (e) {
     result = {
       ok: false,
+      reason: "rollbackFailed",
       note: `ロールバックに失敗しました: ${messageOf(e)}`,
     };
   }
   if (!result.ok) {
     return report(ctx, pull, {
       kind: "hold",
-      label: LABELS.needsHuman,
-      lines: [...what, `ロールバックに失敗しました。${result.note}`],
+      reasons: [result.reason],
+      lines: [...what, result.note],
       fingerprintSource,
       errors,
     });
@@ -389,7 +569,24 @@ export async function deploy(base: Ctx): Promise<void> {
     base.event.action !== "closed"
   )
     return;
-  const pull = await base.gh.getPull(base.event.pull_request.number);
+  const event = base.event.pull_request;
+  const n: number = event.number;
+  let pull: Pull;
+  try {
+    pull = await withRetry(base, () => base.gh.getPull(n));
+  } catch (e) {
+    await holdBefore(
+      base,
+      {
+        number: n,
+        title: event.title ?? `PR #${n}`,
+        html_url: event.html_url ?? `${base.serverUrl}/${base.repo}/pull/${n}`,
+      },
+      "pull",
+      `PR を読めないため、デプロイを始められませんでした: ${messageOf(e)}`,
+    );
+    throw e;
+  }
   if (!pull.merged || !isAutopilotPull(pull, base.repo)) return;
   const mergeSha = pull.merge_commit_sha;
   if (!mergeSha) throw new Error("マージの commit が分かりません");
@@ -398,34 +595,39 @@ export async function deploy(base: Ctx): Promise<void> {
   try {
     ctx = await loadConfig(base, mergeSha);
   } catch (e) {
-    const what = `デプロイを始められませんでした: ${messageOf(e)}`;
-    await report(base, pull, {
-      kind: "hold",
-      label: LABELS.needsHuman,
-      lines: [what],
-      fingerprintSource: what,
-      errors: [],
-    });
+    await holdBefore(
+      base,
+      pull,
+      "config",
+      `設定を読めないため、デプロイを始められませんでした: ${messageOf(e)}`,
+    );
     throw e;
   }
 
   const targets = planDeployTargets(ctx.config);
   const done = () =>
-    ctx.notify({
-      kind: "done",
-      title: pull.title,
-      url: pull.html_url,
-      details: [],
-      links: [{ label: "実行のログ", url: ctx.runUrl }],
-    });
+    withRetry(
+      ctx,
+      () =>
+        ctx.notify({
+          kind: "done",
+          title: pull.title,
+          url: pull.html_url,
+          details: [],
+          links: [{ label: "実行のログ", url: ctx.runUrl }],
+        }),
+      SLACK_TRIES,
+    );
   if (targets.length === 0) return done();
 
   const irr = await checkIrreversible(ctx, pull);
-  const step = await runAndVerify(ctx, targets, mergeSha);
+  // 使った実行は、ほかの環境やロールバックで選ばない
+  const used = new Set<number>();
+  const step = await runAndVerify(ctx, targets, mergeSha, used);
   if (step.kind === "ok") return done();
   if (step.kind === "silent") {
     console.log(step.reason);
     return;
   }
-  await handleFailure(ctx, pull, step, irr);
+  await handleFailure(ctx, pull, step, irr, used);
 }

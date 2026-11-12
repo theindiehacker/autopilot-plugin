@@ -14,7 +14,7 @@ const firstLines: Record<NotificationKind, string> = {
   approval_request: ":raised_hand: 承認をお願いします: <https://x/1|T>",
   needs_human: ":warning: 人の判断が必要です: <https://x/1|T>",
   deploy_hold:
-    ":rotating_light: 取り消せない変更を含むデプロイの確認に失敗しました (ロールバックしていません): <https://x/1|T>",
+    ":rotating_light: デプロイの後の対応を止めました (自動でロールバックしていません): <https://x/1|T>",
   deploy_rolled_back:
     ":rewind: デプロイ後の確認に失敗したため、ロールバックしました: <https://x/1|T>",
   done: ":white_check_mark: 対応が終わりました: <https://x/1|T>",
