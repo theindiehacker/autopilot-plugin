@@ -642,6 +642,27 @@ test("fix-round は workflow_dispatch を App か書き込み権限のある人�
   expect(await go("mallory")).toContain("run=false");
 });
 
+test("fix-round は CI の失敗からの起動を、同じリポジトリの現在の head のときだけ許す", async () => {
+  const w = newWorld();
+  w.pulls.push({ number: 4 });
+  const go = async (head_repository: unknown, head_sha: string) =>
+    (
+      await run(w, "fix-round", "workflow_run", {
+        workflow_run: {
+          conclusion: "failure",
+          pull_requests: [{ number: 4 }],
+          head_repository,
+          head_sha,
+        },
+      })
+    ).output;
+  expect(await go({ full_name: "o/r" }, "sha4")).toContain("run=true");
+  expect(await go({ full_name: "fork/r" }, "sha4")).toContain("run=false");
+  expect(await go(undefined, "sha4")).toContain("run=false");
+  expect(await go({ full_name: "o/r" }, "old")).toContain("run=false");
+  expect(await go({ full_name: "o/r" }, "")).toContain("run=false");
+});
+
 test("ready は Draft のときだけ ready にする", async () => {
   const w = newWorld();
   w.pulls.push({ number: 2, draft: true }, { number: 3 });

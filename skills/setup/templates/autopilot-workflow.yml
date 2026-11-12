@@ -108,6 +108,7 @@ jobs:
           || contains(fromJSON('["OWNER", "MEMBER", "COLLABORATOR"]'), github.event.review.author_association)))
       || (github.event_name == 'workflow_run'
         && github.event.workflow_run.conclusion == 'failure'
+        && github.event.workflow_run.head_repository.full_name == github.repository
         && github.event.workflow_run.name != '{{TERRAFORM_PLAN_WORKFLOW}}')
       || github.event_name == 'workflow_dispatch'
     runs-on: ubuntu-latest

@@ -38,6 +38,20 @@ export async function fixRound(ctx: Ctx): Promise<void> {
     return;
   }
   const pull = await ctx.gh.getPull(n);
+  // CI の失敗からの起動は、同じリポジトリの、PR の今の head の実行だけ
+  const wr = ctx.event.workflow_run;
+  if (
+    ctx.eventName === "workflow_run" &&
+    !(
+      typeof wr?.head_repository?.full_name === "string" &&
+      sameLogin(wr.head_repository.full_name, ctx.repo) &&
+      typeof wr.head_sha === "string" &&
+      wr.head_sha === pull.head.sha
+    )
+  ) {
+    ctx.setOutput("run", "false");
+    return;
+  }
   if (
     !isAutopilotPull(pull, ctx.repo) ||
     hasLabel(pull.labels, LABELS.needsHuman)

@@ -123,18 +123,30 @@ test("守りのファイルは、設定に無くても取り消せない変更�
   const config = {
     irreversible: { paths: [] },
   } as unknown as AutopilotConfig;
-  const files = [
+  const protectedFiles = [
     ".github/autopilot.yml",
     ".github/workflows/ci.yml",
+    ".github/actions/x/action.yml",
+    ".github/CODEOWNERS",
     ".claude/settings.json",
+    ".claude/settings.local.json",
+    ".claude/hooks/pre.sh",
+    ".mcp.json",
     "lefthook.yml",
     "lefthook.yaml",
     ".lefthook.yml",
+    ".lefthook.yaml",
+    "lefthook-local.yml",
+    "lefthook-local.yaml",
     ".pre-commit-config.yaml",
-    "src/app.ts",
+    ".husky/pre-commit",
   ];
-  expect(detectIrreversible({ changedFiles: files, config })).toEqual(
-    files.slice(0, 7).map((f) => `パス: ${f}`),
-  );
-  expect(BUILTIN_IRREVERSIBLE_PATHS).toContain(".github/workflows/**");
+  expect(
+    detectIrreversible({
+      changedFiles: [...protectedFiles, "src/app.ts"],
+      config,
+    }),
+  ).toEqual(protectedFiles.map((f) => `パス: ${f}`));
+  expect(BUILTIN_IRREVERSIBLE_PATHS).toContain(".github/**");
+  expect(BUILTIN_IRREVERSIBLE_PATHS).toContain(".claude/**");
 });

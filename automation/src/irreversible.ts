@@ -3,13 +3,17 @@ import type { AutopilotConfig } from "./types";
 // 設定に書かなくても、いつも取り消せない変更として扱うパス
 // (自動化の設定・ワークフロー・検査の仕組みを、人の承認なしに書き換えさせない)
 export const BUILTIN_IRREVERSIBLE_PATHS: string[] = [
-  ".github/autopilot.yml",
-  ".github/workflows/**",
-  ".claude/settings.json",
+  ".github/**",
+  ".claude/**",
+  ".mcp.json",
   "lefthook.yml",
   "lefthook.yaml",
   ".lefthook.yml",
+  ".lefthook.yaml",
+  "lefthook-local.yml",
+  "lefthook-local.yaml",
   ".pre-commit-config.yaml",
+  ".husky/**",
 ];
 
 export function findIrreversiblePaths(
