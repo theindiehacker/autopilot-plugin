@@ -142,21 +142,47 @@ export async function defaultRunShell(
   return { code: result.code, output };
 }
 
-export async function createCtx(
+export const CONFIG_PATH = ".github/autopilot.yml";
+
+export async function readEvent(
+  env: Record<string, string | undefined>,
+): Promise<EventPayload> {
+  const eventPath = env.GITHUB_EVENT_PATH;
+  return eventPath ? await Bun.file(eventPath).json() : {};
+}
+
+export const runUrlOf = (env: Record<string, string | undefined>) =>
+  `${env.GITHUB_SERVER_URL ?? "https://github.com"}/${env.GITHUB_REPOSITORY ?? ""}/actions/runs/${env.GITHUB_RUN_ID ?? ""}`;
+
+export const sleepOf = (deps: Deps) =>
+  deps.sleep ?? ((ms: number) => new Promise<void>((r) => setTimeout(r, ms)));
+
+/** config のメンションを付けて Slack に送る */
+export function slackSender(
+  env: Record<string, string | undefined>,
+  deps: Deps,
+): (n: Notification, config: Pick<AutopilotConfig, "notify">) => Promise<void> {
+  const fetchImpl = deps.fetchImpl ?? fetch;
+  return async (n, config) => {
+    const url = env.AUTOPILOT_SLACK_WEBHOOK_URL;
+    if (!url) throw new Error("AUTOPILOT_SLACK_WEBHOOK_URL が未設定です");
+    await sendSlack(url, formatSlackMessage(n, config), fetchImpl);
+  };
+}
+
+/** 読み終えたデフォルトブランチと設定から Ctx を作る */
+export function buildCtx(
   gh: GitHubClient,
   env: Record<string, string | undefined>,
   deps: Deps,
-): Promise<Ctx> {
-  const repo = env.GITHUB_REPOSITORY ?? "";
-  const fetchImpl = deps.fetchImpl ?? fetch;
-  const eventPath = env.GITHUB_EVENT_PATH;
-  const event: EventPayload = eventPath ? await Bun.file(eventPath).json() : {};
-  // 設定は PR のブランチではなく、デフォルトブランチから読む
-  const defaultBranch = (await gh.getRepo()).default_branch;
-  const config = parseConfig(
-    await gh.getRepoFile(".github/autopilot.yml", defaultBranch),
-  );
-  const serverUrl = env.GITHUB_SERVER_URL ?? "https://github.com";
+  parts: {
+    event: EventPayload;
+    defaultBranch: string;
+    config: AutopilotConfig;
+  },
+): Ctx {
+  const { event, defaultBranch, config } = parts;
+  const send = slackSender(env, deps);
   const secrets = [
     env.GITHUB_TOKEN ?? "",
     env.AUTOPILOT_SLACK_WEBHOOK_URL ?? "",
@@ -167,25 +193,33 @@ export async function createCtx(
   return {
     gh,
     config,
-    repo,
+    repo: env.GITHUB_REPOSITORY ?? "",
     defaultBranch,
     event,
     eventName: env.GITHUB_EVENT_NAME ?? "",
     botLogin: `${env.AUTOPILOT_APP_SLUG ?? ""}[bot]`,
-    serverUrl,
-    runUrl: `${serverUrl}/${repo}/actions/runs/${env.GITHUB_RUN_ID ?? ""}`,
+    serverUrl: env.GITHUB_SERVER_URL ?? "https://github.com",
+    runUrl: runUrlOf(env),
     workflowFile: workflowRef?.[1] ?? "autopilot.yml",
-    notify: async (n, cfg = config) => {
-      const url = env.AUTOPILOT_SLACK_WEBHOOK_URL;
-      if (!url) throw new Error("AUTOPILOT_SLACK_WEBHOOK_URL が未設定です");
-      await sendSlack(url, formatSlackMessage(n, cfg), fetchImpl);
-    },
+    notify: (n, cfg = config) => send(n, cfg),
     setOutput: (key, value) => {
       if (env.GITHUB_OUTPUT)
         appendFileSync(env.GITHUB_OUTPUT, `${key}=${value}\n`);
     },
     now: deps.now ?? (() => new Date()),
-    sleep: deps.sleep ?? ((ms) => new Promise((r) => setTimeout(r, ms))),
+    sleep: sleepOf(deps),
     runShell: deps.runShell ?? ((c) => defaultRunShell(c, { env, secrets })),
   };
+}
+
+export async function createCtx(
+  gh: GitHubClient,
+  env: Record<string, string | undefined>,
+  deps: Deps,
+): Promise<Ctx> {
+  const event = await readEvent(env);
+  // 設定は PR のブランチではなく、デフォルトブランチから読む
+  const defaultBranch = (await gh.getRepo()).default_branch;
+  const config = parseConfig(await gh.getRepoFile(CONFIG_PATH, defaultBranch));
+  return buildCtx(gh, env, deps, { event, defaultBranch, config });
 }

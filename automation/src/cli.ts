@@ -1,6 +1,6 @@
 import { automerge } from "./commands/automerge";
 import { type Ctx, createCtx, type Deps } from "./commands/context";
-import { deploy } from "./commands/deploy";
+import { createDeployCtx, deploy } from "./commands/deploy";
 import { fixRound } from "./commands/fixRound";
 import { irreversible } from "./commands/irreversible";
 import { label } from "./commands/label";
@@ -53,7 +53,12 @@ export async function main(
       ...(deps.fetchImpl ? { fetchImpl: deps.fetchImpl } : {}),
       ...(env.GITHUB_API_URL ? { apiUrl: env.GITHUB_API_URL } : {}),
     });
-    await command(await createCtx(gh, env, deps));
+    // deploy だけは、設定を読めなくても人に知らせる (R25)。ほかはすぐ失敗する
+    const ctx =
+      argv[0] === "deploy"
+        ? await createDeployCtx(gh, env, deps)
+        : await createCtx(gh, env, deps);
+    await command(ctx);
     return 0;
   } catch (e) {
     const message = e instanceof Error ? e.message : String(e);

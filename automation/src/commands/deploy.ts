@@ -5,9 +5,22 @@ import {
   failureFingerprint,
   planDeployTargets,
 } from "../deploy";
-import type { Pull, WorkflowRun } from "../github";
-import { LABELS } from "../types";
-import { type Ctx, DEPLOY_FAILURE_MARKER, isAutopilotPull } from "./context";
+import type { GitHubClient, Pull, WorkflowRun } from "../github";
+import { type AutopilotConfig, LABELS } from "../types";
+import {
+  buildCtx,
+  CONFIG_PATH,
+  type Ctx,
+  DEPLOY_FAILURE_MARKER,
+  type Deps,
+  type EventPayload,
+  isAutopilotPull,
+  readEvent,
+  runUrlOf,
+  sameLogin,
+  slackSender,
+  sleepOf,
+} from "./context";
 import { irreversibleReasons } from "./irreversible";
 
 const POLL_MS = 30_000;
@@ -25,6 +38,7 @@ const HOLD_REASONS = {
   unknown: "デプロイの結果が分かりません",
   rollbackFailed: "ロールバックに失敗しました",
   rollbackUnknown: "ロールバックの結果が分かりません",
+  rollbackDispatchUnknown: "ロールバックを起動できたか分かりません",
   noRollback: "ロールバックの設定がありません",
   irreversible: "取り消せない変更を含みます",
   planMissing: "Terraform の plan がありません",
@@ -57,9 +71,13 @@ const isoSeconds = (ms: number) =>
 
 const messageOf = (e: unknown) => (e instanceof Error ? e.message : String(e));
 
+interface Sleeper {
+  sleep(ms: number): Promise<void>;
+}
+
 // 失敗したら、間を置いてやり直す
 async function withRetry<T>(
-  ctx: Ctx,
+  s: Sleeper,
   fn: () => Promise<T>,
   tries = READ_TRIES,
 ): Promise<T> {
@@ -68,7 +86,7 @@ async function withRetry<T>(
       return await fn();
     } catch (e) {
       if (i >= tries) throw e;
-      await ctx.sleep(RETRY_MS * 2 ** (i - 1));
+      await s.sleep(RETRY_MS * 2 ** (i - 1));
     }
   }
 }
@@ -83,6 +101,11 @@ const dispatchedSince = (dispatchedAt: number): RunQuery => ({
   kind: "dispatched",
   since: Math.ceil((dispatchedAt - DISPATCH_MARGIN_MS) / 1000) * 1000,
 });
+
+// 自分が起動した実行: デフォルトブランチで、App が起こしたもの
+const dispatchedByUs = (ctx: Ctx, r: WorkflowRun) =>
+  r.head_branch === ctx.defaultBranch &&
+  sameLogin(r.triggering_actor?.login ?? "", ctx.botLogin);
 
 // 合う実行のうち、まだ使っていない一番古いものを選び、使ったことにする
 async function findRun(
@@ -105,7 +128,7 @@ async function findRun(
           !used.has(r.id) &&
           (q.kind === "commit"
             ? r.head_sha === q.sha
-            : Date.parse(r.created_at) >= q.since),
+            : Date.parse(r.created_at) >= q.since && dispatchedByUs(ctx, r)),
       )
       .sort((a, b) => Date.parse(a.created_at) - Date.parse(b.created_at))[0];
     if (run) {
@@ -165,8 +188,8 @@ async function superseded(
   );
 }
 
-// 失敗とみなすのは failure だけ。success・skipped・置き換わった cancelled のほかは、
-// 結果が分からないとして、ロールバックしない (R23, R24)
+// 失敗とみなすのは failure だけ。success・on_merge の skipped・置き換わった cancelled のほかは、
+// 結果が分からないとして、ロールバックしない (R23, R24, R25)
 async function judgeRun(
   ctx: Ctx,
   target: DeployTarget,
@@ -180,6 +203,8 @@ async function judgeRun(
     case "failure":
       return failed(ended);
     case "skipped":
+      // dispatch で skipped なら、何もデプロイされていない
+      if (target.kind === "dispatch") return { kind: "unknown", what: ended };
       return { kind: "silent", reason: `${ended}: ${run.html_url}` };
     case "cancelled":
       // dispatch の実行は、置き換わったとはみなさない
@@ -268,10 +293,11 @@ async function rollbackByWorkflow(
   try {
     await ctx.gh.dispatchWorkflow(workflow, ctx.defaultBranch, {});
   } catch (e) {
+    // 起動の呼び出しが失敗しても、起動したかもしれない
     return {
       ok: false,
-      reason: "rollbackFailed",
-      note: `${name} を起動できませんでした: ${messageOf(e)}`,
+      reason: "rollbackDispatchUnknown",
+      note: `${name} の起動で GitHub の呼び出しに失敗しました: ${messageOf(e)}`,
     };
   }
   try {
@@ -384,6 +410,23 @@ const markerOf = (source: string) =>
 /** Issue と Slack で名前を出す PR */
 type Subject = Pick<Pull, "number" | "title" | "html_url">;
 
+/** PR を読めないときは、event の中身で名前を出す */
+function subjectOf(
+  event: EventPayload,
+  serverUrl: string,
+  repo: string,
+): Subject {
+  const p = event.pull_request ?? {};
+  return {
+    number: p.number,
+    title: p.title ?? `PR #${p.number}`,
+    html_url: p.html_url ?? `${serverUrl}/${repo}/pull/${p.number}`,
+  };
+}
+
+/** 知らせるのに要るもの (設定が読めないときは、Ctx が無い) */
+type Reporter = Pick<Ctx, "gh" | "runUrl" | "notify" | "sleep">;
+
 type Report = {
   /** Issue と Slack に書く、何があったかの行 */
   lines: string[];
@@ -391,12 +434,16 @@ type Report = {
   fingerprintSource: string;
   errors: string[];
 } & (
-  | { kind: "hold"; reasons: HoldReason[] }
+  | { kind: "hold"; reasons: HoldReason[]; title?: string }
   | { kind: "rolled_back"; label: string }
 );
 
 // Issue を作り、Slack に送る。Slack は最後に必ず試し、失敗があれば最後に落とす
-async function report(ctx: Ctx, subject: Subject, r: Report): Promise<void> {
+async function report(
+  ctx: Reporter,
+  subject: Subject,
+  r: Report,
+): Promise<void> {
   const marker = markerOf(r.fingerprintSource);
   const errors = [...r.errors];
   const pr = `${subject.title} (#${subject.number})`;
@@ -405,7 +452,7 @@ async function report(ctx: Ctx, subject: Subject, r: Report): Promise<void> {
   const issue =
     r.kind === "hold"
       ? {
-          title: `デプロイの後の対応を止めました (${why}): ${pr}`,
+          title: r.title ?? `デプロイの後の対応を止めました (${why}): ${pr}`,
           lead: [
             `PR #${subject.number} のマージの後のデプロイで、自動の対応を止めました。`,
             `止めた理由: ${why}`,
@@ -536,10 +583,11 @@ async function handleFailure(
     };
   }
   if (!result.ok) {
+    // rollbackAfterIrreversible で戻そうとしたときは、取り消せない理由も残す
     return report(ctx, pull, {
       kind: "hold",
       reasons: [result.reason],
-      lines: [...what, result.note],
+      lines: [...what, ...irr.lines, result.note],
       fingerprintSource,
       errors,
     });
@@ -553,14 +601,102 @@ async function handleFailure(
   });
 }
 
+// マージの前の親 commit の設定を読む
+async function readParentConfig(
+  gh: GitHubClient,
+  s: Sleeper,
+  mergeSha: string,
+): Promise<AutopilotConfig> {
+  const parent = (await withRetry(s, () => gh.getCommitParents(mergeSha)))[0];
+  if (!parent) throw new Error("マージの前の commit が分かりません");
+  return parseConfig(
+    await withRetry(s, () => gh.getRepoFile(CONFIG_PATH, parent)),
+  );
+}
+
 // マージされた PR が設定を書き換えていても効かないよう、マージの前の親から読む
 async function loadConfig(base: Ctx, mergeSha: string): Promise<Ctx> {
-  const parent = (await base.gh.getCommitParents(mergeSha))[0];
-  if (!parent) throw new Error("マージの前の commit が分かりません");
-  const config = parseConfig(
-    await base.gh.getRepoFile(".github/autopilot.yml", parent),
-  );
+  const config = await readParentConfig(base.gh, base, mergeSha);
   return { ...base, config, notify: (n) => base.notify(n, config) };
+}
+
+const NO_MENTIONS: Pick<AutopilotConfig, "notify"> = {
+  notify: { slackChannel: "", approverMentions: [] },
+};
+
+// deploy の Ctx を作る。デフォルトブランチの設定を読めなければ、マージの前の設定で続ける。
+// どちらも読めなければ、メンション無しで人に知らせてから失敗する (R25)
+export async function createDeployCtx(
+  gh: GitHubClient,
+  env: Record<string, string | undefined>,
+  deps: Deps,
+): Promise<Ctx> {
+  const event = await readEvent(env);
+  const s: Sleeper = { sleep: sleepOf(deps) };
+  const problems: string[] = [];
+  let defaultBranch: string | undefined;
+  try {
+    defaultBranch = (await withRetry(s, () => gh.getRepo())).default_branch;
+  } catch (e) {
+    problems.push(`リポジトリの情報を読めません: ${messageOf(e)}`);
+  }
+  if (defaultBranch !== undefined) {
+    const branch = defaultBranch;
+    try {
+      const config = parseConfig(
+        await withRetry(s, () => gh.getRepoFile(CONFIG_PATH, branch)),
+      );
+      return buildCtx(gh, env, deps, { event, defaultBranch: branch, config });
+    } catch (e) {
+      problems.push(`デフォルトブランチの設定を読めません: ${messageOf(e)}`);
+    }
+  }
+  const fail = () => new Error(problems.join("; "));
+  // デプロイしない event や PR では、知らせずに失敗する
+  if (
+    env.GITHUB_EVENT_NAME !== "pull_request_target" ||
+    event.action !== "closed"
+  )
+    throw fail();
+  const repo = env.GITHUB_REPOSITORY ?? "";
+  let pull: Pull | undefined;
+  try {
+    pull = await withRetry(s, () => gh.getPull(event.pull_request?.number));
+  } catch (e) {
+    problems.push(`PR を読めません: ${messageOf(e)}`);
+  }
+  if (pull && (!pull.merged || !isAutopilotPull(pull, repo))) throw fail();
+  if (pull && defaultBranch !== undefined) {
+    try {
+      if (!pull.merge_commit_sha)
+        throw new Error("マージの commit が分かりません");
+      const config = await readParentConfig(gh, s, pull.merge_commit_sha);
+      console.error(problems.join("; "));
+      return buildCtx(gh, env, deps, { event, defaultBranch, config });
+    } catch (e) {
+      problems.push(`マージの前の設定も読めません: ${messageOf(e)}`);
+    }
+  }
+  const send = slackSender(env, deps);
+  await report(
+    {
+      gh,
+      runUrl: runUrlOf(env),
+      sleep: s.sleep,
+      notify: (n) => send(n, NO_MENTIONS),
+    },
+    pull ??
+      subjectOf(event, env.GITHUB_SERVER_URL ?? "https://github.com", repo),
+    {
+      kind: "hold",
+      reasons: ["config"],
+      title: `デプロイの後の対応を止めました: ${HOLD_REASONS.config}`,
+      lines: problems,
+      fingerprintSource: problems.join("\n"),
+      errors: [],
+    },
+  );
+  throw fail();
 }
 
 export async function deploy(base: Ctx): Promise<void> {
@@ -569,19 +705,14 @@ export async function deploy(base: Ctx): Promise<void> {
     base.event.action !== "closed"
   )
     return;
-  const event = base.event.pull_request;
-  const n: number = event.number;
+  const n: number = base.event.pull_request.number;
   let pull: Pull;
   try {
     pull = await withRetry(base, () => base.gh.getPull(n));
   } catch (e) {
     await holdBefore(
       base,
-      {
-        number: n,
-        title: event.title ?? `PR #${n}`,
-        html_url: event.html_url ?? `${base.serverUrl}/${base.repo}/pull/${n}`,
-      },
+      subjectOf(base.event, base.serverUrl, base.repo),
       "pull",
       `PR を読めないため、デプロイを始められませんでした: ${messageOf(e)}`,
     );

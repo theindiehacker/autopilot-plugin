@@ -37,6 +37,8 @@ interface RunData {
   workflow?: string;
   /** 実行のブランチ (無ければ main) */
   branch?: string;
+  /** 実行を起こした人 (無ければ App の app[bot]) */
+  actor?: string;
   head_sha?: string;
   created_at?: string;
   event?: string;
@@ -94,6 +96,10 @@ interface World {
   /** Slack への送信を試した回数 */
   slackCalls: number;
   failPullFiles?: boolean;
+  /** GET /repos/o/r が 500 になる */
+  failRepo?: boolean;
+  /** ref ごとに、設定の読み取りが 500 になる回数 */
+  contentFailures?: Record<string, number>;
 }
 
 function newWorld(): World {
@@ -183,8 +189,14 @@ function fakeFetch(w: World): typeof fetch {
         return Response.json({ errors: [{ message: w.graphqlError }] });
       return Response.json({ data: {} });
     }
+    if (path === "" && w.failRepo) return new Response("{}", { status: 500 });
     if (path === "")
       return Response.json({ default_branch: "main", full_name: "o/r" });
+    const ref = url.searchParams.get("ref") ?? "";
+    if (path.startsWith("/contents/") && (w.contentFailures?.[ref] ?? 0) > 0) {
+      (w.contentFailures as Record<string, number>)[ref]--;
+      return new Response("{}", { status: 500 });
+    }
     if (path.startsWith("/contents/"))
       return new Response(
         w.configs[url.searchParams.get("ref") ?? ""] ??
@@ -216,6 +228,8 @@ function fakeFetch(w: World): typeof fetch {
             status: "queued",
             conclusion: null,
             head_sha: r.head_sha ?? "",
+            head_branch: r.branch ?? "main",
+            triggering_actor: { login: r.actor ?? "app[bot]" },
             html_url: `https://github.com/o/r/actions/runs/${r.id}`,
             created_at: createdAt(r),
           })),
@@ -240,6 +254,8 @@ function fakeFetch(w: World): typeof fetch {
         id: runNo,
         ...state,
         head_sha: r.head_sha ?? "",
+        head_branch: r.branch ?? "main",
+        triggering_actor: { login: r.actor ?? "app[bot]" },
         html_url: `https://github.com/o/r/actions/runs/${runNo}`,
         created_at: createdAt(r),
       });
@@ -1261,6 +1277,11 @@ test("ロールバックのワークフローの起動が失敗したら、hold 
   await runDeploy(w, { runShell: shell([]).runShell });
   expect(w.createdIssues[0]?.labels).toEqual(["needs-human"]);
   expect(w.slack[0]).toContain("ロールバックしていません");
+  // 起動の失敗は、起動したかどうか分からない (修正の周回 5)
+  expect(w.createdIssues[0]?.title).toContain(
+    "ロールバックを起動できたか分かりません",
+  );
+  expect(w.createdIssues[0]?.title).not.toContain("ロールバックに失敗しました");
 });
 
 test("同じ原因の Issue を調べられなければ、needs-human にする (N6)", async () => {
@@ -1566,4 +1587,180 @@ test("deploy の Slack は、やり直しても送れなければ、失敗にす
   expect(code).toBe(1);
   expect(w.slackCalls).toBe(4);
   expect(w.createdIssues).toHaveLength(1);
+});
+
+// ---- 修正の周回 5 ----
+
+test.each([
+  ["ほかの人が起動した", { actor: "alice" }],
+  ["ほかのブランチの", { branch: "feature/x" }],
+] as const)(
+  "dispatch では、%s実行を、自分の実行とみなさない",
+  async (_, decoy) => {
+    const w = deployWorld(DISPATCH_ONE);
+    w.runs.length = 0;
+    w.runs.push(
+      {
+        id: 45,
+        event: "workflow_dispatch",
+        created_at: "2026-11-12T12:00:01Z",
+        states: [done("failure")],
+        ...decoy,
+      },
+      {
+        id: 46,
+        event: "workflow_dispatch",
+        created_at: "2026-11-12T12:00:02Z",
+        actor: "App[bot]", // 大文字と小文字は区別しない
+        states: [done("success")],
+      },
+    );
+    const sh = shell([]);
+    await runDeploy(w, { runShell: sh.runShell });
+    expect(w.urls).not.toContain("GET /repos/o/r/actions/runs/45");
+    expect(sh.commands).toEqual([]);
+    expect(w.slack[0]).toContain("対応が終わりました");
+  },
+);
+
+test("ロールバックでも、ほかの人が起動した実行を、自分の実行とみなさない", async () => {
+  const w = rollbackWorld([done("success")]);
+  (w.runs[1] as RunData).actor = "alice";
+  await runDeploy(w, { runShell: shell([]).runShell });
+  expect(w.urls).not.toContain("GET /repos/o/r/actions/runs/70");
+  expect(w.createdIssues[0]?.labels).toEqual(["needs-human"]);
+  expect(w.createdIssues[0]?.title).toContain(
+    "ロールバックの結果が分かりません",
+  );
+});
+
+test("on_merge の実行は、マージした人が起こしていても使う", async () => {
+  const w = deployWorld(BASIC);
+  (w.runs[0] as RunData).actor = "merger";
+  const sh = shell([{ code: 0 }]);
+  await runDeploy(w, { runShell: sh.runShell });
+  expect(sh.commands).toEqual(["check.sh"]);
+  expect(w.slack[0]).toContain("対応が終わりました");
+});
+
+test("dispatch で skipped なら、何もデプロイされていないので hold にする (R25)", async () => {
+  const w = deployWorld(DISPATCH_ONE);
+  (w.runs[0] as RunData).states = [done("skipped")];
+  const sh = shell([]);
+  await runDeploy(w, { runShell: sh.runShell });
+  expect(sh.commands).toEqual([]);
+  expect(w.createdIssues[0]?.labels).toEqual(["needs-human"]);
+  expect(w.createdIssues[0]?.title).toContain("デプロイの結果が分かりません");
+});
+
+test("取り消せない変更の後のロールバックが失敗したら、取り消せない理由も本文に残す", async () => {
+  const w = deployWorld(
+    withIrr(
+      'irreversible: { paths: ["app/**"] }',
+      'deploy: { mode: on_merge, workflow: deploy.yml, verify: "check.sh", rollback: "rollback.sh", rollback_after_irreversible: true }\n',
+    ),
+  );
+  const sh = shell([{ code: 1 }, { code: 2 }]);
+  await runDeploy(w, { runShell: sh.runShell });
+  expect(sh.commands).toEqual(["check.sh", "rollback.sh"]);
+  const issue = w.createdIssues[0];
+  expect(issue?.title).toContain("ロールバックに失敗しました");
+  expect(issue?.body).toContain("取り消せない変更: パス: app/main.ts");
+  expect(issue?.body).toContain("ロールバックのコマンドが失敗しました");
+  expect(w.slack[0]).toContain("取り消せない変更: パス: app/main.ts");
+});
+
+const NO_CONFIG_TITLE = "デプロイの後の対応を止めました: 設定を読めません";
+
+test("deploy は、デフォルトブランチの設定の読み取りの一時的な失敗をやり直す (R25)", async () => {
+  const w = deployWorld(BASIC);
+  w.contentFailures = { main: 2 };
+  const { code } = await runDeploy(w, {
+    runShell: shell([{ code: 0 }]).runShell,
+  });
+  expect(code).toBe(0);
+  // マージの前の設定に頼らず、デフォルトブランチを 3 回目で読めた
+  expect(
+    w.urls.filter(
+      (u) => u === "GET /repos/o/r/contents/.github/autopilot.yml?ref=main",
+    ),
+  ).toHaveLength(3);
+  expect(w.slack[0]).toContain("対応が終わりました");
+});
+
+test("deploy は、デフォルトブランチの設定が壊れていても、マージの前の設定で続ける (R25)", async () => {
+  const w = deployWorld(BASIC);
+  w.configs.main = "routine_github_user: [";
+  w.configs.base123 = BASIC;
+  const sh = shell([{ code: 0 }]);
+  const { code } = await runDeploy(w, { runShell: sh.runShell });
+  expect(code).toBe(0);
+  expect(sh.commands).toEqual(["check.sh"]);
+  expect(w.slack[0]).toContain("対応が終わりました");
+});
+
+test.each([
+  [
+    "デフォルトブランチとマージの前の設定が、どちらも壊れている",
+    (w: World) => {
+      w.configs["*"] = "routine_github_user: [";
+    },
+  ],
+  [
+    "リポジトリの情報を読めない",
+    (w: World) => {
+      w.failRepo = true;
+    },
+  ],
+  [
+    "設定も PR も読めない",
+    (w: World) => {
+      w.configs["*"] = "routine_github_user: [";
+      w.throwOnPull = "connect failed";
+    },
+  ],
+] as const)(
+  "deploy は、%sときも、メンション無しで人に知らせて失敗にする (R25)",
+  async (_, setup) => {
+    const w = deployWorld(BASIC);
+    setup(w);
+    const sh = shell([]);
+    const { code } = await runDeploy(w, { runShell: sh.runShell });
+    expect(code).toBe(1);
+    expect(sh.commands).toEqual([]);
+    expect(w.dispatches).toEqual([]);
+    expect(w.createdIssues).toHaveLength(1);
+    expect(w.createdIssues[0]?.title).toBe(NO_CONFIG_TITLE);
+    expect(w.createdIssues[0]?.labels).toEqual(["needs-human"]);
+    expect(w.slack).toHaveLength(1);
+    expect(w.slack[0]?.startsWith(HOLD_HEADLINE)).toBe(true);
+    expect(w.slack[0]).toContain("設定を読めません");
+    expect(w.slack[0]).not.toContain("<@");
+  },
+);
+
+test("設定を読めなくても、autopilot の PR でなければ知らせない (R25)", async () => {
+  const w = deployWorld(BASIC);
+  w.configs["*"] = "routine_github_user: [";
+  (w.pulls[0] as PullData).ref = "feature/x";
+  const { code } = await runDeploy(w, { runShell: shell([]).runShell });
+  expect(code).toBe(1);
+  expect(w.createdIssues).toHaveLength(0);
+  expect(w.slack).toHaveLength(0);
+});
+
+test("deploy のほかのコマンドは、設定を読めなければ、やり直さずにすぐ失敗する (R25)", async () => {
+  const w = newWorld();
+  w.pulls.push({ number: 1 });
+  w.failRepo = true;
+  const { code } = await run(
+    w,
+    "automerge",
+    "pull_request_target",
+    prEvent(1, "opened"),
+  );
+  expect(code).toBe(1);
+  expect(w.urls.filter((u) => u === "GET /repos/o/r")).toHaveLength(1);
+  expect(w.createdIssues).toHaveLength(0);
+  expect(w.slack).toHaveLength(0);
 });

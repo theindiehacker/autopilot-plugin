@@ -50,6 +50,9 @@ export interface WorkflowRun {
   status: string;
   conclusion: string | null;
   head_sha: string;
+  head_branch: string | null;
+  /** 実行を起こした人 (workflow_dispatch なら、起動した人) */
+  triggering_actor?: { login: string } | null;
   html_url: string;
   created_at: string;
 }

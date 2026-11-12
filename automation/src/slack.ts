@@ -37,7 +37,7 @@ function escapeSlack(s: string): string {
 
 export function formatSlackMessage(
   n: Notification,
-  config: AutopilotConfig,
+  config: Pick<AutopilotConfig, "notify">,
 ): { text: string } {
   const lines = [`${HEADLINES[n.kind]}: <${n.url}|${escapeSlack(n.title)}>`];
   for (const d of n.details) lines.push(escapeSlack(d));
