@@ -38,6 +38,15 @@ jobs:
         with:
           token: ${{ steps.app.outputs.token }}
           persist-credentials: false
+      # リポジトリが固定したツール (bun・uv・task など) を入れる。トークンを作った後、PR のコードを動かす前に行う
+      - name: ツールを入れる (mise)
+        if: hashFiles('mise.toml', '.mise.toml') != ''
+        uses: jdx/mise-action@b44d12e7d0d8ee7461bb893e1b1993500433185b # v5.2.7
+      - if: hashFiles('mise.toml', '.mise.toml') == '' && hashFiles('bun.lock', 'bun.lockb') != ''
+        uses: oven-sh/setup-bun@0c5077e51419868618aeaa5fe8019c62421857d6 # v2.2.0
+      - if: hashFiles('mise.toml', '.mise.toml') == '' && hashFiles('uv.lock') != ''
+        uses: astral-sh/setup-uv@68559e99cc807c1eb7e9238fd43a15bba460eec2 # v10.3.3
+      # qa.start は、アプリを background で起動して、すぐ終わるコマンドにする
       - name: アプリを起動する
         run: |
           {{QA_START}}

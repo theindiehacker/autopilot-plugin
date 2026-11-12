@@ -2,6 +2,8 @@
 Issue から本番までの自動の流れを、リポジトリに入れます。survey.md の結果と interview.md の答えを使います。次の 10 の手順を、この順に行います。
 
 ## 1. ラベルを 2 つ作る
+手順 1 は、PR を作る前に、リモートのリポジトリを変えます (ラベルは、PR をマージしなくても残ります)。SKILL.md の「同意するまでリポジトリは変えない」の例外なので、提案 (interview.md) の一覧に入れ、同意の後に行います。
+
 ```bash
 gh label create autopilot:ready --force --color 0E8A16 --description "開発を始めてよい"
 gh label create needs-human --force --color D93F0B --description "止まった。人の判断が要る"
@@ -16,7 +18,7 @@ gh label create needs-human --force --color D93F0B --description "止まった�
 | `{{ROUTINE_GITHUB_USER}}` | interview のアカウント (ルーティンの持ち主の GitHub のユーザー名) |
 | `{{QA_START}}`・`{{QA_URL}}` | interview の「アプリの起動」 |
 | `{{REVIEWER}}` | interview の「Claude のレビュー」の bot。Claude なら `claude[bot]` |
-| `{{CI_CHECK}}` | interview の「必須にするチェック」(survey の CI のジョブ名)。1 つずつ行を足す |
+| `{{CI_CHECK}}` | interview の「必須にするチェック」(survey の CI のジョブ名)。1 つずつ行を足す。0 件なら、この行ごと消す (下の「CI の必須のチェック」) |
 | `{{IRREVERSIBLE_PATH}}` | interview の「取り消せない変更」のパス |
 | `{{TERRAFORM_PLAN_ARTIFACT}}` | 手順 6 で決めた artifact 名 (Terraform の apply がマージで動くときだけ) |
 | `{{APPROVER}}` | interview の「承認する人」 |
@@ -24,22 +26,55 @@ gh label create needs-human --force --color D93F0B --description "止まった�
 
 当てはまらない項目 (取り消せない変更が無ければ `irreversible` と `approvers` など) は、行ごと消します。`required_checks` には、`autopilot QA`・`autopilot/irreversible` を残します。
 
+### `qa.start`
+`qa.start` は、アプリを **background で起動して、すぐ終わる**コマンドにします。起動したまま終わらないコマンド (`bun run dev` だけなど) だと、ワークフローの step が終わらず、QA が進みません。
+
+- compose で起動できるなら、`docker compose up -d --wait <サービス>` (サービスが healthy になるまで待って戻る)
+- dev サーバーなら、`nohup <コマンド> > /tmp/app.log 2>&1 &` で background にし、準備ができるまで待つ (例: `npx wait-on http://localhost:3000`、または `curl --retry 30 --retry-connrefused --retry-delay 2 -fsS http://localhost:3000 >/dev/null`)
+- 値は、Taskfile・compose から取る。E2E の起動 (`task dev:e2e` など) があれば、その中身を踏襲する。例: `docker compose up --build -d --wait api && cd frontend && bun install --frozen-lockfile && (nohup bun run dev > /tmp/frontend.log 2>&1 &) && curl --retry 30 --retry-connrefused --retry-delay 2 -fsS http://localhost:3000 >/dev/null`
+- ツール (bun・uv・task など) は、ワークフローのひな形が `qa.start` の前に入れます (手順 3)。`qa.start` で `npm install -g bun` のように入れ直さない
+
+### CI の必須のチェック
+CI のジョブがすべて `paths:` で飛ぶか、Draft の PR を飛ばすときは、毎回は結果を報告しないため、そのまま必須にできません (必須にすると、報告されない PR が永遠に待ちになる)。次のようにします。
+
+1. `autopilot QA` と `autopilot/irreversible` は、これまでどおり必須のままにする
+2. 常に動く集約のジョブを、CI のワークフローに足すことをユーザーに提案する。`needs:` に、絞り込みのあるジョブを並べ、`if: always()` で必ず動かし、1 つでも失敗か取り消しなら失敗にする。`paths:` で飛んだジョブ (skipped) は、失敗に数えない。この集約のジョブ名を、`{{CI_CHECK}}` に入れる
+
+```yaml
+  ci-ok:
+    name: ci-ok
+    if: always()
+    needs: [lint, test]
+    runs-on: ubuntu-latest
+    steps:
+      - run: |
+          if [ "${{ contains(needs.*.result, 'failure') || contains(needs.*.result, 'cancelled') }}" = "true" ]; then
+            echo "::error::CI のジョブが失敗しました"; exit 1
+          fi
+```
+
+   ワークフロー自体が `on.pull_request.paths:` で絞られていると、集約のジョブも動きません。その場合は、`paths:` をワークフローから外し、各ジョブの手前で変更を見分ける形 (`dorny/paths-filter` など。SHA で固定する) に直す案を見せます。Draft の PR を飛ばすジョブは、集約のジョブには `if: always()` だけを付け (Draft を飛ばさない)、結果を必ず出します
+3. ユーザーが集約のジョブを足さないと答えたら、CI のチェックは必須にしません。このとき、`.github/autopilot.yml` の `required_checks` から `- "{{CI_CHECK}}"` の行を**消し** (空の文字列や、プレースホルダーのまま残さない)、`autopilot QA`・`autopilot/irreversible` の 2 つだけにします。手順 9 のルールセットでも、CI のチェックの行を入れません。CI の失敗は、`workflow_run` の `fix` ジョブが拾うので、自動マージは止まりませんが、CI の結果でマージが止まらないことを、PR の本文に書きます
+
 ## 3. ワークフローを 2 つ書く
 | 書くファイル | ひな形 |
 |---|---|
 | `.github/workflows/autopilot.yml` | [templates/autopilot-workflow.yml](templates/autopilot-workflow.yml) |
 | `.github/workflows/autopilot-qa.yml` | [templates/autopilot-qa-workflow.yml](templates/autopilot-qa-workflow.yml) |
 
+`{{AUTOPILOT_REF}}` の SHA は、`gh api repos/theindiehacker/autopilot-plugin/git/ref/tags/v<version> --jq '.object|[.type,.sha]|@tsv'` で取ります。`type` が `tag` (annotated tag) なら、`gh api repos/theindiehacker/autopilot-plugin/git/tags/<その sha> --jq .object.sha` で、指しているコミットの SHA に直します (`commit` ならそのまま)。プラグインのリリースの前に試すときは、ブランチの先頭 (`gh api repos/theindiehacker/autopilot-plugin/commits/<ブランチ> --jq .sha`) の SHA を使います。Renovate (survey.md で確認) が、`# v<version>` の付いた SHA の固定を、新しいリリースへ更新します。Renovate が無ければ、更新が手作業になることをユーザーに伝えます。
+
 QA を別のファイルにするのは、別のイベントで起きた実行で QA のジョブが飛ばされ、必須のチェックを通してしまうのを防ぐためです。
 
 | 置き換える文字列 | 値 |
 |---|---|
-| `{{AUTOPILOT_REF}}` | `v<.claude-plugin/plugin.json の version>` |
+| `{{AUTOPILOT_REF}}` | プラグインのリリースの**コミットの SHA (40 文字)** と、続けて ` # v<version>`。ブランチ名・タグ名は入れない (動く中身が、後から変わってしまうため)。`<version>` は `.claude-plugin/plugin.json` の version。例: `uses: theindiehacker/autopilot-plugin/actions/claude@0123abcd… # v1.2.3` |
 | `{{CI_WORKFLOWS}}` | CI のワークフロー名と `autopilot-qa` の YAML の配列。例: `["ci", "autopilot-qa"]`。Terraform の plan のワークフローがあれば、その名前も足す |
 | `{{TERRAFORM_PLAN_WORKFLOW}}` | Terraform の plan のワークフロー名。無ければ `(none)` |
 | `{{QA_START}}` | `qa.start` と同じコマンド |
 | `{{REVIEWER_BOTS}}` | Claude のレビューの bot。既定は `claude` |
 
+- QA のワークフロー (`autopilot-qa.yml`) と、`fix` ジョブ (`autopilot.yml`) は、アプリやテストを動かす前に、リポジトリが固定したツールを入れます。`mise.toml` (`.mise.toml`) があれば `jdx/mise-action` (bun・uv・task など、mise が入れるものすべて)。無ければ、`bun.lock` があるとき `oven-sh/setup-bun`、`uv.lock` があるとき `astral-sh/setup-uv` です。どれも SHA で固定してあり、ひな形のままでよい。ほかのツール (Node・Go など) が要るときは、同じ位置に setup の step を足します。トークンは、これらより前に作ってあり、PR のコードを動かす前という順を崩さないでください
 - Terraform の plan が無いリポジトリでは、`# TERRAFORM_PLAN:BEGIN` から `# TERRAFORM_PLAN:END` までの行を消します
 - `autopilot QA` は、必ず必須のチェックにします。自動マージが QA の成功を待つためです
 - 書いたら `actionlint` で確かめます
@@ -118,8 +153,8 @@ PR を作ったら、ユーザーにマージを頼み、マージされるの�
 ## 9. ルールセットを作る (マージの後)
 1. 必須にするチェックが、PR ごとに必ず結果を出すかを確かめます。
    - `autopilot QA` と `autopilot/irreversible` は、ひな形のワークフローに `paths:` の絞り込みが無く、PR ごとに必ず報告します。setup は、この 2 つのワークフローに `paths:` や `paths-ignore:` を足しません
-   - CI のジョブは、`paths:` で飛ぶものを必須にしません。飛ぶものは、必須にしないか、いつも動くジョブにまとめることをユーザーに提案します
-2. 今あるルールセットを `gh api repos/{o}/{r}/rulesets` で見ます。あれば、新しく作らず、足りないものだけを足す案を見せます
+   - CI のジョブは、`paths:` で飛ぶものを必須にしません。飛ぶものは、必須にしないか、いつも動くジョブにまとめます (手順 2 の「CI の必須のチェック」)。全部の CI がこれに当たるときも、`autopilot QA`・`autopilot/irreversible` は必須のままにします
+2. 今あるルールセットを見ます。リポジトリのものは `gh api repos/{o}/{r}/rulesets`、組織のものは `gh api orgs/{org}/rulesets` (権限が無ければ、`gh api repos/{o}/{r}/rules/branches/<デフォルトブランチ>` が、組織のものを含めた、いま効いているルールを返す) で読みます。デフォルトブランチに効いているルール (必須のレビューの人数・必須のチェック・マージ方法) を一覧にし、すでに満たしているものは、新しいルールセットに書きません (例: 組織が承認 1 人を要求していれば、`pull_request` のルールは足さない。人数が足りなければ、そのルールだけを足す)。あれば、新しく作らず、足りないものだけを足す案を見せます。組織のルールセットは変えません
 3. 作ります。チェック名は、survey.md と `.github/autopilot.yml` の値にします。`integration_id` で、チェックを出す側を固定します。同じ名前のチェックを、ほかのアプリや PR のコードが出しても、数えません。
 
 | チェック | `integration_id` |
