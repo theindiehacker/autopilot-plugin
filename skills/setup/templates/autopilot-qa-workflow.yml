@@ -20,6 +20,9 @@ jobs:
     permissions:
       contents: read
     timeout-minutes: 30
+    env:
+      LEFTHOOK: "0"
+      HUSKY: "0"
     concurrency:
       group: autopilot-qa-${{ github.event.pull_request.number }}
       cancel-in-progress: true
@@ -63,6 +66,10 @@ jobs:
         with:
           token: ${{ steps.app.outputs.token }}
           persist-credentials: false
+      # mise の postinstall などが git の hook を入れ、commit のたびにリポジトリの検査が動くため止める。
+      # 検査は push の後の CI が行う
+      - name: git の hook を止める
+        run: git config --local core.hooksPath /dev/null
       # qa.start は、アプリを background で起動して、すぐ終わるコマンドにする
       - name: アプリを起動する
         run: |

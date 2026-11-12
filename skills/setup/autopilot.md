@@ -73,6 +73,7 @@ QA を別のファイルにするのは、別のイベントで起きた実行�
 | `{{TERRAFORM_PLAN_WORKFLOW}}` | Terraform の plan のワークフロー名。無ければ `(none)` |
 | `{{QA_START}}` | `qa.start` と同じコマンド |
 | `{{REVIEWER_BOTS}}` | Claude のレビューの bot。既定は `claude` |
+| `{{REVIEWER}}` | `.github/autopilot.yml` の `review.reviewer` と同じ値。例 `claude[bot]` |
 
 - QA のワークフロー (`autopilot-qa.yml`) と、`fix` ジョブ (`autopilot.yml`) は、アプリやテストを動かす前に、リポジトリが固定したツールを入れます。`mise.toml` (`.mise.toml`) があれば `jdx/mise-action` (bun・uv・task など、mise が入れるものすべて)。無ければ、`bun.lock` があるとき `oven-sh/setup-bun`、`uv.lock` があるとき `astral-sh/setup-uv` です。どれも SHA で固定してあり、ひな形のままでよい。ほかのツール (Node・Go など) が要るときは、同じ位置に setup の step を足します。トークンは、これらより前に作ってあり、PR のコードを動かす前という順を崩さないでください
 - Terraform の plan が無いリポジトリでは、`# TERRAFORM_PLAN:BEGIN` から `# TERRAFORM_PLAN:END` までの行を消します
@@ -86,7 +87,7 @@ QA を別のファイルにするのは、別のイベントで起きた実行�
 - zizmor を手元で動かすときは、リポジトリの設定を読ませます: `zizmor --config .github/zizmor.yml .github/workflows/autopilot.yml .github/workflows/autopilot-qa.yml` → error が 0 件
 
 ## 4. Claude のレビューと CI
-- Claude のレビューが無ければ、[templates/claude-code-review-workflow.yml](templates/claude-code-review-workflow.yml) を `.github/workflows/claude-code-review.yml` に置きます。`review.trigger` が `ready_for_review` ならこのままで、`comment` ならコメントで起動します (合図は `review.command` に合わせる)。`review.reviewer: claude[bot]` と、ワークフローの `{{REVIEWER_BOTS}}: claude` は、同じ bot を 2 通りに書いたものです
+- Claude のレビューが無ければ、[templates/claude-code-review-workflow.yml](templates/claude-code-review-workflow.yml) を `.github/workflows/claude-code-review.yml` に置きます。`review.trigger` が `ready_for_review` ならこのままで、`comment` ならコメントで起動します (合図は `review.command` に合わせる)。`review.reviewer: claude[bot]` と、ワークフローの `{{REVIEWER_BOTS}}: claude`、`fix` の `{{REVIEWER}}` は、同じ bot を 3 通りに書いたものです
 - CI が無ければ、そのリポジトリのテストを動かす CI を作ります (survey.md で見たタスクランナーのコマンドを呼びます)。`pull_request` で、`paths:` を付けずに動かします
 
 ## 5. ロールバック (デプロイがあり、ロールバックが無いとき)

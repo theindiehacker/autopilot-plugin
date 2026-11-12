@@ -124,17 +124,21 @@ jobs:
         && github.event.review.state == 'changes_requested'
         && github.event.pull_request.head.repo.full_name == github.repository
         && startsWith(github.event.pull_request.head.ref, 'autopilot/')
-        && (github.event.review.user.type == 'Bot'
+        && (github.event.review.user.login == '{{REVIEWER}}'
           || contains(fromJSON('["OWNER", "MEMBER", "COLLABORATOR"]'), github.event.review.author_association)))
       || (github.event_name == 'workflow_run'
         && github.event.workflow_run.conclusion == 'failure'
         && github.event.workflow_run.head_repository.full_name == github.repository
+        && startsWith(github.event.workflow_run.head_branch, 'autopilot/')
         && github.event.workflow_run.name != '{{TERRAFORM_PLAN_WORKFLOW}}')
       || (github.event_name == 'workflow_dispatch' && inputs.pr != '')
     runs-on: ubuntu-latest
     permissions:
       contents: read
     timeout-minutes: 60
+    env:
+      LEFTHOOK: "0"
+      HUSKY: "0"
     outputs:
       run: ${{ steps.round.outputs.run }}
     concurrency:
@@ -195,6 +199,11 @@ jobs:
           token: ${{ steps.app.outputs.token }}
           ref: ${{ steps.round.outputs.ref }}
           persist-credentials: false
+      # mise の postinstall などが git の hook を入れ、commit のたびにリポジトリの検査が動くため止める。
+      # 検査は push の後の CI が行う
+      - name: git の hook を止める
+        if: steps.round.outputs.run == 'true'
+        run: git config --local core.hooksPath /dev/null
       - if: steps.round.outputs.run == 'true'
         uses: theindiehacker/autopilot-plugin/actions/claude@{{AUTOPILOT_REF}}
         with:

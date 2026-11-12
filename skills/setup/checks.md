@@ -27,9 +27,9 @@ ls lefthook.yml lefthook.yaml .lefthook.yml .pre-commit-config.yaml .husky 2>/de
 | 検査 | 動かすコマンド | 直すとき |
 |---|---|---|
 | 型検査 | `bun run typecheck` | `package.json` に `typecheck` が無ければ、frontend.md の手順で足す |
-| ty | `uv run ty check` | |
-| deptry | `uv run deptry src` (src レイアウトでなければ `.`) | `deptry` が dev 依存に無ければ `uv add --dev deptry` |
-| import-linter | `uv run lint-imports` | 設定があるときだけ動く。`import-linter` が dev 依存に無ければ `uv add --dev import-linter` |
+| ty | `uv run --frozen ty check` | |
+| deptry | `uv run --frozen deptry src` (src レイアウトでなければ `.`) | `deptry` が dev 依存に無ければ `uv add --dev deptry` |
+| import-linter | `uv run --frozen lint-imports` | 設定があるときだけ動く。`import-linter` が dev 依存に無ければ `uv add --dev import-linter` |
 | Gitleaks | `gitleaks git --staged --redact --verbose --ignore-gitleaks-allow` | commit に入る差分だけを検査する。`--ignore-gitleaks-allow` は、`gitleaks:allow` のコメントで検査を避けられないようにする |
 | Semgrep | `semgrep scan --config p/owasp-top-ten --metrics off --severity ERROR --error --disable-nosem` | 指摘があるとき (exit 1) だけ止める。ルールを取得できないなどの失敗は、通す。`--disable-nosem` は、`nosemgrep` のコメントで検査を避けられないようにする |
 | Trivy | `trivy fs --scanners vuln,misconfig,secret --severity HIGH,CRITICAL --ignore-unfixed --exit-code 1 .` | |
@@ -48,7 +48,7 @@ ls lefthook.yml lefthook.yaml .lefthook.yml .pre-commit-config.yaml .husky 2>/de
 
 | 対象 | 動かすもの | 条件 |
 |---|---|---|
-| `.py`・`.pyi` | `uv run ruff check --fix` → `uv run ruff format` → `uv run ruff check` | 編集したファイルから親フォルダをたどって、最初に見つかる `pyproject.toml` のフォルダで動かす |
+| `.py`・`.pyi` | `uv run --frozen ruff check --fix` → `uv run --frozen ruff format` → `uv run --frozen ruff check` | 編集したファイルから親フォルダをたどって、最初に見つかる `pyproject.toml` のフォルダで動かす |
 | そのほか | `node_modules/.bin/biome check --write` | 同じく、最初に見つかる `biome.json(c)` のフォルダで動かす |
 
 - 直せない問題が残ったら、exit 2 で出力を Claude に渡し、直させます (編集は取り消しません)
