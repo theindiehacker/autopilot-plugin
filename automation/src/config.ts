@@ -122,26 +122,10 @@ export function parseConfig(yamlText: string): AutopilotConfig {
     }
   }
 
-  // irreversible / approvers / notify
-  const irr = section("irreversible");
-  const irreversiblePaths = strList(irr, "irreversible.paths", "paths");
-  const terraformPlanArtifact = str(
-    irr,
-    "irreversible.terraform_plan_artifact",
-    "terraform_plan_artifact",
-  );
-  const approvers = strList(raw, "approvers", "approvers");
-  if (irreversiblePaths.length > 0 && approvers.length === 0) {
-    issues.push("irreversible.paths があるときは approvers が必要です");
-  }
+  // notify
   const nt = section("notify");
   const slackChannel =
     str(nt, "notify.slack_channel", "slack_channel", true) ?? "";
-  const approverMentions = strList(
-    nt,
-    "notify.approver_mentions",
-    "approver_mentions",
-  );
 
   // limits
   const lm = section("limits");
@@ -192,6 +176,11 @@ export function parseConfig(yamlText: string): AutopilotConfig {
     "rollback_after_irreversible",
     false,
   );
+  const irreversiblePaths = strList(
+    dp,
+    "deploy.irreversible_paths",
+    "irreversible_paths",
+  );
 
   if (issues.length > 0) throw new ConfigError(issues);
 
@@ -207,12 +196,7 @@ export function parseConfig(yamlText: string): AutopilotConfig {
       ...(command ? { command } : {}),
     },
     requiredChecks,
-    irreversible: {
-      paths: irreversiblePaths,
-      ...(terraformPlanArtifact ? { terraformPlanArtifact } : {}),
-    },
-    approvers,
-    notify: { slackChannel, approverMentions },
+    notify: { slackChannel },
     limits,
     deploy: {
       mode: mode as DeployMode,
@@ -223,6 +207,7 @@ export function parseConfig(yamlText: string): AutopilotConfig {
       ...(rollback ? { rollback } : {}),
       timeoutMinutes,
       rollbackAfterIrreversible,
+      irreversiblePaths,
     },
   };
 }

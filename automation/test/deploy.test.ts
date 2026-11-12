@@ -2,6 +2,7 @@ import { expect, test } from "bun:test";
 import {
   decideAfterVerify,
   failureFingerprint,
+  findIrreversiblePaths,
   planDeployTargets,
 } from "../src/deploy";
 import type { AutopilotConfig } from "../src/types";
@@ -14,9 +15,7 @@ function configWith(
     qa: {},
     review: { reviewer: "claude[bot]", trigger: "ready_for_review" },
     requiredChecks: [],
-    irreversible: { paths: [] },
-    approvers: ["alice"],
-    notify: { slackChannel: "#dev", approverMentions: [] },
+    notify: { slackChannel: "#dev" },
     limits: { maxFixRounds: 3, staleHours: 24, readyRetryMinutes: 10 },
     deploy: {
       mode: "none",
@@ -24,6 +23,7 @@ function configWith(
       environments: [],
       timeoutMinutes: 30,
       rollbackAfterIrreversible: false,
+      irreversiblePaths: [],
       ...deploy,
     },
   };
@@ -95,6 +95,25 @@ test("rollback_after_irreversible なら、取り消せない変更でもロー�
       configWith({ rollbackAfterIrreversible: true }),
     ),
   ).toEqual({ kind: "rollback", issueLabel: "autopilot:ready" });
+});
+
+test("deploy.irreversible_paths に合う変更したファイルを返す", () => {
+  expect(
+    findIrreversiblePaths(
+      ["backend/migration/versions/0001_add.py", "README.md"],
+      ["backend/migration/versions/**"],
+    ),
+  ).toEqual(["backend/migration/versions/0001_add.py"]);
+});
+
+test("deploy.irreversible_paths に合うものが無ければ空", () => {
+  expect(
+    findIrreversiblePaths(
+      ["README.md", ".github/workflows/ci.yml"],
+      ["backend/migration/**"],
+    ),
+  ).toEqual([]);
+  expect(findIrreversiblePaths(["README.md"], [])).toEqual([]);
 });
 
 test("同じ原因の 2 回目は needs-human の Issue", () => {

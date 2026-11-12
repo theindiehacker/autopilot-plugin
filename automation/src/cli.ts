@@ -2,14 +2,12 @@ import { automerge } from "./commands/automerge";
 import { type Ctx, createCtx, type Deps } from "./commands/context";
 import { createDeployCtx, deploy } from "./commands/deploy";
 import { fixRound } from "./commands/fixRound";
-import { irreversible } from "./commands/irreversible";
 import { label } from "./commands/label";
 import { ready } from "./commands/ready";
 import { sweep } from "./commands/sweep";
 import { createGitHubClient } from "./github";
 
 const COMMANDS: Record<string, (ctx: Ctx) => Promise<void>> = {
-  irreversible,
   automerge,
   label,
   "fix-round": fixRound,

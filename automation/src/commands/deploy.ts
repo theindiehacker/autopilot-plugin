@@ -3,6 +3,7 @@ import {
   type DeployTarget,
   decideAfterVerify,
   failureFingerprint,
+  findIrreversiblePaths,
   planDeployTargets,
 } from "../deploy";
 import type { GitHubClient, Pull, WorkflowRun } from "../github";
@@ -21,7 +22,6 @@ import {
   slackSender,
   sleepOf,
 } from "./context";
-import { irreversibleReasons } from "./irreversible";
 
 const POLL_MS = 30_000;
 const FIND_MS = 5_000;
@@ -41,8 +41,6 @@ const HOLD_REASONS = {
   rollbackDispatchUnknown: "ロールバックを起動できたか分かりません",
   noRollback: "ロールバックの設定がありません",
   irreversible: "取り消せない変更を含みます",
-  planMissing: "Terraform の plan がありません",
-  planUnreadable: "Terraform の plan を読めません",
   checkFailed: "取り消せない変更かどうかを調べられません",
   config: "設定を読めません",
   pull: "PR を読めません",
@@ -361,35 +359,25 @@ interface Irreversibility {
   lines: string[];
 }
 
-// detectIrreversible が、plan を読めないときに出す理由
-const PLAN_UNREADABLE = "Terraform: plan を読めませんでした";
-
-// デプロイの前に決める。調べられなければ、取り消せないものとして扱う
+// デプロイの前に決める。PR が deploy.irreversible_paths に合うファイルを変えていれば、取り消せない変更。
+// 調べられなければ、取り消せないものとして扱う
 async function checkIrreversible(
   ctx: Ctx,
   pull: Pull,
 ): Promise<Irreversibility> {
+  const patterns = ctx.config.deploy.irreversiblePaths;
+  // パスが無ければ、どのファイルも合わないので、変更したファイルを読まない
+  if (patterns.length === 0) return { reasons: [], lines: [] };
   try {
-    const found = await irreversibleReasons(ctx, pull);
-    const out: Irreversibility = { reasons: [], lines: [] };
-    // plan が無いときの「読めない」は、plan が無いこととして扱う
-    const changes = found.reasons.filter((r) => r !== PLAN_UNREADABLE);
-    if (changes.length > 0) {
-      out.reasons.push("irreversible");
-      out.lines.push(`取り消せない変更: ${changes.join("、")}`);
-    }
-    if (found.waiting) {
-      out.reasons.push("planMissing");
-      out.lines.push(
-        "Terraform の plan が無いため、取り消せない変更かどうか決められません",
-      );
-    } else if (found.reasons.includes(PLAN_UNREADABLE)) {
-      out.reasons.push("planUnreadable");
-      out.lines.push(
-        "Terraform の plan を読めないため、取り消せない変更かどうか決められません",
-      );
-    }
-    return out;
+    const found = findIrreversiblePaths(
+      await ctx.gh.listPullFiles(pull.number),
+      patterns,
+    );
+    if (found.length === 0) return { reasons: [], lines: [] };
+    return {
+      reasons: ["irreversible"],
+      lines: [`取り消せない変更: ${found.join("、")}`],
+    };
   } catch (e) {
     return {
       reasons: ["checkFailed"],
@@ -617,15 +605,11 @@ async function readParentConfig(
 // マージされた PR が設定を書き換えていても効かないよう、マージの前の親から読む
 async function loadConfig(base: Ctx, mergeSha: string): Promise<Ctx> {
   const config = await readParentConfig(base.gh, base, mergeSha);
-  return { ...base, config, notify: (n) => base.notify(n, config) };
+  return { ...base, config };
 }
 
-const NO_MENTIONS: Pick<AutopilotConfig, "notify"> = {
-  notify: { slackChannel: "", approverMentions: [] },
-};
-
 // deploy の Ctx を作る。デフォルトブランチの設定を読めなければ、マージの前の設定で続ける。
-// どちらも読めなければ、メンション無しで人に知らせてから失敗する (R25)
+// どちらも読めなければ、人に知らせてから失敗する (R25)
 export async function createDeployCtx(
   gh: GitHubClient,
   env: Record<string, string | undefined>,
@@ -677,13 +661,12 @@ export async function createDeployCtx(
       problems.push(`マージの前の設定も読めません: ${messageOf(e)}`);
     }
   }
-  const send = slackSender(env, deps);
   await report(
     {
       gh,
       runUrl: runUrlOf(env),
       sleep: s.sleep,
-      notify: (n) => send(n, NO_MENTIONS),
+      notify: slackSender(env, deps),
     },
     pull ??
       subjectOf(event, env.GITHUB_SERVER_URL ?? "https://github.com", repo),

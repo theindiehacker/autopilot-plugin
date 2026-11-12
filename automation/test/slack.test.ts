@@ -4,14 +4,8 @@ import {
   type NotificationKind,
   sendSlack,
 } from "../src/slack";
-import type { AutopilotConfig } from "../src/types";
-
-const config = {
-  notify: { slackChannel: "#dev", approverMentions: ["<@U1>", "<@U2>"] },
-} as AutopilotConfig;
 
 const firstLines: Record<NotificationKind, string> = {
-  approval_request: ":raised_hand: 承認をお願いします: <https://x/1|T>",
   needs_human: ":warning: 人の判断が必要です: <https://x/1|T>",
   deploy_hold:
     ":rotating_light: デプロイの後の対応を止めました (自動でロールバックしていません): <https://x/1|T>",
@@ -23,57 +17,35 @@ const firstLines: Record<NotificationKind, string> = {
 test.each(Object.keys(firstLines) as NotificationKind[])(
   "%s の 1 行目",
   (kind) => {
-    const { text } = formatSlackMessage(
-      { kind, title: "T", url: "https://x/1", details: [] },
-      config,
-    );
+    const { text } = formatSlackMessage({
+      kind,
+      title: "T",
+      url: "https://x/1",
+      details: [],
+    });
     expect(text.split("\n")[0]).toBe(firstLines[kind]);
   },
 );
 
-test("details と links を 2 行目以降に並べ、メンションは最後の行", () => {
-  const { text } = formatSlackMessage(
-    {
-      kind: "approval_request",
-      title: "T",
-      url: "https://x/1",
-      details: ["a", "b"],
-      links: [{ label: "L", url: "https://x/2" }],
-    },
-    config,
-  );
-  expect(text.split("\n").slice(1)).toEqual([
-    "a",
-    "b",
-    "<https://x/2|L>",
-    "<@U1> <@U2>",
-  ]);
-});
-
-test("承認の依頼とデプロイの保留だけ、承認者にメンションする", () => {
-  const text = (kind: NotificationKind) =>
-    formatSlackMessage(
-      { kind, title: "T", url: "https://x/1", details: [] },
-      config,
-    ).text;
-  expect(text("approval_request")).toContain("<@U1>");
-  expect(text("deploy_hold")).toContain("<@U1>");
-  expect(text("needs_human")).not.toContain("<@U1>");
-  expect(text("deploy_rolled_back")).not.toContain("<@U1>");
-  expect(text("done")).not.toContain("<@U1>");
+test("details と links を 2 行目以降に並べる", () => {
+  const { text } = formatSlackMessage({
+    kind: "deploy_hold",
+    title: "T",
+    url: "https://x/1",
+    details: ["a", "b"],
+    links: [{ label: "L", url: "https://x/2" }],
+  });
+  expect(text.split("\n").slice(1)).toEqual(["a", "b", "<https://x/2|L>"]);
 });
 
 test("title・details・label の & < > をエスケープし、一斉メンションを防ぐ", () => {
-  const { text } = formatSlackMessage(
-    {
-      kind: "done",
-      title: "<!channel> a&b",
-      url: "https://x/1",
-      details: ["<!here>"],
-      links: [{ label: "<!everyone>", url: "https://x/2" }],
-    },
-    config,
-  );
+  const { text } = formatSlackMessage({
+    kind: "done",
+    title: "<!channel> a&b",
+    url: "https://x/1",
+    details: ["<!here>"],
+    links: [{ label: "<!everyone>", url: "https://x/2" }],
+  });
   expect(text).not.toContain("<!");
   expect(text).toContain("<https://x/1|&lt;!channel&gt; a&amp;b>");
   expect(text).toContain("&lt;!here&gt;");

@@ -14,9 +14,7 @@ export interface AutopilotConfig {
     command?: string;
   };
   requiredChecks: RequiredCheck[];
-  irreversible: { paths: string[]; terraformPlanArtifact?: string };
-  approvers: string[];
-  notify: { slackChannel: string; approverMentions: string[] };
+  notify: { slackChannel: string };
   limits: {
     maxFixRounds: number;
     staleHours: number;
@@ -31,6 +29,8 @@ export interface AutopilotConfig {
     rollback?: string;
     timeoutMinutes: number;
     rollbackAfterIrreversible: boolean;
+    /** マージした PR がこの glob に合うファイルを変えていたら、取り消せない変更を含む */
+    irreversiblePaths: string[];
   };
 }
 
@@ -38,8 +38,6 @@ export const LABELS = {
   ready: "autopilot:ready",
   needsHuman: "needs-human",
 } as const;
-
-export const STATUS = { irreversible: "autopilot/irreversible" } as const;
 
 export const MARKERS = {
   started: "<!-- autopilot:started -->",

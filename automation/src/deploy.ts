@@ -32,6 +32,15 @@ export function planDeployTargets(config: AutopilotConfig): DeployTarget[] {
   }));
 }
 
+// マージした PR の変更したファイルのうち、deploy.irreversible_paths の glob に合うもの
+export function findIrreversiblePaths(
+  changedFiles: string[],
+  patterns: string[],
+): string[] {
+  const globs = patterns.map((p) => new Bun.Glob(p));
+  return changedFiles.filter((f) => globs.some((g) => g.match(f)));
+}
+
 export function decideAfterVerify(
   input: { ok: boolean; irreversible: boolean; sameCauseCount: number },
   config: AutopilotConfig,

@@ -10,9 +10,7 @@ const realConsoleError = console.error;
 const CONFIG = `
 routine_github_user: routine-user
 review: { reviewer: claude }
-approvers: [alice]
-irreversible: { paths: ["db/migrations/**"] }
-notify: { slack_channel: "#dev", approver_mentions: ["<@U1>"] }
+notify: { slack_channel: "#dev" }
 limits: { max_fix_rounds: 3 }
 `;
 
@@ -26,7 +24,6 @@ interface PullData {
   labels?: string[];
   autoMerge?: boolean;
   files?: string[];
-  reviews?: unknown[];
   mergeable_state?: string;
   updated_at?: string;
   body?: string | null;
@@ -62,12 +59,6 @@ interface IssueData {
 interface World {
   pulls: PullData[];
   issues: IssueData[];
-  statuses: {
-    sha: string;
-    context: string;
-    state: string;
-    description: string;
-  }[];
   dispatches: { workflow: string; inputs: unknown }[];
   graphql: string[];
   urls: string[];
@@ -77,12 +68,6 @@ interface World {
   configs: Record<string, string>;
   runs: RunData[];
   runQueries: string[];
-  artifacts: {
-    runId: number;
-    headSha: string;
-    expired?: boolean;
-    plan?: unknown;
-  }[];
   merged: { n: number; body: unknown }[];
   graphqlError?: string;
   events: string[];
@@ -115,7 +100,6 @@ function newWorld(): World {
   return {
     pulls: [],
     issues: [],
-    statuses: [],
     dispatches: [],
     graphql: [],
     urls: [],
@@ -125,7 +109,6 @@ function newWorld(): World {
     configs: {},
     runs: [],
     runQueries: [],
-    artifacts: [],
     merged: [],
     events: [],
     runGetFailures: 0,
@@ -253,13 +236,6 @@ function fakeFetch(w: World): typeof fetch {
           })),
       });
     }
-    if (path === "/actions/artifacts")
-      return Response.json({
-        artifacts: w.artifacts.map((a) => ({
-          expired: a.expired ?? false,
-          workflow_run: { id: a.runId, head_sha: a.headSha },
-        })),
-      });
     const runNo = id(/^\/actions\/runs\/(\d+)$/);
     if (runNo !== undefined && w.runGetFailures > 0) {
       w.runGetFailures--;
@@ -297,8 +273,6 @@ function fakeFetch(w: World): typeof fetch {
       return Response.json(
         (pull(pullNo)?.files ?? []).map((filename) => ({ filename })),
       );
-    if (pullNo !== undefined && path.endsWith("/reviews"))
-      return Response.json(pull(pullNo)?.reviews ?? []);
     if (pullNo !== undefined)
       return Response.json(pullJson(pull(pullNo) as PullData));
     if (path === "/pulls") return Response.json(w.pulls.map(pullJson));
@@ -370,15 +344,6 @@ function fakeFetch(w: World): typeof fetch {
     if (issueNo !== undefined && method === "DELETE") {
       w.removed.push(path);
       return new Response("{}");
-    }
-    if (path.startsWith("/statuses/")) {
-      w.statuses.push({
-        sha: path.split("/")[2] ?? "",
-        context: body.context,
-        state: body.state,
-        description: body.description,
-      });
-      return Response.json({});
     }
     if (path.includes("/dispatches")) {
       if (w.failDispatch && path.includes(w.failDispatch))
@@ -473,50 +438,6 @@ test("フォークの PR は autopilot の PR とみなさない", async () => {
   w.pulls.push({ number: 1, repo: "fork/r" });
   await run(w, "automerge", "pull_request_target", prEvent(1, "opened"));
   expect(w.graphql).toHaveLength(0);
-});
-
-test("irreversible は判定をステータスに付け、2 回動かしても Slack は 1 回だけ", async () => {
-  const w = newWorld();
-  w.pulls.push({ number: 5, files: ["db/migrations/001.sql"] });
-  w.issues.push({ number: 5 });
-  await run(w, "irreversible", "pull_request_target", prEvent(5, "opened"));
-  await run(
-    w,
-    "irreversible",
-    "pull_request_target",
-    prEvent(5, "synchronize"),
-  );
-  expect(w.statuses.map((s) => [s.sha, s.context, s.state])).toEqual([
-    ["sha5", "autopilot/irreversible", "pending"],
-    ["sha5", "autopilot/irreversible", "pending"],
-  ]);
-  expect(w.slack).toHaveLength(1);
-  expect(commentsOf(w, 5)[0]?.body).toContain(
-    "<!-- autopilot:notified:approval:sha5 -->",
-  );
-});
-
-test("irreversible は承認されていれば success を付ける", async () => {
-  const w = newWorld();
-  w.pulls.push({
-    number: 5,
-    files: ["db/migrations/001.sql"],
-    reviews: [
-      {
-        user: { login: "alice" },
-        state: "APPROVED",
-        commit_id: "sha5",
-        submitted_at: "2026-11-12T01:00:00Z",
-      },
-    ],
-  });
-  w.issues.push({ number: 5 });
-  await run(w, "irreversible", "pull_request_review", {
-    action: "submitted",
-    pull_request: { number: 5 },
-  });
-  expect(w.statuses[0]?.state).toBe("success");
-  expect(w.slack).toHaveLength(0);
 });
 
 test("label は、ルーティンの持ち主と App 以外が書いた印を無視する", async () => {
@@ -792,9 +713,11 @@ test("不明なコマンドは 2 を返す", async () => {
 
 // ---- 修正の周回 1 ----
 
-const withIrr = (irr: string, extra = "") =>
-  `${CONFIG.replace('irreversible: { paths: ["db/migrations/**"] }', irr)}${extra}`;
+const withConfig = (extra = "") => `${CONFIG}${extra}`;
 const ON_MERGE = `deploy: { mode: on_merge, workflow: deploy.yml, verify: "check.sh", rollback: "rollback.sh", timeout_minutes: 5 }\n`;
+// ON_MERGE に deploy.irreversible_paths を足したもの
+const onMergeIrr = (paths: string[]) =>
+  `deploy: { mode: on_merge, workflow: deploy.yml, verify: "check.sh", rollback: "rollback.sh", timeout_minutes: 5, irreversible_paths: ${JSON.stringify(paths)} }\n`;
 const hashOf = (text: string) =>
   new Bun.CryptoHasher("sha256").update(text).digest("hex").slice(0, 16);
 const done = (conclusion: string) => ({ status: "completed", conclusion });
@@ -821,39 +744,67 @@ function shell(results: { code: number; output?: string }[]) {
 const runDeploy = (w: World, deps: Partial<Deps>) =>
   run(w, "deploy", "pull_request_target", closed, {}, deps);
 
-test("deploy は plan が無いときは取り消せない変更とみなし、ロールバックしない (C1)", async () => {
-  const w = deployWorld(
-    withIrr(
-      'irreversible: { paths: ["db/migrations/**"], terraform_plan_artifact: plan }',
-      ON_MERGE,
-    ),
-    ["db/migrations/1.sql"],
-  );
+test("deploy は、deploy.irreversible_paths に合うファイルを変えた PR の失敗では、ロールバックしない", async () => {
+  const w = deployWorld(withConfig(onMergeIrr(["db/migrations/**"])), [
+    "app/main.ts",
+    "db/migrations/1.sql",
+  ]);
   const sh = shell([{ code: 1, output: "boom" }]);
   await runDeploy(w, { runShell: sh.runShell });
   expect(sh.commands).toEqual(["check.sh"]);
   expect(w.createdIssues[0]?.labels).toEqual(["needs-human"]);
   expect(w.slack[0]).toContain("ロールバックしていません");
   expect(w.createdIssues[0]?.body).toContain("取り消せない変更を含みます");
+  expect(w.createdIssues[0]?.body).toContain(
+    "取り消せない変更: db/migrations/1.sql",
+  );
   expect(w.slack[0]).toContain("取り消せない変更を含みます");
 });
 
-test("deploy は plan が無いだけでもロールバックしない (C1)", async () => {
-  const w = deployWorld(
-    withIrr(
-      "irreversible: { paths: [], terraform_plan_artifact: plan }",
-      ON_MERGE,
-    ),
-  );
-  const sh = shell([{ code: 1, output: "boom" }]);
+test("deploy は、deploy.irreversible_paths に合わなければ、.github の変更でもロールバックする", async () => {
+  const w = deployWorld(withConfig(onMergeIrr(["db/migrations/**"])), [
+    ".github/workflows/ci.yml",
+    "app/main.ts",
+  ]);
+  const sh = shell([{ code: 1, output: "boom" }, { code: 0 }]);
+  await runDeploy(w, { runShell: sh.runShell });
+  expect(sh.commands).toEqual(["check.sh", "rollback.sh"]);
+  expect(w.createdIssues[0]?.labels).toEqual(["autopilot:ready"]);
+  expect(w.slack[0]).toContain("ロールバックしました");
+});
+
+test("deploy は、deploy.irreversible_paths が無ければ、変更したファイルを読まずにロールバックする", async () => {
+  const w = deployWorld(withConfig(ON_MERGE));
+  w.failPullFiles = true;
+  const sh = shell([{ code: 1 }, { code: 0 }]);
+  await runDeploy(w, { runShell: sh.runShell });
+  expect(w.urls.some((u) => u.includes("/pulls/1/files"))).toBe(false);
+  expect(sh.commands).toEqual(["check.sh", "rollback.sh"]);
+});
+
+test("deploy は、取り消せない変更のパスも、マージの前の設定から読む", async () => {
+  const w = deployWorld(withConfig(ON_MERGE));
+  w.configs.base123 = withConfig(onMergeIrr(["app/**"]));
+  const sh = shell([{ code: 1 }]);
   await runDeploy(w, { runShell: sh.runShell });
   expect(sh.commands).toEqual(["check.sh"]);
-  expect(w.slack[0]).toContain("ロールバックしていません");
-  expect(w.createdIssues[0]?.body).toContain("plan が無い");
+  expect(w.createdIssues[0]?.title).toContain("取り消せない変更を含みます");
+});
+
+test("deploy は、前の版の irreversible.paths を、取り消せない変更の判定に使わない", async () => {
+  const w = deployWorld(
+    withConfig(
+      `irreversible: { paths: ["app/**"] }\napprovers: [alice]\n${ON_MERGE}`,
+    ),
+  );
+  const sh = shell([{ code: 1 }, { code: 0 }]);
+  await runDeploy(w, { runShell: sh.runShell });
+  expect(sh.commands).toEqual(["check.sh", "rollback.sh"]);
+  expect(w.createdIssues[0]?.labels).toEqual(["autopilot:ready"]);
 });
 
 test("deploy は設定を、マージの前の親 commit から読む (I6)", async () => {
-  const w = deployWorld(withIrr("irreversible: { paths: [] }", ON_MERGE));
+  const w = deployWorld(withConfig(ON_MERGE));
   await runDeploy(w, { runShell: shell([]).runShell });
   expect(w.urls).toContain(
     "GET /repos/o/r/contents/.github/autopilot.yml?ref=base123",
@@ -861,7 +812,7 @@ test("deploy は設定を、マージの前の親 commit から読む (I6)", asy
 });
 
 test("deploy (on_merge) はマージの commit の実行を探し、成功まで待って verify する (I8)", async () => {
-  const w = deployWorld(withIrr("irreversible: { paths: [] }", ON_MERGE));
+  const w = deployWorld(withConfig(ON_MERGE));
   const first = w.runs[0] as RunData;
   first.states = [
     { status: "in_progress", conclusion: null },
@@ -880,8 +831,7 @@ test("deploy (on_merge) はマージの commit の実行を探し、成功まで
 
 test("deploy (dispatch) は環境ごとに起動し、created を秒まで、起動の 10 秒前から探す (I1, R24)", async () => {
   const w = deployWorld(
-    withIrr(
-      "irreversible: { paths: [] }",
+    withConfig(
       // biome-ignore lint/suspicious/noTemplateCurlyInString: 設定ファイルの置き換え記号そのもの
       'deploy: { mode: dispatch, workflow: deploy.yml, environments: [stg, prod], inputs: { env: "${environment}" } }\n',
     ),
@@ -903,7 +853,7 @@ test("deploy (dispatch) は環境ごとに起動し、created を秒まで、起
 });
 
 test("deploy は timeoutMinutes を過ぎても動いていたら、ロールバックせず hold にする (R23)", async () => {
-  const w = deployWorld(withIrr("irreversible: { paths: [] }", ON_MERGE));
+  const w = deployWorld(withConfig(ON_MERGE));
   (w.runs[0] as RunData).states = [{ status: "in_progress", conclusion: null }];
   const sh = shell([{ code: 0 }]);
   await runDeploy(w, { runShell: sh.runShell });
@@ -911,11 +861,10 @@ test("deploy は timeoutMinutes を過ぎても動いていたら、ロールバ
   expect(w.createdIssues[0]?.labels).toEqual(["needs-human"]);
   expect(w.createdIssues[0]?.body).toContain("終わりません");
   expect(w.slack[0]).toContain("ロールバックしていません");
-  expect(w.slack[0]).toContain("<@U1>");
 });
 
 test("deploy は実行を探す時間を timeoutMinutes までにする (I1)", async () => {
-  const w = deployWorld(withIrr("irreversible: { paths: [] }", ON_MERGE));
+  const w = deployWorld(withConfig(ON_MERGE));
   w.runs.length = 0;
   let clock = Date.parse("2026-11-12T12:00:00Z");
   const sh = shell([{ code: 0 }]);
@@ -938,8 +887,7 @@ test("deploy は実行を探す時間を timeoutMinutes までにする (I1)", a
 
 test("deploy は実行が失敗なら、ワークフローでロールバックし、Issue に出力を含めない (I8, I9)", async () => {
   const w = deployWorld(
-    withIrr(
-      "irreversible: { paths: [] }",
+    withConfig(
       'deploy: { mode: on_merge, workflow: deploy.yml, verify: "check.sh", rollback: "rollback.yml" }\n',
     ),
   );
@@ -960,7 +908,7 @@ test("deploy は実行が失敗なら、ワークフローでロールバック�
 });
 
 test("Issue と Slack に、コマンドの出力を入れない (I9)", async () => {
-  const w = deployWorld(withIrr("irreversible: { paths: [] }", ON_MERGE));
+  const w = deployWorld(withConfig(ON_MERGE));
   const sh = shell([
     { code: 3, output: "boom 5\nTOKEN=SECRET-xyz" },
     { code: 0 },
@@ -977,7 +925,7 @@ test("Issue と Slack に、コマンドの出力を入れない (I9)", async ()
 });
 
 test("同じ印のある開いた Issue があれば needs-human にする。ラベルは問わない (I8, I9)", async () => {
-  const w = deployWorld(withIrr("irreversible: { paths: [] }", ON_MERGE));
+  const w = deployWorld(withConfig(ON_MERGE));
   w.issues.push({
     number: 30,
     labels: ["bug"],
@@ -989,7 +937,7 @@ test("同じ印のある開いた Issue があれば needs-human にする。ラ
 });
 
 test("deploy は cancelled でも、新しい実行があれば (後のマージに置き換わった)、何もしないで終わる (I1, R23)", async () => {
-  const w = deployWorld(withIrr("irreversible: { paths: [] }", ON_MERGE));
+  const w = deployWorld(withConfig(ON_MERGE));
   (w.runs[0] as RunData).states = [done("cancelled")];
   w.runs.push({
     id: 60,
@@ -1006,7 +954,7 @@ test("deploy は cancelled でも、新しい実行があれば (後のマージ
 });
 
 test("deploy は cancelled で、新しい実行も無ければ hold にする (R23)", async () => {
-  const w = deployWorld(withIrr("irreversible: { paths: [] }", ON_MERGE));
+  const w = deployWorld(withConfig(ON_MERGE));
   (w.runs[0] as RunData).states = [done("cancelled")];
   const sh = shell([]);
   await runDeploy(w, { runShell: sh.runShell });
@@ -1016,7 +964,7 @@ test("deploy は cancelled で、新しい実行も無ければ hold にする (
 });
 
 test("deploy は skipped なら何もしないで終わる (R23)", async () => {
-  const w = deployWorld(withIrr("irreversible: { paths: [] }", ON_MERGE));
+  const w = deployWorld(withConfig(ON_MERGE));
   (w.runs[0] as RunData).states = [done("skipped")];
   await runDeploy(w, { runShell: shell([]).runShell });
   expect(w.createdIssues).toHaveLength(0);
@@ -1024,7 +972,7 @@ test("deploy は skipped なら何もしないで終わる (R23)", async () => {
 });
 
 test("Issue を作れなくても、エラーを添えて Slack に知らせる (I2)", async () => {
-  const w = deployWorld(withIrr("irreversible: { paths: [] }", ON_MERGE));
+  const w = deployWorld(withConfig(ON_MERGE));
   w.failCreateIssue = true;
   const { code } = await runDeploy(w, {
     runShell: shell([{ code: 1 }, { code: 0 }]).runShell,
@@ -1122,15 +1070,6 @@ test("automerge はそのほかの GraphQL の失敗では直接マージしな�
   expect(w.merged).toEqual([]);
 });
 
-test("守りのファイルを変える PR は、設定に無くても取り消せない変更として扱う (I6)", async () => {
-  const w = newWorld();
-  w.pulls.push({ number: 5, files: [".github/workflows/ci.yml"] });
-  w.issues.push({ number: 5 });
-  await run(w, "irreversible", "pull_request_target", prEvent(5, "opened"));
-  expect(w.statuses[0]?.state).toBe("pending");
-  expect(w.statuses[0]?.description).toContain(".github/workflows/ci.yml");
-});
-
 test("sweep は readyLabeledAt より前の開始の印を数えない (I7)", async () => {
   const w = newWorld();
   const ev = (t: string) => ({
@@ -1178,16 +1117,6 @@ test("fix-round と ready は、PR ではない Issue のコメントでは何�
   expect(w.graphql).toHaveLength(0);
 });
 
-test("irreversible は、理由が無ければレビューもチームも読まない (M2)", async () => {
-  const w = newWorld();
-  w.pulls.push({ number: 5, files: ["README.md"] });
-  await run(w, "irreversible", "pull_request_target", prEvent(5, "opened"));
-  expect(
-    w.urls.some((u) => u.includes("/reviews") || u.includes("/orgs/")),
-  ).toBe(false);
-  expect(w.statuses[0]?.state).toBe("success");
-});
-
 test("エラーに秘密を出さない。メッセージにトークンが入っていても伏せる (M5)", async () => {
   const w = newWorld();
   w.pulls.push({ number: 1 });
@@ -1208,14 +1137,6 @@ test("エラーに秘密を出さない。メッセージにトークンが入�
   }
   expect(errors.join("\n")).toContain("connect failed");
   expect(errors.join("\n")).not.toContain("tok-secret");
-});
-
-test("Slack を送ってから、印のコメントを書く (M6)", async () => {
-  const w = newWorld();
-  w.pulls.push({ number: 5, files: ["db/migrations/001.sql"] });
-  w.issues.push({ number: 5 });
-  await run(w, "irreversible", "pull_request_target", prEvent(5, "opened"));
-  expect(w.events).toEqual(["slack", "comment"]);
 });
 
 const deployIssueEvent = (user = "app[bot]", body?: string) => ({
@@ -1305,7 +1226,7 @@ test("時間切れは、複合コマンドも止めて、すぐ戻る (M4)", asy
 });
 
 async function markerFor(output: string): Promise<string | undefined> {
-  const w = deployWorld(withIrr("irreversible: { paths: [] }", ON_MERGE));
+  const w = deployWorld(withConfig(ON_MERGE));
   await runDeploy(w, {
     runShell: shell([{ code: 1, output }, { code: 0 }]).runShell,
   });
@@ -1329,8 +1250,7 @@ test("時刻や番号だけが違う失敗は同じ印、違う失敗は違う�
 
 // ---- 修正の周回 3 ----
 
-const DISPATCH_CFG = withIrr(
-  "irreversible: { paths: [] }",
+const DISPATCH_CFG = withConfig(
   // biome-ignore lint/suspicious/noTemplateCurlyInString: 設定ファイルの置き換え記号そのもの
   'deploy: { mode: dispatch, workflow: deploy.yml, environments: [stg, prod], inputs: { env: "${environment}" }, rollback: "rollback.sh", timeout_minutes: 5 }\n',
 );
@@ -1350,14 +1270,14 @@ test("複数環境では、前の環境が使った実行を、次の環境が�
 });
 
 test("一時的な API の失敗は、やり直して続ける (N2)", async () => {
-  const w = deployWorld(withIrr("irreversible: { paths: [] }", ON_MERGE));
+  const w = deployWorld(withConfig(ON_MERGE));
   w.runGetFailures = 2;
   await runDeploy(w, { runShell: shell([{ code: 0 }]).runShell });
   expect(w.slack[0]).toContain("対応が終わりました");
 });
 
 test("API の失敗が続いて結果が分からなければ、ロールバックせず hold にする (N2)", async () => {
-  const w = deployWorld(withIrr("irreversible: { paths: [] }", ON_MERGE));
+  const w = deployWorld(withConfig(ON_MERGE));
   w.runGetFailures = 100;
   const sh = shell([]);
   await runDeploy(w, { runShell: sh.runShell });
@@ -1368,7 +1288,7 @@ test("API の失敗が続いて結果が分からなければ、ロールバッ�
 });
 
 test("デプロイの前の API の失敗も、人に知らせる (N2)", async () => {
-  const w = deployWorld(withIrr("irreversible: { paths: [] }", ON_MERGE));
+  const w = deployWorld(withConfig(ON_MERGE));
   w.failCommits = true;
   const { code } = await runDeploy(w, { runShell: shell([]).runShell });
   expect(code).toBe(1);
@@ -1378,7 +1298,7 @@ test("デプロイの前の API の失敗も、人に知らせる (N2)", async (
 });
 
 test("ロールバックのコマンドが失敗したら、rolled back ではなく hold にする (N5)", async () => {
-  const w = deployWorld(withIrr("irreversible: { paths: [] }", ON_MERGE));
+  const w = deployWorld(withConfig(ON_MERGE));
   const sh = shell([{ code: 1 }, { code: 2 }]);
   await runDeploy(w, { runShell: sh.runShell });
   expect(sh.commands).toEqual(["check.sh", "rollback.sh"]);
@@ -1389,8 +1309,7 @@ test("ロールバックのコマンドが失敗したら、rolled back では�
 
 test("ロールバックのワークフローの起動が失敗したら、hold にする (N5)", async () => {
   const w = deployWorld(
-    withIrr(
-      "irreversible: { paths: [] }",
+    withConfig(
       'deploy: { mode: on_merge, workflow: deploy.yml, rollback: "rb.yml" }\n',
     ),
   );
@@ -1407,7 +1326,7 @@ test("ロールバックのワークフローの起動が失敗したら、hold 
 });
 
 test("同じ原因の Issue を調べられなければ、needs-human にする (N6)", async () => {
-  const w = deployWorld(withIrr("irreversible: { paths: [] }", ON_MERGE));
+  const w = deployWorld(withConfig(ON_MERGE));
   w.failListIssues = true;
   await runDeploy(w, {
     runShell: shell([{ code: 1 }, { code: 0 }]).runShell,
@@ -1415,29 +1334,18 @@ test("同じ原因の Issue を調べられなければ、needs-human にする 
   expect(w.createdIssues[0]?.labels).toEqual(["needs-human"]);
 });
 
-test("Slack の設定 (承認者のメンション) も、マージの前の設定を使う (N7)", async () => {
-  const w = deployWorld(withIrr("irreversible: { paths: [] }", ON_MERGE));
-  w.configs.base123 = (w.configs["*"] ?? "").replace("<@U1>", "<@U9>");
-  (w.runs[0] as RunData).states = [{ status: "in_progress", conclusion: null }];
-  await runDeploy(w, { runShell: shell([]).runShell });
-  expect(w.slack[0]).toContain("<@U9>");
-  expect(w.slack[0]).not.toContain("<@U1>");
-});
-
 // ---- 修正の周回 4 ----
 
 const HOLD_HEADLINE =
   ":rotating_light: デプロイの後の対応を止めました (自動でロールバックしていません): <";
-const ROLLBACK_WF = withIrr(
-  "irreversible: { paths: [] }",
+const ROLLBACK_WF = withConfig(
   'deploy: { mode: on_merge, workflow: deploy.yml, rollback: "rollback.yml", timeout_minutes: 5 }\n',
 );
-const DISPATCH_ONE = withIrr(
-  "irreversible: { paths: [] }",
+const DISPATCH_ONE = withConfig(
   'deploy: { mode: dispatch, workflow: deploy.yml, environments: [prod], rollback: "rollback.sh", timeout_minutes: 5 }\n',
 );
 const running = { status: "in_progress", conclusion: null };
-const BASIC = withIrr("irreversible: { paths: [] }", ON_MERGE);
+const BASIC = withConfig(ON_MERGE);
 
 test.each([
   ["startup_failure", "startup_failure"],
@@ -1457,7 +1365,6 @@ test.each([
     expect(sh.commands).toEqual([]);
     expect(w.createdIssues[0]?.labels).toEqual(["needs-human"]);
     expect(w.createdIssues[0]?.title).toContain("デプロイの結果が分かりません");
-    expect(w.slack[0]).toContain("<@U1>");
   },
 );
 
@@ -1497,7 +1404,6 @@ test.each([
     expect(w.createdIssues[0]?.labels).toEqual(["needs-human"]);
     expect(w.createdIssues[0]?.title).toContain(reason);
     expect(w.slack[0]?.startsWith(HOLD_HEADLINE)).toBe(true);
-    expect(w.slack[0]).toContain("<@U1>");
   },
 );
 
@@ -1591,14 +1497,10 @@ test.each([
   },
 );
 
-const NO_ROLLBACK = withIrr(
-  "irreversible: { paths: [] }",
+const NO_ROLLBACK = withConfig(
   'deploy: { mode: on_merge, workflow: deploy.yml, verify: "check.sh", timeout_minutes: 5 }\n',
 );
-const PLAN = withIrr(
-  "irreversible: { paths: [], terraform_plan_artifact: plan }",
-  ON_MERGE,
-);
+const IRR_APP = withConfig(onMergeIrr(["app/**"]));
 
 test.each([
   [
@@ -1610,22 +1512,10 @@ test.each([
   ],
   ["ロールバックに失敗しました", BASIC, () => {}],
   ["ロールバックの設定がありません", NO_ROLLBACK, () => {}],
-  [
-    "取り消せない変更を含みます",
-    withIrr('irreversible: { paths: ["app/**"] }', ON_MERGE),
-    () => {},
-  ],
-  ["Terraform の plan がありません", PLAN, () => {}],
-  [
-    "Terraform の plan を読めません",
-    PLAN,
-    (w: World) => {
-      w.artifacts.push({ runId: 9, headSha: "sha1" });
-    },
-  ],
+  ["取り消せない変更を含みます", IRR_APP, () => {}],
   [
     "取り消せない変更かどうかを調べられません",
-    BASIC,
+    IRR_APP,
     (w: World) => {
       w.failPullFiles = true;
     },
@@ -1661,7 +1551,6 @@ test.each([
     expect(issue?.body).not.toContain("確認に失敗しました");
     expect(w.slack[0]?.startsWith(HOLD_HEADLINE)).toBe(true);
     expect(w.slack[0]?.split("\n")).toContain(`止めた理由: ${reason}`);
-    expect(w.slack[0]).toContain("<@U1>");
   },
 );
 
@@ -1686,7 +1575,6 @@ test("PR を読めなくても、Issue と Slack で人に知らせて、失敗�
   expect(w.createdIssues).toHaveLength(1);
   expect(w.createdIssues[0]?.labels).toEqual(["needs-human"]);
   expect(w.slack).toHaveLength(1);
-  expect(w.slack[0]).toContain("<@U1>");
 });
 
 test("deploy の Slack は、送れなければ 3 回までやり直す (finding 6)", async () => {
@@ -1777,9 +1665,8 @@ test("dispatch で skipped なら、何もデプロイされていないので h
 
 test("取り消せない変更の後のロールバックが失敗したら、取り消せない理由も本文に残す", async () => {
   const w = deployWorld(
-    withIrr(
-      'irreversible: { paths: ["app/**"] }',
-      'deploy: { mode: on_merge, workflow: deploy.yml, verify: "check.sh", rollback: "rollback.sh", rollback_after_irreversible: true }\n',
+    withConfig(
+      'deploy: { mode: on_merge, workflow: deploy.yml, verify: "check.sh", rollback: "rollback.sh", rollback_after_irreversible: true, irreversible_paths: ["app/**"] }\n',
     ),
   );
   const sh = shell([{ code: 1 }, { code: 2 }]);
@@ -1787,9 +1674,9 @@ test("取り消せない変更の後のロールバックが失敗したら、�
   expect(sh.commands).toEqual(["check.sh", "rollback.sh"]);
   const issue = w.createdIssues[0];
   expect(issue?.title).toContain("ロールバックに失敗しました");
-  expect(issue?.body).toContain("取り消せない変更: パス: app/main.ts");
+  expect(issue?.body).toContain("取り消せない変更: app/main.ts");
   expect(issue?.body).toContain("ロールバックのコマンドが失敗しました");
-  expect(w.slack[0]).toContain("取り消せない変更: パス: app/main.ts");
+  expect(w.slack[0]).toContain("取り消せない変更: app/main.ts");
 });
 
 const NO_CONFIG_TITLE = "デプロイの後の対応を止めました: 設定を読めません";
@@ -1842,7 +1729,7 @@ test.each([
     },
   ],
 ] as const)(
-  "deploy は、%sときも、メンション無しで人に知らせて失敗にする (R25)",
+  "deploy は、%sときも、人に知らせて失敗にする (R25)",
   async (_, setup) => {
     const w = deployWorld(BASIC);
     setup(w);
@@ -1857,7 +1744,6 @@ test.each([
     expect(w.slack).toHaveLength(1);
     expect(w.slack[0]?.startsWith(HOLD_HEADLINE)).toBe(true);
     expect(w.slack[0]).toContain("設定を読めません");
-    expect(w.slack[0]).not.toContain("<@");
   },
 );
 

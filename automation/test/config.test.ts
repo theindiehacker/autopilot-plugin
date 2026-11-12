@@ -3,7 +3,6 @@ import { ConfigError, parseConfig } from "../src/config";
 
 const base = `routine_github_user: autopilot-bot
 review: {reviewer: claude[bot], trigger: ready_for_review}
-approvers: [alice]
 notify: {slack_channel: '#dev'}
 `;
 
@@ -19,7 +18,7 @@ function issuesOf(yaml: string): string[] {
 
 test("既定値を入れる", () => {
   const c = parseConfig(
-    "routine_github_user: autopilot-bot\nreview: {reviewer: claude[bot], trigger: ready_for_review}\nrequired_checks: [task test]\napprovers: [alice]\nnotify: {slack_channel: '#dev'}\ndeploy: {mode: none}",
+    "routine_github_user: autopilot-bot\nreview: {reviewer: claude[bot], trigger: ready_for_review}\nrequired_checks: [task test]\nnotify: {slack_channel: '#dev'}\ndeploy: {mode: none}",
   );
   expect(c.limits).toEqual({
     maxFixRounds: 3,
@@ -27,6 +26,7 @@ test("既定値を入れる", () => {
     readyRetryMinutes: 30,
   });
   expect(c.deploy.rollbackAfterIrreversible).toBe(false);
+  expect(c.deploy.irreversiblePaths).toEqual([]);
   expect(c.deploy.timeoutMinutes).toBe(60);
   expect(c.requiredChecks).toEqual([{ name: "task test" }]);
 });
@@ -50,10 +50,29 @@ test("dispatch なのに workflow が無いと ConfigError", () => {
   );
 });
 
-test("irreversible.paths があるのに approvers が空だと ConfigError", () => {
-  const yaml =
-    "routine_github_user: autopilot-bot\nreview: {reviewer: x, trigger: none}\napprovers: []\nnotify: {slack_channel: '#dev'}\nirreversible: {paths: [infra/**]}\ndeploy: {mode: none}";
-  expect(issuesOf(yaml).join("\n")).toContain("approvers");
+test("deploy.irreversible_paths を読む", () => {
+  const c = parseConfig(
+    `${base}deploy: {mode: none, irreversible_paths: ["db/migrations/**", "infra/**"]}`,
+  );
+  expect(c.deploy.irreversiblePaths).toEqual(["db/migrations/**", "infra/**"]);
+});
+
+test("deploy.irreversible_paths が文字列の配列でなければ ConfigError", () => {
+  expect(
+    issuesOf(`${base}deploy: {mode: none, irreversible_paths: "db/**"}`).join(
+      "\n",
+    ),
+  ).toContain("deploy.irreversible_paths");
+});
+
+test("前の版の irreversible・approvers・notify.approver_mentions は読み飛ばす", () => {
+  const c = parseConfig(
+    "routine_github_user: autopilot-bot\nreview: {reviewer: x, trigger: none}\napprovers: []\nnotify: {slack_channel: '#dev', approver_mentions: ['<@U1>']}\nirreversible: {paths: [infra/**], terraform_plan_artifact: plan}\ndeploy: {mode: none}",
+  );
+  expect(c).not.toHaveProperty("irreversible");
+  expect(c).not.toHaveProperty("approvers");
+  expect(c.notify).toEqual({ slackChannel: "#dev" });
+  expect(c.deploy.irreversiblePaths).toEqual([]);
 });
 
 test("問題をまとめて返す", () => {

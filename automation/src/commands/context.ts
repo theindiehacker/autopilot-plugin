@@ -32,8 +32,7 @@ export interface Ctx {
   botLogin: string;
   serverUrl: string;
   runUrl: string;
-  /** config を渡すと、その設定で整える (承認者のメンションなど) */
-  notify(n: Notification, config?: AutopilotConfig): Promise<void>;
+  notify(n: Notification): Promise<void>;
   setOutput(key: string, value: string): void;
   now(): Date;
   sleep(ms: number): Promise<void>;
@@ -157,16 +156,16 @@ export const runUrlOf = (env: Record<string, string | undefined>) =>
 export const sleepOf = (deps: Deps) =>
   deps.sleep ?? ((ms: number) => new Promise<void>((r) => setTimeout(r, ms)));
 
-/** config のメンションを付けて Slack に送る */
+/** Slack に送る */
 export function slackSender(
   env: Record<string, string | undefined>,
   deps: Deps,
-): (n: Notification, config: Pick<AutopilotConfig, "notify">) => Promise<void> {
+): (n: Notification) => Promise<void> {
   const fetchImpl = deps.fetchImpl ?? fetch;
-  return async (n, config) => {
+  return async (n) => {
     const url = env.AUTOPILOT_SLACK_WEBHOOK_URL;
     if (!url) throw new Error("AUTOPILOT_SLACK_WEBHOOK_URL が未設定です");
-    await sendSlack(url, formatSlackMessage(n, config), fetchImpl);
+    await sendSlack(url, formatSlackMessage(n), fetchImpl);
   };
 }
 
@@ -182,7 +181,6 @@ export function buildCtx(
   },
 ): Ctx {
   const { event, defaultBranch, config } = parts;
-  const send = slackSender(env, deps);
   const secrets = [
     env.GITHUB_TOKEN ?? "",
     env.AUTOPILOT_SLACK_WEBHOOK_URL ?? "",
@@ -201,7 +199,7 @@ export function buildCtx(
     serverUrl: env.GITHUB_SERVER_URL ?? "https://github.com",
     runUrl: runUrlOf(env),
     workflowFile: workflowRef?.[1] ?? "autopilot.yml",
-    notify: (n, cfg = config) => send(n, cfg),
+    notify: slackSender(env, deps),
     setOutput: (key, value) => {
       if (env.GITHUB_OUTPUT)
         appendFileSync(env.GITHUB_OUTPUT, `${key}=${value}\n`);

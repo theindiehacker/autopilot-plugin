@@ -1,5 +1,3 @@
-import type { Review } from "./gate";
-
 export interface RepoInfo {
   default_branch: string;
   full_name: string;
@@ -59,12 +57,6 @@ export interface WorkflowRun {
   created_at: string;
 }
 
-export interface ArtifactInfo {
-  runId: number;
-  headSha: string;
-  expired: boolean;
-}
-
 export interface GitHubClient {
   getRepo(): Promise<RepoInfo>;
   getPull(n: number): Promise<Pull>;
@@ -75,7 +67,6 @@ export interface GitHubClient {
   ): Promise<{ name: string; conclusion: string | null }[]>;
   getPermission(login: string): Promise<string>;
   listPullFiles(n: number): Promise<string[]>;
-  listReviews(n: number): Promise<Review[]>;
   listIssueEvents(n: number): Promise<IssueEvent[]>;
   listComments(n: number): Promise<Comment[]>;
   getRepoFile(path: string, ref: string): Promise<string>;
@@ -87,13 +78,6 @@ export interface GitHubClient {
     body: string;
     labels: string[];
   }): Promise<number>;
-  setStatus(
-    sha: string,
-    context: string,
-    state: "success" | "pending" | "failure" | "error",
-    description: string,
-    targetUrl?: string,
-  ): Promise<void>;
   dispatchWorkflow(
     workflow: string,
     ref: string,
@@ -104,46 +88,17 @@ export interface GitHubClient {
     query: Record<string, string>,
   ): Promise<WorkflowRun[]>;
   getWorkflowRun(id: number): Promise<WorkflowRun>;
-  listTeamMembers(org: string, team: string): Promise<string[]>;
   listOpenIssuesByLabel(label: string): Promise<Issue[]>;
   listOpenIssues(): Promise<Issue[]>;
   listOpenPulls(): Promise<Pull[]>;
   getCommitParents(sha: string): Promise<string[]>;
   mergePull(n: number, sha: string): Promise<void>;
-  listArtifacts(name: string): Promise<ArtifactInfo[]>;
-  downloadArtifactJson(runId: number, name: string): Promise<unknown>;
   enableAutoMerge(pullNodeId: string): Promise<void>;
   markReadyForReview(pullNodeId: string): Promise<void>;
 }
 
 const nextLink = (header: string | null): string | undefined =>
   header?.match(/<([^>]+)>;\s*rel="next"/)?.[1];
-
-// zip の先頭のファイルを読む (artifact は 1 ファイルだけの zip)
-export async function readFirstZipEntry(zip: Uint8Array): Promise<string> {
-  const view = new DataView(zip.buffer, zip.byteOffset, zip.byteLength);
-  let eocd = zip.length - 22;
-  while (eocd >= 0 && view.getUint32(eocd, true) !== 0x06054b50) eocd--;
-  if (eocd < 0) throw new Error("zip を読めません");
-  const central = view.getUint32(eocd + 16, true);
-  if (view.getUint32(central, true) !== 0x02014b50)
-    throw new Error("zip を読めません");
-  const method = view.getUint16(central + 10, true);
-  const size = view.getUint32(central + 20, true);
-  const local = view.getUint32(central + 42, true);
-  const start =
-    local +
-    30 +
-    view.getUint16(local + 26, true) +
-    view.getUint16(local + 28, true);
-  const data = zip.slice(start, start + size);
-  if (method === 0) return new TextDecoder().decode(data);
-  if (method !== 8) throw new Error("zip の圧縮方式に対応していません");
-  const stream = new Blob([data])
-    .stream()
-    .pipeThrough(new DecompressionStream("deflate-raw"));
-  return await new Response(stream).text();
-}
 
 export function createGitHubClient(opts: {
   token: string;
@@ -250,20 +205,6 @@ export function createGitHubClient(opts: {
       (
         await paginate<{ filename: string }>(`${repoPath}/pulls/${n}/files`)
       ).map((f) => f.filename),
-    listReviews: async (n) =>
-      (
-        await paginate<{
-          user: { login: string } | null;
-          state: string;
-          commit_id: string;
-          submitted_at: string | null;
-        }>(`${repoPath}/pulls/${n}/reviews`)
-      ).map((r) => ({
-        user: r.user?.login ?? "",
-        state: r.state.toUpperCase() as Review["state"],
-        commitId: r.commit_id,
-        submittedAt: r.submitted_at ?? "",
-      })),
     listIssueEvents: (n) => paginate(`${repoPath}/issues/${n}/events`),
     listComments: (n) => paginate(`${repoPath}/issues/${n}/comments`),
     getRepoFile: async (path, ref) =>
@@ -294,14 +235,6 @@ export function createGitHubClient(opts: {
     createIssue: async (input) =>
       (await json<{ number: number }>("POST", `${repoPath}/issues`, input))
         .number,
-    setStatus: async (sha, context, state, description, targetUrl) => {
-      await call("POST", `${repoPath}/statuses/${sha}`, {
-        state,
-        context,
-        description,
-        ...(targetUrl ? { target_url: targetUrl } : {}),
-      });
-    },
     dispatchWorkflow: async (workflow, ref, inputs) => {
       await call(
         "POST",
@@ -317,10 +250,6 @@ export function createGitHubClient(opts: {
         )
       ).workflow_runs,
     getWorkflowRun: (id) => json("GET", `${repoPath}/actions/runs/${id}`),
-    listTeamMembers: async (org, team) =>
-      (
-        await paginate<{ login: string }>(`/orgs/${org}/teams/${team}/members`)
-      ).map((m) => m.login),
     listOpenIssuesByLabel: (label) =>
       openIssues(`?state=open&labels=${encodeURIComponent(label)}`),
     listOpenIssues: () => openIssues("?state=open"),
@@ -338,37 +267,6 @@ export function createGitHubClient(opts: {
       });
     },
     listOpenPulls: () => paginate(`${repoPath}/pulls?state=open`),
-    listArtifacts: async (name) =>
-      (
-        await paginate<{
-          expired: boolean;
-          workflow_run: { id: number; head_sha: string } | null;
-        }>(
-          `${repoPath}/actions/artifacts?name=${encodeURIComponent(name)}`,
-          (p) => (p as { artifacts: never[] }).artifacts,
-        )
-      )
-        .filter((a) => a.workflow_run !== null)
-        .map((a) => ({
-          runId: a.workflow_run?.id ?? 0,
-          headSha: a.workflow_run?.head_sha ?? "",
-          expired: a.expired,
-        })),
-    downloadArtifactJson: async (runId, name) => {
-      const list = await paginate<{ id: number; name: string }>(
-        `${repoPath}/actions/runs/${runId}/artifacts`,
-        (p) => (p as { artifacts: never[] }).artifacts,
-      );
-      const found = list.find((a) => a.name === name);
-      if (!found) throw new Error(`artifact ${name} が見つかりません`);
-      const res = await call(
-        "GET",
-        `${repoPath}/actions/artifacts/${found.id}/zip`,
-      );
-      return JSON.parse(
-        await readFirstZipEntry(new Uint8Array(await res.arrayBuffer())),
-      );
-    },
     enableAutoMerge: (pullNodeId) =>
       graphql(
         "mutation($id: ID!) { enablePullRequestAutoMerge(input: {pullRequestId: $id, mergeMethod: SQUASH}) { clientMutationId } }",

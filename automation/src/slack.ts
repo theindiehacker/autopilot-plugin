@@ -1,7 +1,4 @@
-import type { AutopilotConfig } from "./types";
-
 export type NotificationKind =
-  | "approval_request"
   | "needs_human"
   | "deploy_hold"
   | "deploy_rolled_back"
@@ -16,7 +13,6 @@ export interface Notification {
 }
 
 const HEADLINES: Record<NotificationKind, string> = {
-  approval_request: ":raised_hand: 承認をお願いします",
   needs_human: ":warning: 人の判断が必要です",
   deploy_hold:
     ":rotating_light: デプロイの後の対応を止めました (自動でロールバックしていません)",
@@ -24,8 +20,6 @@ const HEADLINES: Record<NotificationKind, string> = {
     ":rewind: デプロイ後の確認に失敗したため、ロールバックしました",
   done: ":white_check_mark: 対応が終わりました",
 };
-
-const MENTION_KINDS: NotificationKind[] = ["approval_request", "deploy_hold"];
 
 // Slack mrkdwn では & < > だけエスケープすればよい。<!channel> のような一斉メンションを防ぐ。
 function escapeSlack(s: string): string {
@@ -35,17 +29,11 @@ function escapeSlack(s: string): string {
     .replaceAll(">", "&gt;");
 }
 
-export function formatSlackMessage(
-  n: Notification,
-  config: Pick<AutopilotConfig, "notify">,
-): { text: string } {
+export function formatSlackMessage(n: Notification): { text: string } {
   const lines = [`${HEADLINES[n.kind]}: <${n.url}|${escapeSlack(n.title)}>`];
   for (const d of n.details) lines.push(escapeSlack(d));
   for (const l of n.links ?? [])
     lines.push(`<${l.url}|${escapeSlack(l.label)}>`);
-  const mentions = config.notify.approverMentions;
-  if (MENTION_KINDS.includes(n.kind) && mentions.length > 0)
-    lines.push(mentions.join(" "));
   return { text: lines.join("\n") };
 }
 

@@ -5,7 +5,6 @@ import { LABELS } from "../src/types";
 
 const config = parseConfig(`routine_github_user: autopilot-bot
 review: {reviewer: claude[bot], trigger: ready_for_review}
-approvers: [alice]
 notify: {slack_channel: '#dev'}
 `);
 const now = new Date("2026-11-12T12:00:00Z");
