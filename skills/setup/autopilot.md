@@ -32,6 +32,7 @@ gh label create needs-human --force --color D93F0B --description "止まった�
 - compose で起動できるなら、`docker compose up -d --wait <サービス>` (サービスが healthy になるまで待って戻る)
 - dev サーバーなら、`nohup <コマンド> > /tmp/app.log 2>&1 &` で background にし、準備ができるまで待つ (例: `npx wait-on http://localhost:3000`、または `curl --retry 30 --retry-connrefused --retry-delay 2 -fsS http://localhost:3000 >/dev/null`)
 - 値は、Taskfile・compose から取る。E2E の起動 (`task dev:e2e` など) があれば、その中身を踏襲する。例: `docker compose up --build -d --wait api && cd frontend && bun install --frozen-lockfile && (nohup bun run dev > /tmp/frontend.log 2>&1 &) && curl --retry 30 --retry-connrefused --retry-delay 2 -fsS http://localhost:3000 >/dev/null`
+- アプリが MCP サーバーを出していれば、それも起動し、応答を確かめる (QA が MCP のツールの条件を確かめられるように。登録は手順 3 の `{{QA_MCP_SERVERS}}`)
 - ツール (bun・uv・task など) は、ワークフローのひな形が `qa.start` の前に入れます (手順 3)。`qa.start` で `npm install -g bun` のように入れ直さない
 
 ### CI の必須のチェック
@@ -72,6 +73,7 @@ QA を別のファイルにするのは、別のイベントで起きた実行�
 | `{{CI_WORKFLOWS}}` | CI のワークフロー名と `autopilot-qa` の YAML の配列。例: `["ci", "autopilot-qa"]`。Terraform の plan のワークフローがあれば、その名前も足す |
 | `{{TERRAFORM_PLAN_WORKFLOW}}` | Terraform の plan のワークフロー名。無ければ `(none)` |
 | `{{QA_START}}` | `qa.start` と同じコマンド |
+| `{{QA_MCP_SERVERS}}` | アプリが MCP サーバーを出していれば (survey の compose・README・CI)、`{"<名前>":{"type":"http","url":"<URL>"}}`。無ければ `{}`。そのサービスも `qa.start` で起動し、`qa.start` の最後で応答を確かめる (例: `tools/list` を curl で送る。CI に同じ確かめがあれば、それを踏襲する) |
 | `{{REVIEWER_BOTS}}` | Claude のレビューの bot。既定は `claude` |
 | `{{REVIEWER}}` | `.github/autopilot.yml` の `review.reviewer` と同じ値。例 `claude[bot]` |
 

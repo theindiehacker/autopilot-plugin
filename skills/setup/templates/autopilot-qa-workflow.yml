@@ -82,3 +82,5 @@ jobs:
           claude-code-oauth-token: ${{ secrets.CLAUDE_CODE_OAUTH_TOKEN }}
           anthropic-api-key: ${{ secrets.ANTHROPIC_API_KEY }}
           pr: ${{ github.event.pull_request.number }}
+          # アプリの MCP サーバー (qa.start で起動する)。無ければ {}
+          mcp-servers: '{{QA_MCP_SERVERS}}'

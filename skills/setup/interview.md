@@ -7,7 +7,7 @@ survey.md の結果をもとに、次の項目を聞きます。調べて分か�
 | タスクランナー・git hook | Taskfile・Makefile・mise、lefthook・pre-commit | checks.md |
 | 必須にするチェック | lint・ユニットテスト・E2E のジョブ名。CI で動いていないテストがあれば、動かすか | `required_checks` |
 | Claude のレビュー | 既存のものを使うか。起動のしかた (自動・コメント)。判定を出す bot の名前 | `review`・`{{REVIEWER_BOTS}}` |
-| アプリの起動 | Web の環境で起動できるか。起動のコマンドと URL。GPU・クラウドの認証情報が要るときの QA のしかた | `qa.start`・`qa.url` |
+| アプリの起動 | Web の環境で起動できるか。起動のコマンドと URL。アプリが出す MCP サーバー (あれば URL)。GPU・クラウドの認証情報が要るときの QA のしかた | `qa.start`・`qa.url`・QA のワークフローの `mcp-servers` |
 | デプロイ | 方式 (none・on_merge・dispatch)・環境の順番・確認のしかた・ロールバックのしかた | `deploy` |
 | 取り消せない変更 | マイグレーションのパス・Terraform の apply の方針・そのほか (課金・メール送信のコードのパスなど) | `irreversible` |
 | 承認する人 | GitHub のユーザー名か team | `approvers` |
