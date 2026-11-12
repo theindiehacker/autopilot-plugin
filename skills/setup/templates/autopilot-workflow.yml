@@ -1,15 +1,20 @@
 name: autopilot
 
 on:
-  pull_request_target:
+  # pull_request_target の job は、PR のコードを checkout しない。
+  # PR のコードを動かすのは、同じリポジトリの autopilot/ のブランチの fix だけ
+  pull_request_target: # zizmor: ignore[dangerous-triggers]
     types: [opened, synchronize, reopened, ready_for_review, labeled, closed]
   pull_request_review:
     types: [submitted, dismissed]
-  issue_comment:
+  # issue_comment の job (label) は、Bot か OWNER・MEMBER・COLLABORATOR のコメントだけで動き、
+  # 中で書いた人をもう一度確かめる。PR のコードは動かさない
+  issue_comment: # zizmor: ignore[dangerous-triggers]
     types: [created]
   issues:
     types: [labeled]
-  workflow_run:
+  # workflow_run は、同じリポジトリの実行だけを受け、fix-round が PR の今の head の実行かを確かめる
+  workflow_run: # zizmor: ignore[dangerous-triggers]
     # リポジトリの CI のワークフロー名と autopilot-qa (setup が入れる)。
     # Terraform の plan を使うなら、その名前もここに入れる
     workflows: {{CI_WORKFLOWS}}
@@ -22,8 +27,7 @@ on:
   schedule:
     - cron: "0 * * * *"
 
-permissions:
-  contents: read
+permissions: {}
 
 jobs:
   irreversible:
@@ -33,6 +37,9 @@ jobs:
       || (github.event_name == 'pull_request_review'
         && github.event.pull_request.head.repo.full_name == github.repository)
     runs-on: ubuntu-latest
+    permissions:
+      contents: read
+    timeout-minutes: 10
     concurrency:
       group: autopilot-irreversible-${{ github.event.pull_request.number }}
       cancel-in-progress: true
@@ -52,6 +59,9 @@ jobs:
       github.event_name == 'workflow_run'
       && github.event.workflow_run.name == '{{TERRAFORM_PLAN_WORKFLOW}}'
     runs-on: ubuntu-latest
+    permissions:
+      contents: read
+    timeout-minutes: 10
     concurrency:
       group: autopilot-irreversible-plan-${{ github.event.workflow_run.pull_requests[0].number || github.event.workflow_run.head_sha }}
       cancel-in-progress: true
@@ -72,6 +82,9 @@ jobs:
       && github.event.pull_request.head.repo.full_name == github.repository
       && startsWith(github.event.pull_request.head.ref, 'autopilot/')
     runs-on: ubuntu-latest
+    permissions:
+      contents: read
+    timeout-minutes: 10
     steps:
       - uses: theindiehacker/autopilot-plugin/actions/autopilot@{{AUTOPILOT_REF}}
         with:
@@ -92,6 +105,9 @@ jobs:
         && github.event.action == 'labeled'
         && github.event.label.name == 'needs-human')
     runs-on: ubuntu-latest
+    permissions:
+      contents: read
+    timeout-minutes: 10
     steps:
       - uses: theindiehacker/autopilot-plugin/actions/autopilot@{{AUTOPILOT_REF}}
         with:
@@ -114,6 +130,8 @@ jobs:
         && github.event.workflow_run.name != '{{TERRAFORM_PLAN_WORKFLOW}}')
       || (github.event_name == 'workflow_dispatch' && inputs.pr != '')
     runs-on: ubuntu-latest
+    permissions:
+      contents: read
     timeout-minutes: 60
     outputs:
       run: ${{ steps.round.outputs.run }}
@@ -191,6 +209,9 @@ jobs:
     needs: fix
     if: needs.fix.outputs.run == 'true'
     runs-on: ubuntu-latest
+    permissions:
+      contents: read
+    timeout-minutes: 10
     steps:
       - uses: theindiehacker/autopilot-plugin/actions/autopilot@{{AUTOPILOT_REF}}
         with:
@@ -205,6 +226,9 @@ jobs:
       github.event_name == 'schedule'
       || (github.event_name == 'workflow_dispatch' && inputs.pr == '')
     runs-on: ubuntu-latest
+    permissions:
+      contents: read
+    timeout-minutes: 15
     steps:
       - uses: theindiehacker/autopilot-plugin/actions/autopilot@{{AUTOPILOT_REF}}
         with:
@@ -213,6 +237,7 @@ jobs:
           private-key: ${{ secrets.AUTOPILOT_APP_PRIVATE_KEY }}
           slack-webhook-url: ${{ secrets.AUTOPILOT_SLACK_WEBHOOK_URL }}
 
+  # デプロイの待ち (deploy.timeout_minutes、既定 60 分) を環境の数だけ重ね、確認とロールバックの時間を足したより長くすること。環境が多いリポジトリでは setup が延ばす
   deploy:
     if: >-
       github.event_name == 'pull_request_target'
@@ -222,6 +247,9 @@ jobs:
       && github.event.pull_request.head.repo.full_name == github.repository
       && startsWith(github.event.pull_request.head.ref, 'autopilot/')
     runs-on: ubuntu-latest
+    permissions:
+      contents: read
+    timeout-minutes: 180
     concurrency:
       group: autopilot-deploy
       cancel-in-progress: false

@@ -78,6 +78,7 @@ QA を別のファイルにするのは、別のイベントで起きた実行�
 - Terraform の plan が無いリポジトリでは、`# TERRAFORM_PLAN:BEGIN` から `# TERRAFORM_PLAN:END` までの行を消します
 - `autopilot QA` は、必ず必須のチェックにします。自動マージが QA の成功を待つためです
 - 書いたら `actionlint` で確かめます
+- リポジトリの CI がワークフローを ghalint・zizmor などで検査していれば、同じ版を手元で動かして通します (版は survey.md で見た CI から取る)。ひな形は ghalint v1.6.0 と zizmor v1.31.1 で通ることを確かめてあります
 
 ## 4. Claude のレビューと CI
 - Claude のレビューが無ければ、[templates/claude-code-review-workflow.yml](templates/claude-code-review-workflow.yml) を `.github/workflows/claude-code-review.yml` に置きます。`review.trigger` が `ready_for_review` ならこのままで、`comment` ならコメントで起動します (合図は `review.command` に合わせる)。`review.reviewer: claude[bot]` と、ワークフローの `{{REVIEWER_BOTS}}: claude` は、同じ bot を 2 通りに書いたものです
