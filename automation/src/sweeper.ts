@@ -6,18 +6,24 @@ export interface SweepItem {
   title: string;
   url: string;
   labels: string[];
-  /** 今の autopilot のラベルが付いた時刻 */
-  stateLabeledAt: string;
-  updatedAt: string;
-  /** 見回りが autopilot:ready を付け直した回数 */
+  /** autopilot:ready が最後に付いた時刻 */
+  readyLabeledAt?: string;
+  /** autopilot:ready が付いた回数 − 1 (呼び出し側が数える) */
   readyRetries: number;
+  /** 開始のコメントの時刻 */
+  startedAt?: string;
+  hasPr: boolean;
+  updatedAt: string;
+  conflicting: boolean;
 }
 
 export type SweepAction =
   | { type: "relabelReady"; number: number }
-  | { type: "needsHuman"; number: number; reason: string };
+  | { type: "needsHuman"; number: number; reason: string }
+  | { type: "dispatchFix"; number: number };
 
-const WORKING_LABELS = [LABELS.doing, LABELS.qa, LABELS.fix];
+const elapsedMs = (from: string, now: Date) =>
+  now.getTime() - new Date(from).getTime();
 
 function planItem(
   item: SweepItem,
@@ -26,22 +32,39 @@ function planItem(
 ): SweepAction | undefined {
   if (item.labels.includes(LABELS.needsHuman)) return undefined;
   const { readyRetryMinutes, staleHours } = config.limits;
+  const staleMs = staleHours * 3_600_000;
 
-  if (item.labels.includes(LABELS.ready)) {
-    const waitedMs = now.getTime() - new Date(item.stateLabeledAt).getTime();
-    if (waitedMs <= readyRetryMinutes * 60_000) return undefined;
-    if (item.readyRetries === 0)
-      return { type: "relabelReady", number: item.number };
-    return {
-      type: "needsHuman",
-      number: item.number,
-      reason: `${LABELS.ready} を付け直しましたが、${readyRetryMinutes} 分たっても起動しませんでした。`,
-    };
+  if (item.kind === "issue") {
+    if (
+      item.labels.includes(LABELS.ready) &&
+      item.startedAt === undefined &&
+      item.readyLabeledAt !== undefined &&
+      elapsedMs(item.readyLabeledAt, now) > readyRetryMinutes * 60_000
+    ) {
+      if (item.readyRetries === 0)
+        return { type: "relabelReady", number: item.number };
+      return {
+        type: "needsHuman",
+        number: item.number,
+        reason: `${LABELS.ready} を付け直しましたが、${readyRetryMinutes} 分たっても起動しませんでした。`,
+      };
+    }
+    if (
+      item.startedAt !== undefined &&
+      !item.hasPr &&
+      elapsedMs(item.startedAt, now) > staleMs
+    ) {
+      return {
+        type: "needsHuman",
+        number: item.number,
+        reason: `開始から ${staleHours} 時間以上、PR ができていません。`,
+      };
+    }
+    return undefined;
   }
 
-  if (WORKING_LABELS.some((label) => item.labels.includes(label))) {
-    const idleMs = now.getTime() - new Date(item.updatedAt).getTime();
-    if (idleMs <= staleHours * 3_600_000) return undefined;
+  if (item.conflicting) return { type: "dispatchFix", number: item.number };
+  if (elapsedMs(item.updatedAt, now) > staleMs) {
     return {
       type: "needsHuman",
       number: item.number,

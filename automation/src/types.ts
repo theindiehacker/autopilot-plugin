@@ -6,6 +6,8 @@ export interface RequiredCheck {
 }
 
 export interface AutopilotConfig {
+  routineGithubUser: string;
+  qa: { start?: string; url?: string };
   review: {
     reviewer: string;
     trigger: "ready_for_review" | "comment" | "none";
@@ -34,10 +36,13 @@ export interface AutopilotConfig {
 
 export const LABELS = {
   ready: "autopilot:ready",
-  doing: "autopilot:doing",
-  qa: "autopilot:qa",
-  fix: "autopilot:fix",
   needsHuman: "needs-human",
 } as const;
 
-export const STATUS = { gate: "autopilot/gate", qa: "autopilot/qa" } as const;
+export const STATUS = { irreversible: "autopilot/irreversible" } as const;
+
+export const MARKERS = {
+  started: "<!-- autopilot:started -->",
+  needsHuman: "<!-- autopilot:needs-human -->",
+  fixRound: "<!-- autopilot:fix-round -->",
+} as const;

@@ -10,6 +10,8 @@ function configWith(
   deploy: Partial<AutopilotConfig["deploy"]>,
 ): AutopilotConfig {
   return {
+    routineGithubUser: "autopilot-bot",
+    qa: {},
     review: { reviewer: "claude[bot]", trigger: "ready_for_review" },
     requiredChecks: [],
     irreversible: { paths: [] },

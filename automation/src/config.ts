@@ -80,6 +80,12 @@ export function parseConfig(yamlText: string): AutopilotConfig {
     return v;
   };
 
+  const routineGithubUser =
+    str(raw, "routine_github_user", "routine_github_user", true) ?? "";
+  const qa = section("qa");
+  const qaStart = str(qa, "qa.start", "start");
+  const qaUrl = str(qa, "qa.url", "url");
+
   // review
   const rv = section("review");
   const reviewer = str(rv, "review.reviewer", "reviewer", true) ?? "";
@@ -190,6 +196,11 @@ export function parseConfig(yamlText: string): AutopilotConfig {
   if (issues.length > 0) throw new ConfigError(issues);
 
   return {
+    routineGithubUser,
+    qa: {
+      ...(qaStart ? { start: qaStart } : {}),
+      ...(qaUrl ? { url: qaUrl } : {}),
+    },
     review: {
       reviewer,
       trigger: trigger as AutopilotConfig["review"]["trigger"],

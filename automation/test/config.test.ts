@@ -1,7 +1,8 @@
 import { expect, test } from "bun:test";
 import { ConfigError, parseConfig } from "../src/config";
 
-const base = `review: {reviewer: claude[bot], trigger: ready_for_review}
+const base = `routine_github_user: autopilot-bot
+review: {reviewer: claude[bot], trigger: ready_for_review}
 approvers: [alice]
 notify: {slack_channel: '#dev'}
 `;
@@ -18,7 +19,7 @@ function issuesOf(yaml: string): string[] {
 
 test("既定値を入れる", () => {
   const c = parseConfig(
-    "review: {reviewer: claude[bot], trigger: ready_for_review}\nrequired_checks: [task test]\napprovers: [alice]\nnotify: {slack_channel: '#dev'}\ndeploy: {mode: none}",
+    "routine_github_user: autopilot-bot\nreview: {reviewer: claude[bot], trigger: ready_for_review}\nrequired_checks: [task test]\napprovers: [alice]\nnotify: {slack_channel: '#dev'}\ndeploy: {mode: none}",
   );
   expect(c.limits).toEqual({
     maxFixRounds: 3,
@@ -51,7 +52,7 @@ test("dispatch なのに workflow が無いと ConfigError", () => {
 
 test("irreversible.paths があるのに approvers が空だと ConfigError", () => {
   const yaml =
-    "review: {reviewer: x, trigger: none}\napprovers: []\nnotify: {slack_channel: '#dev'}\nirreversible: {paths: [infra/**]}\ndeploy: {mode: none}";
+    "routine_github_user: autopilot-bot\nreview: {reviewer: x, trigger: none}\napprovers: []\nnotify: {slack_channel: '#dev'}\nirreversible: {paths: [infra/**]}\ndeploy: {mode: none}";
   expect(issuesOf(yaml).join("\n")).toContain("approvers");
 });
 
@@ -77,4 +78,20 @@ test("dispatch なのに environments が空か無いと ConfigError", () => {
 
 test("mode none は workflow も environments も要らない", () => {
   expect(parseConfig(`${base}deploy: {mode: none}`).deploy.mode).toBe("none");
+});
+
+test("routine_github_user が無いと ConfigError", () => {
+  const yaml = base.replace("routine_github_user: autopilot-bot\n", "");
+  expect(issuesOf(`${yaml}deploy: {mode: none}`).join("\n")).toContain(
+    "routine_github_user",
+  );
+});
+
+test("routine_github_user と qa を読む", () => {
+  const c = parseConfig(
+    `${base}qa: {start: "task dev", url: "http://localhost:3000"}`,
+  );
+  expect(c.routineGithubUser).toBe("autopilot-bot");
+  expect(c.qa).toEqual({ start: "task dev", url: "http://localhost:3000" });
+  expect(parseConfig(base).qa).toEqual({});
 });
