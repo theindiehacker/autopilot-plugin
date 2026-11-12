@@ -4,7 +4,7 @@ commit・push の前の検査 (lefthook の Gitleaks・Semgrep・Trivy。「検�
 対象はリポジトリ全体です。push の前の検査 (Semgrep・Trivy) は、差分ではなくリポジトリ全体を検査します。既存の指摘が 1 つでもあると、関係のない変更でも止まります。commit の前の Gitleaks は、commit に入る差分 (`gitleaks git --staged`) だけを見るため、既存のシークレットは、この手順で全体を検査して見つけます。
 
 ## このプラグインの前提
-- Semgrep の検査は行内の除外 (`nosemgrep`) を読みません (`--disable-nosem`)。除外は、下の除外ファイルで行います
+- 検査は行内の除外 (`nosemgrep`・`gitleaks:allow`) を読みません (`--disable-nosem`・`--ignore-gitleaks-allow`)。除外は、下の除外ファイルだけで行います
 - この手順の全体の検査では、Gitleaks と Trivy は、git に入るファイル (追跡中と、無視していない新規ファイル) だけを検査します (`in-git-files.sh` を通すため)。除外ファイルも git に入れてください
 
 ## 1. 調べる
@@ -14,10 +14,10 @@ commit・push の前の検査 (lefthook の Gitleaks・Semgrep・Trivy。「検�
 bash "${CLAUDE_PLUGIN_ROOT}/scripts/security/setup.sh"
 ```
 
-続けて、全体を検査します。Gitleaks は、commit 前の検査 (`git --staged`) とは違い、全体を見る `dir` で動かします。Semgrep と Trivy は、push 前の検査と同じコマンドです。
+続けて、全体を検査します。Gitleaks は、commit 前の検査 (`git --staged`) とは違い、全体を見る `dir` で動かします。Semgrep と Trivy は、push 前の検査と同じコマンドです (push 前の Semgrep は、指摘 (exit 1) 以外の失敗を通します)。
 
 ```bash
-CLAUDE_PROJECT_DIR="$PWD" bash "${CLAUDE_PLUGIN_ROOT}/scripts/security/in-git-files.sh" gitleaks dir . --redact --verbose --exit-code 1
+CLAUDE_PROJECT_DIR="$PWD" bash "${CLAUDE_PLUGIN_ROOT}/scripts/security/in-git-files.sh" gitleaks dir . --redact --verbose --ignore-gitleaks-allow --exit-code 1
 ```
 
 ```bash

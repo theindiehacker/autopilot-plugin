@@ -30,8 +30,8 @@ ls lefthook.yml lefthook.yaml .lefthook.yml .pre-commit-config.yaml .husky 2>/de
 | ty | `uv run ty check` | |
 | deptry | `uv run deptry src` (src レイアウトでなければ `.`) | `deptry` が dev 依存に無ければ `uv add --dev deptry` |
 | import-linter | `uv run lint-imports` | 設定があるときだけ動く。`import-linter` が dev 依存に無ければ `uv add --dev import-linter` |
-| Gitleaks | `gitleaks git --staged --redact --verbose` | commit に入る差分だけを検査する |
-| Semgrep | `semgrep scan --config p/owasp-top-ten --metrics off --severity ERROR --error --disable-nosem` | |
+| Gitleaks | `gitleaks git --staged --redact --verbose --ignore-gitleaks-allow` | commit に入る差分だけを検査する。`--ignore-gitleaks-allow` は、`gitleaks:allow` のコメントで検査を避けられないようにする |
+| Semgrep | `semgrep scan --config p/owasp-top-ten --metrics off --severity ERROR --error --disable-nosem` | 指摘があるとき (exit 1) だけ止める。ルールを取得できないなどの失敗は、通す。`--disable-nosem` は、`nosemgrep` のコメントで検査を避けられないようにする |
 | Trivy | `trivy fs --scanners vuln,misconfig,secret --severity HIGH,CRITICAL --ignore-unfixed --exit-code 1 .` | |
 
 - リポジトリのタスクランナー (`Taskfile.yml`・`Makefile`・`package.json` の `scripts` など) に同じ検査のコマンドがあれば、ひな形のコマンドではなく、それを呼びます (例: `run: task security:check`)。リポジトリで決めた検査の条件を、二重に書かないためです
@@ -53,11 +53,12 @@ ls lefthook.yml lefthook.yaml .lefthook.yml .pre-commit-config.yaml .husky 2>/de
 
 - 直せない問題が残ったら、exit 2 で出力を Claude に渡し、直させます (編集は取り消しません)
 - 1 行で書いてあるのは、スクリプトを別に置かないためです。ファイルの読み取りに `jq` を使わないのは、Mac に無いことがあるためです
+- ツール (`uv`・ruff・`bunx`・Biome) が無いときや、`pyproject.toml`・`biome.json(c)` が無いときは、何もせず通します (直す問題として Claude に伝えないため)。プロジェクトの外のファイルとシンボリックリンクも見ません
 - `biome.json` がルートに無い (`frontend/biome.json` など) ときは、`[ -f biome.json ]` のパスを直し、`cd` もそのフォルダにします
 - Python の型検査 (ty) は、編集のたびには動かしません。commit 前の検査で動きます
 
 ## 4. 入れて、確かめる
-1. `lefthook install` を動かす (pre-commit なら `pre-commit install`)。`lefthook` が無ければ、`brew install lefthook` か `bun add -d lefthook` で入れる。Web では起動時の処理が行うので、`lefthook.yml` があれば足りる
+1. `lefthook install` を動かす (pre-commit なら `pre-commit install`)。`lefthook` が無ければ、`brew install lefthook` か `bun add -d lefthook` で入れる。Web では起動時の処理が `lefthook install` を行います。PATH の `lefthook`、`node_modules/.bin/lefthook`、`bunx lefthook` の順に探すので、`bun add -d lefthook` で入れておけば動きます (どれも無いと警告が出ます)
 2. わざとシークレットを入れたファイルを作り、`git add` して commit する。Gitleaks が止めれば成功
    ```bash
    printf 'AWS_KEY=AKIA%s\n' Z3MSJV4WWD7QXK2N > leak-test.txt

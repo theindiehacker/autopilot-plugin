@@ -6,7 +6,7 @@
         "hooks": [
           {
             "type": "command",
-            "command": "cd \"$CLAUDE_PROJECT_DIR\"; f=$(sed -n 's/.*\"file_path\": *\"\\([^\"]*\\)\".*/\\1/p' | head -1); [ -f \"$f\" ] || exit 0; case \"$f\" in *.py|*.pyi) uv run ruff check --fix -q \"$f\" > /dev/null; uv run ruff format -q \"$f\"; uv run ruff check -q \"$f\" >&2 || exit 2;; *) [ -f biome.json ] && { bunx biome check --write --no-errors-on-unmatched --files-ignore-unknown=true --colors=off \"$f\" >&2 || exit 2; };; esac; exit 0",
+            "command": "cd \"$CLAUDE_PROJECT_DIR\" || exit 0; f=$(sed -n 's/.*\"file_path\": *\"\\([^\"]*\\)\".*/\\1/p' | head -1); [ -f \"$f\" ] && [ ! -L \"$f\" ] || exit 0; case \"$f\" in \"$CLAUDE_PROJECT_DIR\"/*) ;; *) exit 0;; esac; case \"$f\" in *.py|*.pyi) [ -f pyproject.toml ] && uv run -q ruff --version >/dev/null 2>&1 || exit 0; uv run -q ruff check --fix -q -- \"$f\" >/dev/null; uv run -q ruff format -q -- \"$f\"; uv run -q ruff check -q -- \"$f\" >&2 || exit 2;; *) { [ -f biome.json ] || [ -f biome.jsonc ]; } && bunx biome --version >/dev/null 2>&1 || exit 0; bunx biome check --write --no-errors-on-unmatched --files-ignore-unknown=true --colors=off -- \"$f\" >&2 || exit 2;; esac; exit 0",
             "timeout": 60
           }
         ]
