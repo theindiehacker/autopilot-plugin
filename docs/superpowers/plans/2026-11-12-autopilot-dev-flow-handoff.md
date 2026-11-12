@@ -23,7 +23,9 @@ PC の Claude Code のセッションから、Claude Code on the Web のセッ�
 
 ## 次にすること
 
-1. **残っている指摘を直す:** `scripts/security/in-git-files.sh` の mise の信頼が、コメントの説明より広い。元のリポジトリの設定が信頼済みのときだけ一時フォルダを信頼するか、コメントを正す
+1. **残っている指摘を直す (セキュリティの自動レビュー):**
+   - **HIGH:** `skills/setup/templates/autopilot-workflow.yml` の fix ジョブ (と QA のひな形) が、PR 側の `mise.toml` で `jdx/mise-action` を動かしている。PR が `[env]`・`[hooks]`・`exec(` などで、秘密を持つジョブの中で処理を動かせる。デフォルトブランチの `mise.toml` で道具を入れてから PR を checkout するか、SHA で固定した setup-* の action だけで入れる
+   - **MEDIUM:** `scripts/security/in-git-files.sh` の mise の信頼が、コメントの説明より広い。元のリポジトリの設定が信頼済み (`mise trust --show`) のときだけ一時フォルダを信頼する
 2. **試験 1 の setup の PR を作り直す:** 試験 1 のリポジトリに、setup の PR (ブランチ `chore/autopilot-setup`) が開いている。その後でプラグインを直したので、最新のひな形で作り直す。`{{AUTOPILOT_REF}}` は、このブランチの HEAD の commit の SHA にする
 3. **ユーザーにマージしてもらう**
 4. **setup の残りの手順 (9・10):** ルールセット (GitHub App の ID が要るのでユーザーに聞く)・ワークフローの権限・ルーティン。**ルーティンは Web のセッションでは作れない** (`/schedule` と RemoteTrigger が使えない)。PC の Claude Code か、Web の画面で作ってもらう。作り方は `skills/setup/autopilot.md` の手順 10
