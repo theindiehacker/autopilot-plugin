@@ -19,4 +19,10 @@ copy() {
 TMP=$(mktemp -d) && trap 'rm -rf "$TMP"' EXIT && copy "$TMP" && cd "$TMP" ||
   echo '⚠️ git に入るファイルを一時フォルダに写せなかったので、フォルダ全体を検査します' >&2
 
+# Mac の mise の shim は、一時フォルダの mise.toml を「信頼できない」として拒む。
+# 信頼するのは、この一時フォルダだけ (元の設定の信頼は変えない)
+if [ "$PWD" = "${TMP:-}" ]; then
+  export MISE_TRUSTED_CONFIG_PATHS="$TMP${MISE_TRUSTED_CONFIG_PATHS:+:$MISE_TRUSTED_CONFIG_PATHS}"
+fi
+
 "$@" 1>&2
