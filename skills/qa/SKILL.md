@@ -33,6 +33,13 @@ gh api repos/{owner}/{repo}/pulls/<n> --jq '{body, sha: .head.sha}'
 - 操作の動画は、Playwright の MCP の動画の設定 (`--save-video` など) が使えるときだけ残します。使えなければ、スクリーンショットだけにします
 - API の条件は、`curl` の応答の JSON を残します。playwright の MCP が使えないときは、API の条件だけ `curl` で確かめ、画面の条件は確かめられなかったとして不合格にし、そのことを `summary` に書きます
 - 条件ごとに、手順 (何を押して何を見たか) をメモします
+- 画面や API では確かめられない条件 (テストが通る・CI が通る、など) は、PR の head のコミットの check run を読んで確かめます。`<sha>` は手順 1 の head の SHA です
+  ```bash
+  gh api 'repos/{owner}/{repo}/commits/<sha>/check-runs?per_page=100' --paginate | jq -s '[add.check_runs[] | select(.name != "autopilot QA") | {name, status, conclusion}]'
+  ```
+  - まだ終わっていない check run (`status` が `completed` でない) があれば、1 分ごとに読み直して待ちます。最大 15 分です (QA の job の時間の上限が 30 分のため)
+  - すべて `success`・`skipped`・`neutral` なら、その条件は「通った (CI で確認)」です。`failure`・`cancelled`・`timed_out` が 1 つでもあるか、15 分で終わらなければ「通らなかった」です。どの check run を見たかを、手順のメモに書きます
+  - PR 本文のテストの結果の記載は、確かめた証拠にしません
 
 ### 3. エビデンスを置く
 
@@ -58,5 +65,6 @@ gh api -X POST repos/{owner}/{repo}/issues/<n>/comments -f body="$(cat 結果.md
 
 - すべての条件が通った: `passed: true`、`summary` に 1〜2 行の要約
 - 1 つでも通らない: `passed: false`、`summary` に通らなかった条件と、見たことを書く
+- 確かめられなかった条件 (「未確認」) は、通らなかった条件と同じに数える (`passed: false`)
 - 条件が 1 つも読み取れないときも `passed: false`、理由を `summary` に書く
 - エビデンスを push できなかったときは、そのことも `summary` に書く (`passed` は変えない)
