@@ -33,7 +33,8 @@ jobs:
           permission-pull-requests: write
           permission-issues: write
       # ツールは、PR ではなくデフォルトブランチのファイルで入れる。
-      # PR の mise.toml の [env]・[hooks]・exec は、PR の書いた処理を動かせるため、秘密のある (この後の claude-code-action が持つ) job では動かさない。
+      # PR の mise.toml の [env]・[hooks]・exec は PR の書いた処理を動かせるため、ツールを入れる step と shim (PATH に足さない) では動かさない。
+      # ただし mise-action は、後の step に MISE_TRUSTED_CONFIG_PATHS (ワークスペース) と MISE_YES=1 を渡し、CI=true でもあるので、PR の checkout の後に mise を呼ぶと PR の mise.toml は信頼されて動く
       # そのため、PR が mise.toml でツールの版を変えても、QA はデフォルトブランチの版で動く
       - uses: actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1 # v7.0.1
         with:
