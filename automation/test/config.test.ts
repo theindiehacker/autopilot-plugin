@@ -60,3 +60,21 @@ test("問題をまとめて返す", () => {
     issuesOf(`${base}deploy: {mode: auto}\nlimits: {max_fix_rounds: 0}`).length,
   ).toBe(2);
 });
+
+test("on_merge なのに workflow が無いと ConfigError", () => {
+  expect(issuesOf(`${base}deploy: {mode: on_merge}`).join("\n")).toContain(
+    "deploy.workflow",
+  );
+});
+
+test("dispatch なのに environments が空か無いと ConfigError", () => {
+  const wf = "deploy: {mode: dispatch, workflow: d.yml";
+  expect(issuesOf(`${base}${wf}}`).join("\n")).toContain("deploy.environments");
+  expect(issuesOf(`${base}${wf}, environments: []}`).join("\n")).toContain(
+    "deploy.environments",
+  );
+});
+
+test("mode none は workflow も environments も要らない", () => {
+  expect(parseConfig(`${base}deploy: {mode: none}`).deploy.mode).toBe("none");
+});

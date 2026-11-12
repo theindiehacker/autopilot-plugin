@@ -157,8 +157,9 @@ export function parseConfig(yamlText: string): AutopilotConfig {
     issues.push(`deploy.mode は ${MODES.join(" / ")} のどれかにしてください`);
   }
   const workflow = str(dp, "deploy.workflow", "workflow");
-  if (mode === "dispatch" && !workflow)
-    issues.push("deploy.workflow が必要です (mode が dispatch のとき)");
+  if ((mode === "dispatch" || mode === "on_merge") && !workflow) {
+    issues.push(`deploy.workflow が必要です (mode が ${mode} のとき)`);
+  }
   const inputs: Record<string, string> = {};
   if (dp.inputs !== undefined && dp.inputs !== null) {
     if (!isObj(dp.inputs)) {
@@ -168,6 +169,9 @@ export function parseConfig(yamlText: string): AutopilotConfig {
     }
   }
   const environments = strList(dp, "deploy.environments", "environments");
+  if (mode === "dispatch" && environments.length === 0) {
+    issues.push("deploy.environments が必要です (mode が dispatch のとき)");
+  }
   const verify = str(dp, "deploy.verify", "verify");
   const rollback = str(dp, "deploy.rollback", "rollback");
   const timeoutMinutes = num(
