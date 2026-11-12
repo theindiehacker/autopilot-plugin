@@ -10,6 +10,10 @@ inputs:
   private-key:
     description: GitHub App の秘密鍵
     required: true
+  profile:
+    description: トークンの権限の組。default か deploy (members を読まない) か、irreversible (members の読み取りも要る)
+    required: false
+    default: default
   slack-webhook-url:
     description: Slack の Incoming Webhook の URL
     required: false
@@ -27,8 +31,21 @@ outputs:
 runs:
   using: composite
   steps:
-    # 全コマンドで要る権限だけにする (PR のコードは動かさない)
+    # PR のコードは動かさない。権限は、組ごとに要るものだけにする
     - id: app
+      if: inputs.profile != 'irreversible'
+      uses: actions/create-github-app-token@64ab729a6294000f5aa4a4bc0b73d1f32bc45510 # v3.3.0
+      with:
+        app-id: ${{ inputs.app-id }}
+        private-key: ${{ inputs.private-key }}
+        permission-contents: write
+        permission-pull-requests: write
+        permission-issues: write
+        permission-statuses: write
+        permission-actions: write
+    # 承認者のチームを読むのは irreversible だけ
+    - id: app-members
+      if: inputs.profile == 'irreversible'
       uses: actions/create-github-app-token@64ab729a6294000f5aa4a4bc0b73d1f32bc45510 # v3.3.0
       with:
         app-id: ${{ inputs.app-id }}
@@ -48,7 +65,7 @@ runs:
       working-directory: ${{ github.action_path }}/../../automation
       env:
         AUTOPILOT_COMMAND: ${{ inputs.command }}
-        GITHUB_TOKEN: ${{ steps.app.outputs.token }}
-        AUTOPILOT_APP_SLUG: ${{ steps.app.outputs.app-slug }}
+        GITHUB_TOKEN: ${{ steps.app.outputs.token || steps.app-members.outputs.token }}
+        AUTOPILOT_APP_SLUG: ${{ steps.app.outputs.app-slug || steps.app-members.outputs.app-slug }}
         AUTOPILOT_SLACK_WEBHOOK_URL: ${{ inputs.slack-webhook-url }}
       run: bun run src/cli.ts "$AUTOPILOT_COMMAND"

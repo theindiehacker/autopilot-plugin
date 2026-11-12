@@ -4,11 +4,11 @@ inputs:
   mode:
     description: qa か fix
     required: true
-  app-id:
-    description: GitHub App の ID
+  github-token:
+    description: 先に作った GitHub App のトークン (PR のコードを動かす前に作る。秘密鍵はこの action に渡さない)
     required: true
-  private-key:
-    description: GitHub App の秘密鍵
+  app-slug:
+    description: GitHub App の slug (create-github-app-token の app-slug)
     required: true
   claude-code-oauth-token:
     description: Claude Code の OAuth トークン (anthropic-api-key のどちらか一方でよい)
@@ -52,6 +52,8 @@ runs:
           echo "AUTOPILOT_PROMPT_EOF"
           echo "args<<AUTOPILOT_ARGS_EOF"
           printf '%s' "--allowedTools \"$tools\""
+          # 環境変数や /proc から秘密を出すコマンドを断る (完全な防ぎではない)
+          printf ' %s' "--disallowedTools \"Bash(env:*),Bash(printenv:*),Bash(set),Bash(export -p),Bash(cat /proc/*)\""
           if [ "$MODE" = qa ]; then
             # Playwright の MCP サーバーは版を固定する
             printf ' %s' "--mcp-config '{\"mcpServers\":{\"playwright\":{\"command\":\"npx\",\"args\":[\"-y\",\"@playwright/mcp@0.0.85\",\"--headless\"]}}}'"
@@ -60,32 +62,12 @@ runs:
           echo
           echo "AUTOPILOT_ARGS_EOF"
         } >> "$GITHUB_OUTPUT"
-    # 権限は、モードで要るものだけにする
-    - id: app-qa
-      if: inputs.mode == 'qa'
-      uses: actions/create-github-app-token@64ab729a6294000f5aa4a4bc0b73d1f32bc45510 # v3.3.0
-      with:
-        app-id: ${{ inputs.app-id }}
-        private-key: ${{ inputs.private-key }}
-        permission-contents: write
-        permission-pull-requests: write
-        permission-issues: write
-    - id: app-fix
-      if: inputs.mode == 'fix'
-      uses: actions/create-github-app-token@64ab729a6294000f5aa4a4bc0b73d1f32bc45510 # v3.3.0
-      with:
-        app-id: ${{ inputs.app-id }}
-        private-key: ${{ inputs.private-key }}
-        permission-contents: write
-        permission-pull-requests: write
-        permission-issues: write
-        permission-actions: read
     - id: claude
       uses: anthropics/claude-code-action@4fa93a88de49bbef68b10eb15aabedf28ca0e1ed # v1.0.271
       with:
-        github_token: ${{ steps.app-qa.outputs.token || steps.app-fix.outputs.token }}
+        github_token: ${{ inputs.github-token }}
         # App が起こした実行 (push・ready・sweep) と、レビュアーのボットを通す
-        allowed_bots: ${{ steps.app-qa.outputs.app-slug || steps.app-fix.outputs.app-slug }}[bot],${{ inputs.reviewer-bots }}
+        allowed_bots: ${{ inputs.app-slug }}[bot],${{ inputs.reviewer-bots }}
         claude_code_oauth_token: ${{ inputs.claude-code-oauth-token }}
         anthropic_api_key: ${{ inputs.anthropic-api-key }}
         prompt: ${{ steps.prompt.outputs.prompt }}

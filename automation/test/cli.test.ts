@@ -102,6 +102,8 @@ interface World {
   contentFailures?: Record<string, number>;
   /** 人ごとの collaborator permission (無ければ none) */
   permissions?: Record<string, string>;
+  /** どの SHA でも返す check run */
+  checkRuns?: { name: string; conclusion: string | null }[];
 }
 
 function newWorld(): World {
@@ -208,6 +210,8 @@ function fakeFetch(w: World): typeof fetch {
           w.configs["*"] ??
           CONFIG,
       );
+    if (path.startsWith("/commits/") && path.endsWith("/check-runs"))
+      return Response.json({ check_runs: w.checkRuns ?? [] });
     if (path.startsWith("/commits/"))
       return w.failCommits
         ? new Response("{}", { status: 500 })
@@ -1033,6 +1037,7 @@ test("automerge は clean status で断られたら、直接 squash でマージ
   const w = newWorld();
   w.pulls.push({ number: 1 });
   w.graphqlError = "Pull request is in clean status";
+  w.checkRuns = [{ name: "autopilot QA", conclusion: "success" }];
   const { code } = await run(
     w,
     "automerge",
@@ -1043,6 +1048,28 @@ test("automerge は clean status で断られたら、直接 squash でマージ
   expect(w.merged).toEqual([
     { n: 1, body: { merge_method: "squash", sha: "sha1" } },
   ]);
+});
+
+test("automerge は autopilot QA が success でなければ直接マージしない", async () => {
+  for (const checkRuns of [
+    [],
+    [{ name: "autopilot QA", conclusion: "skipped" }],
+    [{ name: "autopilot QA", conclusion: "failure" }],
+    [{ name: "other", conclusion: "success" }],
+  ]) {
+    const w = newWorld();
+    w.pulls.push({ number: 1 });
+    w.graphqlError = "Pull request is in clean status";
+    w.checkRuns = checkRuns;
+    const { code } = await run(
+      w,
+      "automerge",
+      "pull_request_target",
+      prEvent(1, "opened"),
+    );
+    expect(code).toBe(0);
+    expect(w.merged).toEqual([]);
+  }
 });
 
 test("automerge はそのほかの GraphQL の失敗では直接マージしない (I5)", async () => {

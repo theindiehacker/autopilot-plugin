@@ -30,7 +30,8 @@ jobs:
     if: >-
       (github.event_name == 'pull_request_target'
         && github.event.action != 'labeled' && github.event.action != 'closed')
-      || github.event_name == 'pull_request_review'
+      || (github.event_name == 'pull_request_review'
+        && github.event.pull_request.head.repo.full_name == github.repository)
     runs-on: ubuntu-latest
     concurrency:
       group: autopilot-irreversible-${{ github.event.pull_request.number }}
@@ -40,6 +41,7 @@ jobs:
       - uses: theindiehacker/autopilot-plugin/actions/autopilot@{{AUTOPILOT_REF}}
         with:
           command: irreversible
+          profile: irreversible
           app-id: ${{ secrets.AUTOPILOT_APP_ID }}
           private-key: ${{ secrets.AUTOPILOT_APP_PRIVATE_KEY }}
           slack-webhook-url: ${{ secrets.AUTOPILOT_SLACK_WEBHOOK_URL }}
@@ -51,12 +53,13 @@ jobs:
       && github.event.workflow_run.name == '{{TERRAFORM_PLAN_WORKFLOW}}'
     runs-on: ubuntu-latest
     concurrency:
-      group: autopilot-irreversible-plan-${{ github.event.workflow_run.pull_requests[0].number }}
+      group: autopilot-irreversible-plan-${{ github.event.workflow_run.pull_requests[0].number || github.event.workflow_run.head_sha }}
       cancel-in-progress: true
     steps:
       - uses: theindiehacker/autopilot-plugin/actions/autopilot@{{AUTOPILOT_REF}}
         with:
           command: irreversible
+          profile: irreversible
           app-id: ${{ secrets.AUTOPILOT_APP_ID }}
           private-key: ${{ secrets.AUTOPILOT_APP_PRIVATE_KEY }}
           slack-webhook-url: ${{ secrets.AUTOPILOT_SLACK_WEBHOOK_URL }}
@@ -100,13 +103,17 @@ jobs:
       (github.event_name == 'pull_request_review'
         && github.event.action == 'submitted'
         && github.event.review.state == 'changes_requested'
+        && github.event.pull_request.head.repo.full_name == github.repository
         && (github.event.review.user.type == 'Bot'
           || contains(fromJSON('["OWNER", "MEMBER", "COLLABORATOR"]'), github.event.review.author_association)))
       || (github.event_name == 'workflow_run'
-        && github.event.workflow_run.conclusion == 'failure')
+        && github.event.workflow_run.conclusion == 'failure'
+        && github.event.workflow_run.name != '{{TERRAFORM_PLAN_WORKFLOW}}')
       || github.event_name == 'workflow_dispatch'
     runs-on: ubuntu-latest
     timeout-minutes: 60
+    outputs:
+      run: ${{ steps.round.outputs.run }}
     concurrency:
       group: autopilot-fix-${{ github.event.pull_request.number || github.event.workflow_run.pull_requests[0].number || inputs.pr }}
       cancel-in-progress: false
@@ -122,14 +129,17 @@ jobs:
         run: |
           echo "::error::PR のブランチ名が取れませんでした"
           exit 1
-      # checkout だけに使う。push は claude-code-action が、自分のトークンで行う
+      # トークンは、PR のコードを動かす前に作る。秘密鍵はこの後の step に渡さない
       - id: app
         if: steps.round.outputs.run == 'true'
         uses: actions/create-github-app-token@64ab729a6294000f5aa4a4bc0b73d1f32bc45510 # v3.3.0
         with:
           app-id: ${{ secrets.AUTOPILOT_APP_ID }}
           private-key: ${{ secrets.AUTOPILOT_APP_PRIVATE_KEY }}
-          permission-contents: read
+          permission-contents: write
+          permission-pull-requests: write
+          permission-issues: write
+          permission-actions: read
       # fix-round が、同じリポジトリの autopilot の PR だと確かめている
       - if: steps.round.outputs.run == 'true'
         uses: actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1 # v7.0.1
@@ -141,13 +151,20 @@ jobs:
         uses: theindiehacker/autopilot-plugin/actions/claude@{{AUTOPILOT_REF}}
         with:
           mode: fix
-          app-id: ${{ secrets.AUTOPILOT_APP_ID }}
-          private-key: ${{ secrets.AUTOPILOT_APP_PRIVATE_KEY }}
+          github-token: ${{ steps.app.outputs.token }}
+          app-slug: ${{ steps.app.outputs.app-slug }}
+          reviewer-bots: {{REVIEWER_BOTS}}
           claude-code-oauth-token: ${{ secrets.CLAUDE_CODE_OAUTH_TOKEN }}
           anthropic-api-key: ${{ secrets.ANTHROPIC_API_KEY }}
           pr: ${{ steps.round.outputs.pr }}
-      - if: steps.round.outputs.run == 'true'
-        uses: theindiehacker/autopilot-plugin/actions/autopilot@{{AUTOPILOT_REF}}
+
+  # Claude の Bash が動いた job では、秘密鍵を使わない。ready は別の job で行う
+  ready:
+    needs: fix
+    if: needs.fix.outputs.run == 'true'
+    runs-on: ubuntu-latest
+    steps:
+      - uses: theindiehacker/autopilot-plugin/actions/autopilot@{{AUTOPILOT_REF}}
         with:
           command: ready
           app-id: ${{ secrets.AUTOPILOT_APP_ID }}
@@ -184,6 +201,7 @@ jobs:
       - uses: theindiehacker/autopilot-plugin/actions/autopilot@{{AUTOPILOT_REF}}
         with:
           command: deploy
+          profile: deploy
           app-id: ${{ secrets.AUTOPILOT_APP_ID }}
           private-key: ${{ secrets.AUTOPILOT_APP_PRIVATE_KEY }}
           slack-webhook-url: ${{ secrets.AUTOPILOT_SLACK_WEBHOOK_URL }}

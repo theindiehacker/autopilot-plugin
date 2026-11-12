@@ -67,6 +67,10 @@ export interface GitHubClient {
   getRepo(): Promise<RepoInfo>;
   getPull(n: number): Promise<Pull>;
   /** admin / write / read / none (maintain は write に入る) */
+  /** SHA の最新の check run の名前と結論 */
+  listCheckRuns(
+    sha: string,
+  ): Promise<{ name: string; conclusion: string | null }[]>;
   getPermission(login: string): Promise<string>;
   listPullFiles(n: number): Promise<string[]>;
   listReviews(n: number): Promise<Review[]>;
@@ -224,6 +228,15 @@ export function createGitHubClient(opts: {
   return {
     getRepo: () => json("GET", repoPath),
     getPull: (n) => json("GET", `${repoPath}/pulls/${n}`),
+    listCheckRuns: async (sha) =>
+      (
+        await paginate<{ name: string; conclusion: string | null }>(
+          `${repoPath}/commits/${sha}/check-runs?filter=latest`,
+          (p) =>
+            (p as { check_runs: { name: string; conclusion: string | null }[] })
+              .check_runs,
+        )
+      ).map(({ name, conclusion }) => ({ name, conclusion })),
     getPermission: async (login) =>
       (
         await json<{ permission: string }>(
