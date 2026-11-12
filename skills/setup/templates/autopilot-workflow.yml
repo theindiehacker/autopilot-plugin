@@ -143,6 +143,25 @@ jobs:
           permission-pull-requests: write
           permission-issues: write
           permission-actions: read
+      # ツールは、PR ではなくデフォルトブランチのファイルで入れる。
+      # PR の mise.toml の [env]・[hooks]・exec は、PR の書いた処理を動かせるため、秘密のある (この後の claude-code-action が持つ) job では動かさない。
+      # そのため、PR が mise.toml でツールの版を変えても、対応はデフォルトブランチの版で動く
+      - if: steps.round.outputs.run == 'true'
+        uses: actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1 # v7.0.1
+        with:
+          ref: ${{ github.event.repository.default_branch }}
+          persist-credentials: false
+      # リポジトリが固定したツール (bun・uv・task など) を入れる。shim は PATH に足さない
+      # (shim があると、PR のフォルダで mise の管理するツールを呼ぶたびに、PR の mise.toml が読まれて動く。ツールの PATH は export_path で足される)
+      - name: ツールを入れる (mise)
+        if: steps.round.outputs.run == 'true' && hashFiles('mise.toml', '.mise.toml') != ''
+        uses: jdx/mise-action@b44d12e7d0d8ee7461bb893e1b1993500433185b # v5.2.7
+        with:
+          add_shims_to_path: false
+      - if: steps.round.outputs.run == 'true' && hashFiles('mise.toml', '.mise.toml') == '' && hashFiles('bun.lock', 'bun.lockb') != ''
+        uses: oven-sh/setup-bun@0c5077e51419868618aeaa5fe8019c62421857d6 # v2.2.0
+      - if: steps.round.outputs.run == 'true' && hashFiles('mise.toml', '.mise.toml') == '' && hashFiles('uv.lock') != ''
+        uses: astral-sh/setup-uv@68559e99cc807c1eb7e9238fd43a15bba460eec2 # v10.3.3
       # fix-round が、同じリポジトリの autopilot の PR だと確かめている
       - if: steps.round.outputs.run == 'true'
         uses: actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1 # v7.0.1
@@ -150,14 +169,6 @@ jobs:
           token: ${{ steps.app.outputs.token }}
           ref: ${{ steps.round.outputs.ref }}
           persist-credentials: false
-      # リポジトリが固定したツール (bun・uv・task など) を入れる。トークンを作った後、PR のコードを動かす前に行う
-      - name: ツールを入れる (mise)
-        if: steps.round.outputs.run == 'true' && hashFiles('mise.toml', '.mise.toml') != ''
-        uses: jdx/mise-action@b44d12e7d0d8ee7461bb893e1b1993500433185b # v5.2.7
-      - if: steps.round.outputs.run == 'true' && hashFiles('mise.toml', '.mise.toml') == '' && hashFiles('bun.lock', 'bun.lockb') != ''
-        uses: oven-sh/setup-bun@0c5077e51419868618aeaa5fe8019c62421857d6 # v2.2.0
-      - if: steps.round.outputs.run == 'true' && hashFiles('mise.toml', '.mise.toml') == '' && hashFiles('uv.lock') != ''
-        uses: astral-sh/setup-uv@68559e99cc807c1eb7e9238fd43a15bba460eec2 # v10.3.3
       - if: steps.round.outputs.run == 'true'
         uses: theindiehacker/autopilot-plugin/actions/claude@{{AUTOPILOT_REF}}
         with:
