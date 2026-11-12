@@ -9,12 +9,14 @@ export interface Pull {
   number: number;
   node_id: string;
   title: string;
+  body: string | null;
   html_url: string;
   state: string;
   draft: boolean;
   merged: boolean;
   merge_commit_sha: string | null;
   mergeable_state?: string;
+  created_at: string;
   updated_at: string;
   user: { login: string };
   labels: { name: string }[];
@@ -80,6 +82,7 @@ export interface GitHubClient {
   addLabels(n: number, labels: string[]): Promise<void>;
   removeLabel(n: number, label: string): Promise<void>;
   createComment(n: number, body: string): Promise<void>;
+  updatePullBody(n: number, body: string): Promise<void>;
   createIssue(input: {
     title: string;
     body: string;
@@ -288,6 +291,9 @@ export function createGitHubClient(opts: {
     },
     createComment: async (n, body) => {
       await call("POST", `${repoPath}/issues/${n}/comments`, { body });
+    },
+    updatePullBody: async (n, body) => {
+      await call("PATCH", `${repoPath}/pulls/${n}`, { body });
     },
     createIssue: async (input) =>
       (await json<{ number: number }>("POST", `${repoPath}/issues`, input))

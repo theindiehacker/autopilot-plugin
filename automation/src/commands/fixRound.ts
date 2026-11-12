@@ -52,9 +52,11 @@ export async function fixRound(ctx: Ctx): Promise<void> {
     ctx.setOutput("run", "false");
     return;
   }
+  // 開発中の Draft には対応しない (空の commit の CI の失敗などで、開発と同じブランチに push しないため)
   if (
     !isAutopilotPull(pull, ctx.repo) ||
-    hasLabel(pull.labels, LABELS.needsHuman)
+    hasLabel(pull.labels, LABELS.needsHuman) ||
+    pull.body?.includes(MARKERS.developing)
   ) {
     ctx.setOutput("run", "false");
     return;

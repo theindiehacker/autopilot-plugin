@@ -29,6 +29,9 @@ interface PullData {
   reviews?: unknown[];
   mergeable_state?: string;
   updated_at?: string;
+  body?: string | null;
+  created_at?: string;
+  state?: string;
 }
 
 interface RunData {
@@ -104,6 +107,8 @@ interface World {
   permissions?: Record<string, string>;
   /** どの SHA でも返す check run */
   checkRuns?: { name: string; conclusion: string | null }[];
+  /** PATCH /pulls/{n} で書き換えた本文 */
+  pullBodies: { n: number; body: string }[];
 }
 
 function newWorld(): World {
@@ -125,6 +130,7 @@ function newWorld(): World {
     events: [],
     runGetFailures: 0,
     slackCalls: 0,
+    pullBodies: [],
   };
 }
 
@@ -141,7 +147,9 @@ function pullJson(p: PullData) {
     node_id: `node${p.number}`,
     title: p.title ?? `PR ${p.number}`,
     html_url: `https://github.com/o/r/pull/${p.number}`,
-    state: "open",
+    state: p.state ?? "open",
+    body: p.body ?? null,
+    created_at: p.created_at ?? "2026-11-12T00:00:00Z",
     draft: p.draft ?? false,
     merged: p.merged ?? false,
     merge_commit_sha: "merge123",
@@ -189,6 +197,7 @@ function fakeFetch(w: World): typeof fetch {
     }
     if (url.pathname === "/graphql") {
       w.graphql.push(body.query);
+      w.events.push("ready");
       if (w.graphqlError)
         return Response.json({ errors: [{ message: w.graphqlError }] });
       return Response.json({ data: {} });
@@ -272,6 +281,15 @@ function fakeFetch(w: World): typeof fetch {
     if (pullNo !== undefined && method === "PUT" && path.endsWith("/merge")) {
       w.merged.push({ n: pullNo, body });
       return Response.json({ merged: true });
+    }
+    if (
+      pullNo !== undefined &&
+      method === "PATCH" &&
+      path === `/pulls/${pullNo}`
+    ) {
+      w.events.push("patch");
+      w.pullBodies.push({ n: pullNo, body: body.body });
+      return Response.json({});
     }
     if (pullNo !== undefined && path.endsWith("/files") && w.failPullFiles)
       return new Response("{}", { status: 500 });
@@ -1867,4 +1885,142 @@ test("deploy のほかのコマンドは、設定を読めなければ、やり�
   expect(w.urls.filter((u) => u === "GET /repos/o/r")).toHaveLength(1);
   expect(w.createdIssues).toHaveLength(0);
   expect(w.slack).toHaveLength(0);
+});
+
+const DEVELOPING = "<!-- autopilot:developing -->";
+const DEVELOPED = "<!-- autopilot:developed -->";
+const DRAFT_BODY = `開発中です。\n\nCloses #4\n\n${DEVELOPING}`;
+
+const developedEvent = (
+  over: Record<string, unknown> = {},
+  login = "routine-user",
+  body = `${DEVELOPED}\n## 概要\n\nできました\n\nCloses #4`,
+) => ({
+  action: "created",
+  issue: { number: 4, pull_request: {}, ...over },
+  comment: { body, user: { login } },
+});
+
+test("developed は PR の本文を書き換えてから、レビュー可能にする", async () => {
+  const w = newWorld();
+  w.pulls.push({ number: 4, draft: true, body: DRAFT_BODY });
+  const { code } = await run(w, "developed", "issue_comment", developedEvent());
+  expect(code).toBe(0);
+  expect(w.pullBodies).toEqual([
+    { n: 4, body: "## 概要\n\nできました\n\nCloses #4" },
+  ]);
+  expect(w.graphql).toHaveLength(1);
+  expect(w.events).toEqual(["patch", "ready"]);
+});
+
+test("developed は本文に developing の印を入れない", async () => {
+  const w = newWorld();
+  w.pulls.push({ number: 4, draft: true, body: DRAFT_BODY });
+  await run(
+    w,
+    "developed",
+    "issue_comment",
+    developedEvent({}, "Routine-User", `x\n${DEVELOPING}\n${DEVELOPED}\ny`),
+  );
+  expect(w.pullBodies[0]?.body).toBe("x\n\n\ny");
+  expect(w.graphql).toHaveLength(1);
+});
+
+test("developed は条件を満たさないとき、何もしない", async () => {
+  const draft = { number: 4, draft: true, body: DRAFT_BODY };
+  const cases: [string, Record<string, unknown>, unknown][] = [
+    ["持ち主でない人のコメント", draft, developedEvent({}, "mallory")],
+    ["Draft でない", { ...draft, draft: false }, developedEvent()],
+    ["developing の印が無い", { ...draft, body: "開発中" }, developedEvent()],
+    ["本文が無い", { ...draft, body: null }, developedEvent()],
+    ["開いていない", { ...draft, state: "closed" }, developedEvent()],
+    [
+      "autopilot の PR でない",
+      { ...draft, ref: "feature/x" },
+      developedEvent(),
+    ],
+    [
+      "別のリポジトリのブランチ",
+      { ...draft, repo: "fork/r" },
+      developedEvent(),
+    ],
+    [
+      "PR へのコメントでない",
+      draft,
+      { ...developedEvent(), issue: { number: 4 } },
+    ],
+    ["印が無いコメント", draft, developedEvent({}, "routine-user", "できた")],
+    ["作成以外の action", draft, { ...developedEvent(), action: "edited" }],
+    [
+      "印だけで本文が空",
+      draft,
+      developedEvent({}, "routine-user", `  ${DEVELOPED}\n `),
+    ],
+  ];
+  for (const [name, pull, event] of cases) {
+    const w = newWorld();
+    w.pulls.push(pull as unknown as { number: number });
+    const { code } = await run(w, "developed", "issue_comment", event);
+    expect([name, code]).toEqual([name, 0]);
+    expect([name, w.pullBodies, w.graphql]).toEqual([name, [], []]);
+  }
+});
+
+test("fix-round は開発中 (developing の印がある) の PR では run=false", async () => {
+  const w = newWorld();
+  w.pulls.push({ number: 4, draft: true, body: DRAFT_BODY });
+  w.issues.push({ number: 4 });
+  const { output } = await run(w, "fix-round", "workflow_dispatch", {
+    inputs: { pr: "4" },
+    sender: APP,
+  });
+  expect(output).toContain("run=false");
+  expect(commentsOf(w, 4)).toHaveLength(0);
+});
+
+const READY_EVENTS = [
+  {
+    event: "labeled",
+    created_at: "2026-11-12T08:00:00Z",
+    label: { name: "autopilot:ready" },
+  },
+];
+
+test("sweep は、ラベルより後に作られた開発の PR を、開始とみなす", async () => {
+  const w = newWorld();
+  // 開始から 24 時間をこえても PR がある (hasPr) ので、止めない。付け直しもしない
+  w.issues.push({
+    number: 14,
+    labels: ["autopilot:ready"],
+    events: READY_EVENTS,
+  });
+  w.pulls.push({
+    number: 20,
+    ref: "autopilot/14-dev",
+    draft: true,
+    created_at: "2026-11-12T08:05:00Z",
+    updated_at: "2026-11-12T11:00:00Z",
+  });
+  await run(w, "sweep", "schedule", {});
+  expect(w.removed).toEqual([]);
+  expect(w.issues[0]?.labels).toEqual(["autopilot:ready"]);
+  expect(commentsOf(w, 14)).toHaveLength(0);
+});
+
+test("sweep は、ラベルより前に作られた PR を、開始とみなさない", async () => {
+  const w = newWorld();
+  w.issues.push({
+    number: 15,
+    labels: ["autopilot:ready"],
+    events: READY_EVENTS,
+  });
+  w.pulls.push({
+    number: 21,
+    ref: "autopilot/15-dev",
+    created_at: "2026-11-12T07:00:00Z",
+    updated_at: "2026-11-12T11:00:00Z",
+  });
+  await run(w, "sweep", "schedule", {});
+  // 開始の印が無いものとして、付け直す
+  expect(w.removed).toEqual(["/issues/15/labels/autopilot%3Aready"]);
 });

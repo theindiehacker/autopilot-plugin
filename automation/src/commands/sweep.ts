@@ -23,7 +23,16 @@ async function issueItem(
       c.body.includes(MARKERS.started) &&
       Date.parse(c.created_at) >= Date.parse(readyLabeledAt),
   );
-  const startedAt = started.at(-1)?.created_at;
+  // 開発は、開発の Draft PR を作って始まる。ラベルより前の PR は、前の試みのもの
+  const developing = pulls.filter(
+    (p) =>
+      p.head.ref.startsWith(`autopilot/${issue.number}-`) &&
+      Date.parse(p.created_at) >= Date.parse(readyLabeledAt),
+  );
+  const startedAt = [...started, ...developing]
+    .map((x) => x.created_at)
+    .sort((a, b) => Date.parse(a) - Date.parse(b))
+    .at(-1);
   return {
     kind: "issue",
     number: issue.number,
