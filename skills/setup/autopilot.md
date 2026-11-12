@@ -19,12 +19,11 @@ gh label create needs-human --force --color D93F0B --description "止まった�
 | `{{QA_START}}`・`{{QA_URL}}` | interview の「アプリの起動」 |
 | `{{REVIEWER}}` | interview の「Claude のレビュー」の bot。Claude なら `claude[bot]` |
 | `{{CI_CHECK}}` | interview の「必須にするチェック」(survey の CI のジョブ名)。1 つずつ行を足す。0 件なら、この行ごと消す (下の「CI の必須のチェック」) |
-| `{{IRREVERSIBLE_PATH}}` | interview の「取り消せない変更」のパス |
-| `{{TERRAFORM_PLAN_ARTIFACT}}` | 手順 6 で決めた artifact 名 (Terraform の apply がマージで動くときだけ) |
-| `{{APPROVER}}` | interview の「承認する人」 |
-| `{{SLACK_CHANNEL}}`・`{{APPROVER_SLACK_MENTION}}` | interview の「Slack の通知先」 |
+| `{{SLACK_CHANNEL}}` | interview の「Slack の通知先」 |
 
-当てはまらない項目 (取り消せない変更が無ければ `irreversible` と `approvers` など) は、行ごと消します。`required_checks` には、`autopilot QA`・`autopilot/irreversible` を残します。
+当てはまらない項目は、行ごと消します。`required_checks` には、`autopilot QA` を残します。
+
+デプロイがあるときは、interview の「人の承認が要るパス」のうち、ロールバックで戻せないもの (マイグレーションなど) を、`deploy.irreversible_paths` に glob で書きます (例: `backend/migration/versions/**`)。このパスを変えた PR は、デプロイの確認に失敗しても、自動で戻しません。
 
 ### `qa.start`
 `qa.start` は、アプリを **background で起動して、すぐ終わる**コマンドにします。起動したまま終わらないコマンド (`bun run dev` だけなど) だと、ワークフローの step が終わらず、QA が進みません。
@@ -38,7 +37,7 @@ gh label create needs-human --force --color D93F0B --description "止まった�
 ### CI の必須のチェック
 CI のジョブがすべて `paths:` で飛ぶか、Draft の PR を飛ばすときは、毎回は結果を報告しないため、そのまま必須にできません (必須にすると、報告されない PR が永遠に待ちになる)。次のようにします。
 
-1. `autopilot QA` と `autopilot/irreversible` は、これまでどおり必須のままにする
+1. `autopilot QA` は、これまでどおり必須のままにする
 2. 常に動く集約のジョブを、CI のワークフローに足すことをユーザーに提案する。`needs:` に、絞り込みのあるジョブを並べ、`if: always()` で必ず動かし、1 つでも失敗か取り消しなら失敗にする。`paths:` で飛んだジョブ (skipped) は、失敗に数えない。この集約のジョブ名を、`{{CI_CHECK}}` に入れる
 
 ```yaml
@@ -55,7 +54,7 @@ CI のジョブがすべて `paths:` で飛ぶか、Draft の PR を飛ばすと
 ```
 
    ワークフロー自体が `on.pull_request.paths:` で絞られていると、集約のジョブも動きません。その場合は、`paths:` をワークフローから外し、各ジョブの手前で変更を見分ける形 (`dorny/paths-filter` など。SHA で固定する) に直す案を見せます。Draft の PR を飛ばすジョブは、集約のジョブには `if: always()` だけを付け (Draft を飛ばさない)、結果を必ず出します
-3. ユーザーが集約のジョブを足さないと答えたら、CI のチェックは必須にしません。このとき、`.github/autopilot.yml` の `required_checks` から `- "{{CI_CHECK}}"` の行を**消し** (空の文字列や、プレースホルダーのまま残さない)、`autopilot QA`・`autopilot/irreversible` の 2 つだけにします。手順 9 のルールセットでも、CI のチェックの行を入れません。CI の失敗は、`workflow_run` の `fix` ジョブが拾うので、自動マージは止まりませんが、CI の結果でマージが止まらないことを、PR の本文に書きます
+3. ユーザーが集約のジョブを足さないと答えたら、CI のチェックは必須にしません。このとき、`.github/autopilot.yml` の `required_checks` から `- "{{CI_CHECK}}"` の行を**消し** (空の文字列や、プレースホルダーのまま残さない)、`autopilot QA` だけにします。手順 9 のルールセットでも、CI のチェックの行を入れません。CI の失敗は、`workflow_run` の `fix` ジョブが拾うので、自動マージは止まりませんが、CI の結果でマージが止まらないことを、PR の本文に書きます
 
 ## 3. ワークフローを 2 つ書く
 | 書くファイル | ひな形 |
@@ -70,15 +69,13 @@ QA を別のファイルにするのは、別のイベントで起きた実行�
 | 置き換える文字列 | 値 |
 |---|---|
 | `{{AUTOPILOT_REF}}` | プラグインのリリースの**コミットの SHA (40 文字)** と、続けて ` # v<version>`。ブランチ名・タグ名は入れない (動く中身が、後から変わってしまうため)。`<version>` は `.claude-plugin/plugin.json` の version。例: `uses: theindiehacker/autopilot-plugin/actions/claude@0123abcd… # v1.2.3` |
-| `{{CI_WORKFLOWS}}` | CI のワークフロー名と `autopilot-qa` の YAML の配列。例: `["ci", "autopilot-qa"]`。Terraform の plan のワークフローがあれば、その名前も足す |
-| `{{TERRAFORM_PLAN_WORKFLOW}}` | Terraform の plan のワークフロー名。無ければ `(none)` |
+| `{{CI_WORKFLOWS}}` | CI のワークフロー名と `autopilot-qa` の YAML の配列。例: `["ci", "autopilot-qa"]` |
 | `{{QA_START}}` | `qa.start` と同じコマンド |
 | `{{QA_MCP_SERVERS}}` | アプリが MCP サーバーを出していれば (survey の compose・README・CI)、`{"<名前>":{"type":"http","url":"<URL>"}}`。無ければ `{}`。そのサービスも `qa.start` で起動し、`qa.start` の最後で応答を確かめる (例: `tools/list` を curl で送る。CI に同じ確かめがあれば、それを踏襲する)。QA のワークフローと、`autopilot.yml` の `fix` の job (直した後の動作確認) の 2 か所に同じ値を入れる |
 | `{{REVIEWER_BOTS}}` | Claude のレビューの bot。既定は `claude` |
 | `{{REVIEWER}}` | `.github/autopilot.yml` の `review.reviewer` と同じ値。例 `claude[bot]` |
 
 - QA のワークフロー (`autopilot-qa.yml`) と、`fix` ジョブ (`autopilot.yml`) は、アプリやテストを動かす前に、リポジトリが固定したツールを入れます。`mise.toml` (`.mise.toml`) があれば `jdx/mise-action` (bun・uv・task など、mise が入れるものすべて)。無ければ、`bun.lock` があるとき `oven-sh/setup-bun`、`uv.lock` があるとき `astral-sh/setup-uv` です。どれも SHA で固定してあり、ひな形のままでよい。ほかのツール (Node・Go など) が要るときは、同じ位置に setup の step を足します。トークンは、これらより前に作ってあり、PR のコードを動かす前という順を崩さないでください
-- Terraform の plan が無いリポジトリでは、`# TERRAFORM_PLAN:BEGIN` から `# TERRAFORM_PLAN:END` までの行を消します
 - `autopilot QA` は、必ず必須のチェックにします。自動マージが QA の成功を待つためです
 - 書いたら `actionlint` で確かめます
 - リポジトリの CI がワークフローを ghalint・zizmor などで検査していれば、同じ版を手元で動かして通します (版は survey.md で見た CI から取る)。ひな形は ghalint v1.6.0 で通ります
@@ -105,18 +102,21 @@ QA を別のファイルにするのは、別のイベントで起きた実行�
 
 ワークフローの変更なので、この PR で人が承認します。actions は、SHA で固定し、`# vX.Y.Z` を付けます。
 
-## 6. Terraform の plan の JSON を残す
-Terraform の apply がマージで動くときだけ行います。plan のワークフローに、plan の JSON を artifact で残す step を足し、その名前を `irreversible.terraform_plan_artifact` に書きます。artifact には、JSON のファイル 1 つだけを入れます。
+## 6. CODEOWNERS を書く
+[templates/CODEOWNERS](templates/CODEOWNERS) から、interview の「人の承認が要るパスと、その持ち主」で `.github/CODEOWNERS` を書きます。手順 9 のルールセットの「コードオーナーのレビューを必須」と合わせて、ここに書いたパスを変える PR は、持ち主が Approve するまでマージされません。
 
-```yaml
-      - run: terraform show -json tfplan > plan.json
-      - uses: actions/upload-artifact@cf430e030ddbb5b0abf93d22962f4752f3646cd9 # v7.0.2
-        with:
-          name: terraform-plan
-          path: plan.json
-```
+| 文字列 | 値 |
+|---|---|
+| `{{MIGRATION_PATH}}` | マイグレーションのフォルダ。例: `/backend/migration/versions/` |
+| `{{TERRAFORM_PATH}}` | Terraform のフォルダ。例: `/infrastructure/` |
+| `{{OWNER}}` | 持ち主。GitHub のユーザー名 (`@user`) か team (`@org/team`)。複数なら空白で区切る |
 
-`tfplan` は、そのワークフローの `terraform plan -out` のファイル名に合わせます。
+- 初めの値は、autopilot を動かすファイル (`.github/`・`.claude/`・`.mcp.json`・git の hook の設定) と、マイグレーション・Terraform です。autopilot を動かすファイルを入れるのは、AI の PR が、人の承認なしに、自分の検査・ワークフロー・設定を変えられないようにするためです (`.github/` に、この CODEOWNERS 自身も入る)
+- git の hook の設定 (`lefthook.yml`・`.lefthook.yml`・`lefthook.yaml`・`.pre-commit-config.yaml`・`.husky/`) は、リポジトリに無いものの行を消します。分からなければ、すべて残します
+- マイグレーションや Terraform が無ければ、その行を消します。interview でほかのパスが挙がれば、行を足します
+- 書き方は GitHub の CODEOWNERS の形 (`.gitignore` に近い) で、`deploy.irreversible_paths` の glob とは違います
+- 持ち主には、リポジトリへの書き込みの権限が要ります (GitHub の決まり)
+- 持ち主への承認の依頼は、Slack ではなく GitHub のレビューの依頼で届きます (GitHub の Slack 連携を入れれば、Slack にも出せます)
 
 ## 7. ユーザーに頼むこと
 画面でしかできないことを、手順を示して頼みます。1 つ終えるごとに、できたかを聞きます。
@@ -182,15 +182,14 @@ org では、シークレットを org のシークレット (`--visibility sele
 ### 権限の照らし合わせ
 | App の権限 | 値 | 使うところ |
 |---|---|---|
-| Contents・Pull requests・Issues・Commit statuses・Actions | Read and write | ラベル・コメント・ステータス・自動マージ・push・ワークフローの起動 |
+| Contents・Pull requests・Issues・Actions | Read and write | ラベル・コメント・自動マージ・push・ワークフローの起動 |
 | Variables (リポジトリ) | Read and write | ロールバックのワークフローが、戻す元のリビジョンを変数 `AUTOPILOT_BAD_REVISIONS` に記録する |
 | Checks | Read | 必須のチェックの結果 |
 | Metadata | Read | 常に付く |
-| Organization の Members | Read | 承認する人の team を読む (`irreversible`) |
 
 画面で作るとき (7-B の 3 で開けないとき) は、作成の画面を、個人のアカウントなら `https://github.com/settings/apps/new`、org なら `https://github.com/organizations/<org>/settings/apps/new` として、manifest の権限を、画面で同じにしてもらいます。
 
-作り終えたら (7-A で見つけた App も同じ)、App の設定の「Permissions & events」の画面を見せてもらい (または、スクリーンショットか、`gh api` で読める範囲の値)、上の表と 1 つずつ照らします。すでに App があるリポジトリや、7-A で見つけた App で、Variables (Read and write) が足りなければ、App の設定で足してもらいます (足したら、導入先で権限の更新を承認してもらう)。ロールバックを入れないなら、要りません。違いがあれば直してもらいます。App の ID も控えてもらいます (手順 9 で使います)。
+作り終えたら (7-A で見つけた App も同じ)、App の設定の「Permissions & events」の画面を見せてもらい (または、スクリーンショットか、`gh api` で読める範囲の値)、上の表と 1 つずつ照らします。すでに App があるリポジトリや、7-A で見つけた App で、Variables (Read and write) が足りなければ、App の設定で足してもらいます (足したら、導入先で権限の更新を承認してもらう)。ロールバックを入れないなら、要りません。違いがあれば直してもらいます。
 
 | シークレット | 内容 |
 |---|---|
@@ -208,18 +207,17 @@ SKILL.md の「PR を作る」の節のとおりに、ここまでの変更を 1
 - ユーザーがすること (まだ終えていないシークレット・App・Webhook・Web の環境)
 - マージした後に、setup がルールセットとルーティンを作ること
 
-PR を作ったら、ユーザーにマージを頼み、マージされるのを待ちます。ルールセットとルーティンは、**マージの後**に作ります。ワークフローがデフォルトブランチに入るまで、`autopilot QA` と `autopilot/irreversible` は報告されません。先に必須にすると、この PR が永遠に待ちになります。マージされたら、`git fetch` でデフォルトブランチを更新してから、次に進みます。
+PR を作ったら、ユーザーにマージを頼み、マージされるのを待ちます。ルールセットとルーティンは、**マージの後**に作ります。ワークフローがデフォルトブランチに入るまで、`autopilot QA` は報告されません。先に必須にすると、この PR が永遠に待ちになります。マージされたら、`git fetch` でデフォルトブランチを更新してから、次に進みます。
 
 ## 9. ルールセットを作る (マージの後)
 1. 必須にするチェックが、PR ごとに必ず結果を出すかを確かめます。
-   - `autopilot QA` と `autopilot/irreversible` は、ひな形のワークフローに `paths:` の絞り込みが無く、PR ごとに必ず報告します。setup は、この 2 つのワークフローに `paths:` や `paths-ignore:` を足しません
-   - CI のジョブは、`paths:` で飛ぶものを必須にしません。飛ぶものは、必須にしないか、いつも動くジョブにまとめます (手順 2 の「CI の必須のチェック」)。全部の CI がこれに当たるときも、`autopilot QA`・`autopilot/irreversible` は必須のままにします
-2. 今あるルールセットを見ます。リポジトリのものは `gh api repos/{o}/{r}/rulesets`、組織のものは `gh api orgs/{org}/rulesets` (権限が無ければ、`gh api repos/{o}/{r}/rules/branches/<デフォルトブランチ>` が、組織のものを含めた、いま効いているルールを返す) で読みます。デフォルトブランチに効いているルール (必須のレビューの人数・必須のチェック・マージ方法) を一覧にし、すでに満たしているものは、新しいルールセットに書きません (例: 組織が承認 1 人を要求していれば、`pull_request` のルールは足さない。人数が足りなければ、そのルールだけを足す)。あれば、新しく作らず、足りないものだけを足す案を見せます。組織のルールセットは変えません
+   - `autopilot QA` は、ひな形のワークフローに `paths:` の絞り込みが無く、PR ごとに必ず報告します。setup は、autopilot の 2 つのワークフローに `paths:` や `paths-ignore:` を足しません
+   - CI のジョブは、`paths:` で飛ぶものを必須にしません。飛ぶものは、必須にしないか、いつも動くジョブにまとめます (手順 2 の「CI の必須のチェック」)。全部の CI がこれに当たるときも、`autopilot QA` は必須のままにします
+2. 今あるルールセットを見ます。リポジトリのものは `gh api repos/{o}/{r}/rulesets`、組織のものは `gh api orgs/{org}/rulesets` (権限が無ければ、`gh api repos/{o}/{r}/rules/branches/<デフォルトブランチ>` が、組織のものを含めた、いま効いているルールを返す) で読みます。デフォルトブランチに効いているルール (必須のレビューの人数・コードオーナーのレビュー・必須のチェック・マージ方法) を一覧にし、すでに満たしているものは、新しいルールセットに書きません (例: 組織が承認 1 人とコードオーナーのレビューを要求していれば、`pull_request` のルールは足さない。足りなければ、足りないものだけを足す)。あれば、新しく作らず、足りないものだけを足す案を見せます。組織のルールセットは変えません
 3. 作ります。チェック名は、survey.md と `.github/autopilot.yml` の値にします。`integration_id` で、チェックを出す側を固定します。同じ名前のチェックを、ほかのアプリや PR のコードが出しても、数えません。
 
 | チェック | `integration_id` |
 |---|---|
-| `autopilot/irreversible` | autopilot の GitHub App の ID (手順 7 で控えたもの。App のページか `AUTOPILOT_APP_ID` と同じ) |
 | `autopilot QA`・CI のジョブ | GitHub Actions の `15368` |
 
 ```bash
@@ -233,15 +231,14 @@ gh api -X POST repos/{o}/{r}/rulesets --input - <<'JSON'
     { "type": "pull_request", "parameters": {
         "required_approving_review_count": 1,
         "dismiss_stale_reviews_on_push": true,
-        "require_code_owner_review": false,
+        "require_code_owner_review": true,
         "require_last_push_approval": false,
         "required_review_thread_resolution": false } },
     { "type": "required_status_checks", "parameters": {
         "strict_required_status_checks_policy": false,
         "required_status_checks": [
           { "context": "<CI のジョブ名>", "integration_id": 15368 },
-          { "context": "autopilot QA", "integration_id": 15368 },
-          { "context": "autopilot/irreversible", "integration_id": <App の ID> }
+          { "context": "autopilot QA", "integration_id": 15368 }
         ] } }
   ]
 }
@@ -249,8 +246,7 @@ JSON
 gh api -X PATCH repos/{o}/{r} -F allow_auto_merge=true
 ```
 
-4. 最初の autopilot の PR で、`autopilot/irreversible` (App が付けるコミットステータス) が、ルールセットの `integration_id` の固定で受け付けられるかを確かめます。GitHub が App が付けたものと見なさず、必須のチェックが満たされないときは、その 1 つだけ固定を外し、ユーザーに伝えます
-5. ワークフローの既定の権限を、読み取りだけにし、Actions が PR を Approve することを禁じます。
+4. ワークフローの既定の権限を、読み取りだけにし、Actions が PR を Approve することを禁じます。
 
 ```bash
 gh api -X PUT repos/{o}/{r}/actions/permissions/workflow \

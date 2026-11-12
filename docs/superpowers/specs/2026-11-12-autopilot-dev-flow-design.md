@@ -32,7 +32,7 @@ Issue を起票すれば、Claude Code が開発・テスト・レビュー・QA
 
 **失敗とみなすこと (動いても失敗)**
 
-- 取り消せない変更が、人間の承認なしにマージ・デプロイされる
+- 取り消せない変更が、人間の承認なしにマージ・デプロイされる (CODEOWNERS とルールセットの「コードオーナーのレビューを必須」で守る。4.6)
 - 権限の無い人 (社外の人を含む) が書いた Issue だけで起動する
 - 止まらずに回り続けて、費用が漏れる
 - superpowers など、同梱のプラグインにあるスキルを autopilot で作り直す
@@ -42,10 +42,10 @@ Issue を起票すれば、Claude Code が開発・テスト・レビュー・QA
 
 #41〜#45 もこの方針に従う。
 
-- 人間が承認するのは、取り消せない操作だけ (マイグレーション・データの削除・課金・メール送信・取り消せないインフラの操作など)。どれが当たるかは、AI に判断させず、設定ファイルのルールでコードが決める
+- 人間が承認するのは、取り消せない操作だけ (マイグレーション・データの削除・課金・メール送信・取り消せないインフラの操作など) と、autopilot を動かすファイルの変更。どれが当たるかは、AI に判断させず、CODEOWNERS に書いたパスで決める (GitHub が持ち主の承認を求める)
 - 完了・マージの条件は「失敗しうる検査がすべて通ること」
 - 止まる条件を決める (4.4)
-- 毎回同じ答えになる作業 (ラベルの付け替え・見回り・取り消せない変更の確認・自動マージの有効化) は、AI なしの GitHub Actions で行う
+- 毎回同じ答えになる作業 (ラベルの付け替え・見回り・自動マージの有効化) は、AI なしの GitHub Actions で行う。取り消せない変更の確認は、GitHub の標準の仕組み (CODEOWNERS とルールセット) で行う
 - リポジトリに置くものは最小にする。GitHub Actions は autopilot-plugin の再利用ワークフローを呼ぶだけにし、ルーティンのプロンプトは `/autopilot:〇〇` を呼ぶだけにする
 - 会社ごとに違う部分は、`/autopilot:setup` が聞いてから提案・設定する
 - 同梱のプラグインにあるスキルは使い、作り直さない。autopilot が作るのは、それらをつなぐ部分だけ
@@ -63,7 +63,7 @@ Issue を起票すれば、Claude Code が開発・テスト・レビュー・QA
 | レビュー | GitHub Actions (既存の Claude のレビュー) | claude[bot] が Approve か Request changes を出す |
 | QA | GitHub Actions のジョブ (claude-code-action) | アプリを起動して受入条件を確かめ、エビデンスを PR に載せる。ジョブの成否が結果 |
 | 指摘への対応 | GitHub Actions のジョブ (claude-code-action) | Request changes・CI や QA の失敗・コンフリクトを直して push し、返信する |
-| 取り消せない変更の確認 | GitHub Actions (AI なし) | 承認する人の Approve があるまで、ステータス `autopilot/irreversible` を待ちにする |
+| 取り消せない変更の確認 | GitHub の標準の仕組み | CODEOWNERS に書いたパスを変える PR は、持ち主の Approve があるまでマージできない (ルールセットの「コードオーナーのレビューを必須」) |
 | マージ | GitHub の標準の仕組み | 必須のチェック・必須のレビュー・自動マージ |
 | 見回り・通知・状態の変更 | GitHub Actions (AI なし) | ラベル・自動マージの有効化・Draft の切り替え・Slack |
 
@@ -92,9 +92,9 @@ autopilot の PR は、同じリポジトリのブランチ `autopilot/<Issue �
 2. 開発のルーティンが起動する。REST で Issue のラベルを読み、`autopilot:ready` が無いか `needs-human` があれば、何もせずに終える。始めたら、デフォルトブランチから `autopilot/<番号>-dev` を作って空の commit を push し、本文に `Closes #<番号>` と `<!-- autopilot:developing -->` を入れた Draft PR を作る (GitHub のプロジェクトの画面で、作業中の Issue が見える。ブランチ名を番号だけで決めるので、ほぼ同時に 2 つ起動しても、後の push は断られる)
 3. 受入条件を Issue にコメントする (ヒアリングしないと分からないときは、4.4 のとおり聞いて止まる。小さな選択は自分で決め、決めたことを書く)。その条件を確かめるテストを書き、直す前のコードで失敗するのを確かめてから実装する。ユニット・受入・E2E テストを通す
 4. 同じブランチに push する。人と同じく、レビューを頼む前に、アプリを起動して受入条件を 1 つずつ確かめ (`skills/qa/self-check.md`)、スクリーンショット・録画・JSON を PR の本文の `## 動作確認 (<sha7>)` に書く。続けて、開発のルーティンが GitHub の MCP (`update_pull_request`) で、PR の本文 (動作確認・判断の理由・試してだめだった方法・テストの結果。最後の行は `Closes #<番号>`) を書き換え、「レビュー可能」にする。断られたら `needs-human` で止まる
-5. PR が「レビュー可能」になると、GitHub Actions で Claude のレビュー・QA のジョブが動く。QA のジョブは、コードを書いていない別の Claude が、別の環境で受入条件を確かめ直す (必須のチェック) (CI・`autopilot/irreversible` は Draft のときから動く)。autopilot の PR では自動マージが有効になる
+5. PR が「レビュー可能」になると、GitHub Actions で Claude のレビュー・QA のジョブが動く。QA のジョブは、コードを書いていない別の Claude が、別の環境で受入条件を確かめ直す (必須のチェック) (CI は Draft のときから動く)。CODEOWNERS のパスを変える PR では、GitHub が持ち主にレビューを頼む。autopilot の PR では自動マージが有効になる
 6. Request changes・CI の失敗・QA の失敗・コンフリクトがあれば、対応のジョブが動く。PR の本文の記録と指摘を読み、指摘ごとに採否を決め、直して push し、返信する。Claude のレビューが PR を Draft に戻していれば、GitHub Actions が「レビュー可能」に戻す
-7. 必須のチェックと必須のレビュー (claude[bot] の Approve) がそろうと、GitHub の自動マージでマージされる
+7. 必須のチェックと必須のレビュー (claude[bot] の Approve。CODEOWNERS のパスを変える PR では、持ち主の Approve も) がそろうと、GitHub の自動マージでマージされる
 8. マージの後、設定に書いたデプロイを動かし、本番で確かめる (4.8)
 
 ### 4.4 止まる条件
@@ -117,18 +117,19 @@ autopilot の PR は、同じリポジトリのブランチ `autopilot/<Issue �
 
 GitHub の標準の仕組みで決める。setup が、リポジトリのルールセットに次を設定する。
 
-- **必須のチェック:** 設定に書いた CI のジョブ・QA のジョブ・`autopilot/irreversible`。必須にするチェックは、PR ごとに必ず結果が出るものにする (`paths:` で飛ぶジョブは必須にしないか、いつも動くジョブにまとめる。setup が確かめる)
-- **必須のレビュー:** 1 件。claude[bot] の Approve が数えられることは確かめ済み。push の後は、古い Approve を取り消す
+- **必須のチェック:** 設定に書いた CI のジョブ・QA のジョブ。必須にするチェックは、PR ごとに必ず結果が出るものにする (`paths:` で飛ぶジョブは必須にしないか、いつも動くジョブにまとめる。setup が確かめる)
+- **必須のレビュー:** 1 件。claude[bot] の Approve が数えられることは確かめ済み。push の後は、古い Approve を取り消す。コードオーナーのレビューを必須にする (下の CODEOWNERS)
 - **自動マージ:** autopilot の PR では、GitHub Actions が有効にする (Web のセッションでは GraphQL を使えないため)
 
-**`autopilot/irreversible` (GitHub Actions、AI なし):** 取り消せない変更 (4.7) を含む PR では、承認する人が最新のコミットを Approve するまで、ステータスを待ちにする。承認する人ごとに最新の判定だけを数え、PR の作者は除く。待っているあいだは、承認する人に Slack で一度だけ知らせる。取り消せない変更が無ければ、すぐに成功にする。autopilot 以外の PR でも同じように動く。
+**CODEOWNERS (GitHub の標準の仕組み):** setup が `.github/CODEOWNERS` に、人の承認が要るパス (4.7) と、その持ち主 (GitHub のユーザー名か team) を書く。ルールセットの「コードオーナーのレビューを必須」で、そのパスを変える PR は、持ち主の Approve があるまでマージされない。持ち主は人なので、claude[bot] の Approve だけではマージされない。PR の作者は、自分の PR を Approve できない。持ち主には、GitHub がレビューの依頼を知らせる (Slack には送らない。GitHub の Slack 連携を入れれば、Slack にも出せる)。autopilot 以外の PR でも同じように効く。
 
 ### 4.7 取り消せない変更の見分け方
 
-設定ファイルに書いたルールで、コードが見分ける。setup が会社ごとに聞いて書く。
+人の承認が要るパスを、setup が会社ごとに聞いて CODEOWNERS に書く。AI には判断させない。
 
-- **パス:** 例 `backend/migration/versions/**`、`**/migrations/*.sql`
-- **Terraform:** PR の plan に、削除 (delete) か作り直し (replace) がある。plan を JSON で出し、`resource_changes[].change.actions` を見る。マージで apply するリポジトリで使う
+- **autopilot を動かすファイル:** `.github/` (ワークフロー・設定・CODEOWNERS 自身)・`.claude/`・`.mcp.json`・git の hook の設定 (`lefthook.yml`・`.lefthook.yml`・`lefthook.yaml`・`.pre-commit-config.yaml`・`.husky/`)。AI の PR が、人の承認なしに、自分の検査・ワークフロー・設定を変えられないようにするため。前の版の「いつも取り消せない変更とみなすパス」(計画の R19) は、ここに移った
+- **マイグレーション:** 例 `/backend/migration/versions/`
+- **Terraform:** 例 `/infrastructure/`。apply がマージで動くと、Approve の後に取り消せない操作が自動で走る。setup は、apply を手動のワークフローか別のリポジトリにする案を勧める (作りはしない。2 章の「デプロイの仕組みを新しく作らない」)。plan を読んで削除を見分けることはしない
 - **そのほか:** 会社が挙げたもの (課金・メール送信のコードのパスなど)
 
 ### 4.8 デプロイ
@@ -144,7 +145,7 @@ GitHub の標準の仕組みで決める。setup が、リポジトリのルー�
 - **デプロイ後の確認:** 設定に書いたコマンドか URL (ヘルスチェック、本番に対する簡単な E2E など)
 - **ロールバック:** 設定に書いたワークフローかコマンド。無いときは、setup が作るかを提案する (Cloud Run のトラフィックを前のリビジョンに戻す、など)
 - **確認に失敗したとき:** ロールバックし、Slack で知らせる (4.11)。直す作業のために、原因を書いた Issue を `autopilot:ready` 付きで作る (この Issue は AI が直すためのもので、人に知らせるためのものではない)。同じ原因で 2 回続いたら `needs-human` を付けて、Slack で知らせる
-- **取り消せない変更を含むデプロイの確認に失敗したとき:** 自動でロールバックしない。マイグレーションや Terraform の削除が済んだ後にコードだけ戻すと、新しいスキーマと合わずに壊れることがあり、ロールバック自体が取り消せない操作になりうるため。`needs-human` を付けた Issue を作り、Slack で承認する人に知らせる。マイグレーションが必ず後方互換になっている会社 (列の削除を次のリリースに回すなど) は、設定でこの場合も自動のロールバックを選べる
+- **取り消せない変更を含むデプロイの確認に失敗したとき:** 自動でロールバックしない。マイグレーションや Terraform の削除が済んだ後にコードだけ戻すと、新しいスキーマと合わずに壊れることがあり、ロールバック自体が取り消せない操作になりうるため。取り消せない変更を含むかは、マージした PR が、設定の `deploy.irreversible_paths` (glob) に合うファイルを変えたかで決める。`needs-human` を付けた Issue を作り、Slack の設定のチャンネルに知らせる。マイグレーションが必ず後方互換になっている会社 (列の削除を次のリリースに回すなど) は、設定でこの場合も自動のロールバックを選べる
 
 ### 4.9 GitHub の操作で注意すること
 
@@ -153,7 +154,7 @@ GitHub の標準の仕組みで決める。setup が、リポジトリのルー�
 - Web のセッション (ルーティンを含む) では、GraphQL が使えない。`gh pr`・`gh issue` は動かず、`gh api` (REST) だけが使える ([cloud-environments](https://code.claude.com/docs/en/cloud-environments.md))
 - ルーティンでは、REST でのラベル・ステータスの書き込みが自動モードに拒否される。`.claude/settings.json` で許可しても変わらない。REST でのブランチ作成は、GitHub のプロキシに拒否される。コメントは書ける
 - そのため、ルーティンが GitHub に書くのは、git push・PR の作成・コメントと、GitHub の MCP での PR の本文の書き換え・Draft の切り替え (9.1 の 5) だけにする。ラベル・自動マージは GitHub Actions が行う
-- GitHub Actions の `GITHUB_TOKEN` で行った操作では、ほかのワークフローが起動しない (`workflow_dispatch`・`repository_dispatch` を除く)。自動マージを `GITHUB_TOKEN` で有効にすると、マージの push で main の CI もデプロイも動かない。また、承認する人が team に入っているかも確かめられない
+- GitHub Actions の `GITHUB_TOKEN` で行った操作では、ほかのワークフローが起動しない (`workflow_dispatch`・`repository_dispatch` を除く)。自動マージを `GITHUB_TOKEN` で有効にすると、マージの push で main の CI もデプロイも動かない
 - そのため、autopilot の GitHub Actions と claude-code-action は、会社ごとに作る GitHub App のトークンで操作する (6.2)。App のトークンで付けたラベルでルーティンが起動することは、確かめ済み
 
 ### 4.10 エビデンス
@@ -178,14 +179,14 @@ GitHub の標準の仕組みで決める。setup が、リポジトリのルー�
 
 | いつ | 種類 | 誰に |
 |---|---|---|
-| 取り消せない変更を含む PR が、承認を待っている | 依頼 | 承認する人 |
 | `needs-human` が付いた (4.4) | 依頼 | 設定のチャンネル |
-| 取り消せない変更を含むデプロイの確認に失敗した (ロールバックしていない) | 依頼 | 設定のチャンネルと、承認する人 |
+| 取り消せない変更を含むデプロイの確認に失敗した (ロールバックしていない) | 依頼 | 設定のチャンネル |
 | デプロイ後の確認に失敗し、ロールバックした | 報告 | 設定のチャンネル |
 | Issue の対応が終わった (マージした。デプロイがあれば本番で確認した) | 報告 | 設定のチャンネル |
 
 - 送るのは GitHub Actions (AI なし)。Slack の Incoming Webhook の URL をシークレットに入れて使う
 - 通知には、PR・デプロイのログ・Issue へのリンクと、何が起きたかを 2〜3 行で書く
+- 人の承認の依頼 (CODEOWNERS のパスを変える PR) だけは、Slack ではなく、GitHub のレビューの依頼で持ち主に届く。GitHub の Slack 連携を入れれば、Slack にも出せる
 
 ### 4.12 検査の hook (lint・型検査・シークレット・脆弱性)
 
@@ -214,12 +215,6 @@ required_checks:
   - task style:check
   - task test
   - task dev:e2e
-irreversible:
-  paths:
-    - backend/migration/versions/**
-  terraform_plan_job: terraform-plan   # plan を JSON で出すジョブ。無ければ書かない
-approvers:
-  - <GitHub のユーザー名か team>
 routine_github_user: <ルーティンの持ち主の GitHub のユーザー名>   # コメントの印を受け付ける相手
 qa:
   start: docker compose up --build -d --wait   # GitHub Actions でアプリを起動するコマンド
@@ -235,6 +230,7 @@ deploy:
   environments: [production]
   verify: curl -fsS https://example.com/healthz
   rollback: rollback.yml
+  irreversible_paths: [backend/migration/versions/**]   # このパスを変えた PR は、確認に失敗しても自動で戻さない
 ```
 
 項目の名前と形は、作る人が決めてよい。
@@ -256,7 +252,7 @@ deploy:
 
 | もの | 内容 |
 |---|---|
-| composite action `actions/autopilot` | AI なしの処理 (`irreversible`・`automerge`・`label`・`sweep`・`deploy`・`fix-round`)。`automation/` の TypeScript を Bun で動かす |
+| composite action `actions/autopilot` | AI なしの処理 (`automerge`・`label`・`sweep`・`deploy`・`fix-round`)。`automation/` の TypeScript を Bun で動かす |
 | QA のジョブ | claude-code-action でアプリを起動し、受入条件を確かめる |
 | 対応のジョブ | claude-code-action で指摘と失敗を直す。動く前に `fix-round` で回数を確かめ、上限なら Claude を動かさずに止める |
 | Claude のレビュー | 無いリポジトリには、`theindiehacker/github-workflows` の claude-code-review を呼ぶワークフローを置く |
@@ -288,21 +284,21 @@ deploy:
 
 1. **調べる:** 技術スタック・CI・Claude のレビュー・デプロイ・DB とマイグレーション・IaC・compose・ルールセット・デフォルトブランチ・Renovate・`.claude/`
 2. **聞く:** 7.3 の項目。調べて分かったことは、確かめるだけにする
-3. **提案する:** 変える内容の一覧を見せる。技術スタックが方針と違うときは、モダンな技術スタックへの移行 (npm → bun など) を推奨として提案し、移行するかはユーザーが選ぶ
+3. **提案する:** 変える内容の一覧を見せる。技術スタックが方針と違うときは、モダンな技術スタックへの移行 (npm → bun など) を推奨として提案し、移行するかはユーザーが選ぶ。Terraform の apply がマージで動くなら、手動のワークフローか別のリポジトリにする案を勧める (作りはしない)
 4. **変える:** 技術スタックの移行・Web で Docker・検査 (4.12)・シークレットと脆弱性の手順に加えて、次を行う
    - CI と Claude のレビューが無ければ用意する
    - ラベルを 2 つ作る
    - `.github/autopilot.yml` を書く
    - autopilot のワークフロー (6.2) を置く
    - ロールバックが無く、デプロイがあるなら、作るかを提案する
-   - Terraform の apply がマージで動くなら、plan の JSON を artifact で残すジョブを足す
+   - `.github/CODEOWNERS` を書く (4.7)
 5. **人に頼む:** 画面でしかできないことの手順を示す
    - クラウドの環境 (セットアップスクリプト・ネットワーク・環境変数)
    - Claude の GitHub App の導入
    - autopilot 用の GitHub App の作成と導入 (setup が、要る権限を入れた作成の画面へ案内する)
    - Slack の Incoming Webhook の作成
    - シークレットの登録 (GitHub App・Slack・claude-code-action の認証)
-6. **ルールセットを作る:** 4.6 のとおり (必須のチェック・必須のレビュー 1 件・push で古い Approve を取り消す)。org のルールセットは変えず、変える必要があればユーザーに伝える
+6. **ルールセットを作る:** 4.6 のとおり (必須のチェック・必須のレビュー 1 件・push で古い Approve を取り消す・コードオーナーのレビューを必須)。org のルールセットは変えず、変える必要があればユーザーに伝える
 7. **ルーティンを作る:** 6.3 の 1 つ。ルーティンはいまログインしている claude.ai アカウントのものになるので、選んだアカウントでログインしているかを先に確かめる
 8. **PR を作る:** 変更を 1 つの PR にまとめる
 
@@ -316,9 +312,9 @@ deploy:
 | Claude のレビュー | 既存のものを使うか。起動のしかた (自動・コメント) |
 | Web の環境でアプリを起動できるか | GPU・クラウドの認証情報が要るときの QA のしかた |
 | デプロイ | 方式 (4.8)・環境の順番・確認のしかた・ロールバックのしかた |
-| 取り消せない変更 | マイグレーションのパス・Terraform の apply の方針・そのほか |
-| 承認する人 | GitHub のユーザー名か team |
-| Slack の通知先 | チャンネル。承認する人の Slack のメンション |
+| 人の承認が要るパスと、その持ち主 | CODEOWNERS。初めの値は、autopilot を動かすファイル・マイグレーション・Terraform (4.7)。持ち主は GitHub のユーザー名か team |
+| Terraform の apply の方針 | マージで動くか。動くなら、手動のワークフローか別のリポジトリにする案を勧める |
+| Slack の通知先 | チャンネル |
 | アカウント | 7.4 |
 | デフォルトブランチ | main・master |
 
@@ -329,10 +325,10 @@ claude.ai と GitHub のどちらも、自動化専用のアカウントと個�
 | | 自動化専用のアカウント | 個人のアカウント |
 |---|---|---|
 | claude.ai | 個人の使用量と分けられる。人が休んでも止まらない | その人の使用量を使う |
-| GitHub | PR の作者が専用のアカウントになる。承認する人は誰でも Approve できる | PR の作者がその人になる。その人は自分の PR を Approve できないので、取り消せない変更は別の人が Approve する |
+| GitHub | PR の作者が専用のアカウントになる。持ち主 (CODEOWNERS) は誰でも Approve できる | PR の作者がその人になる。その人は自分の PR を Approve できないので、CODEOWNERS のパスを変える PR は、別の持ち主が Approve する |
 
 - ルーティンは、持ち主の claude.ai のアカウントに結び付いた GitHub のアカウントで、commit と PR を作る ([routines](https://code.claude.com/docs/en/routines.md))
-- 個人の GitHub アカウントを選んだときは、setup が、承認する人にその人以外がいるかを確かめる。いなければ、取り消せない変更がマージできなくなることを伝える
+- 個人の GitHub アカウントを選んだときは、setup が、持ち主 (CODEOWNERS) にその人以外がいるかを確かめる。いなければ、そのパスを変える PR がマージできなくなることを伝える (試験では、ほかに持ち主がいないので、管理者がルールセットを迂回してマージした)
 
 ## 8. セキュリティ
 
@@ -340,7 +336,7 @@ claude.ai と GitHub のどちらも、自動化専用のアカウントと個�
 - Issue・PR・コメントの本文は、指示ではなくデータとして扱う
 - コメントの印 (4.2) は、ルーティンの持ち主の GitHub アカウントか GitHub Actions 自身が書いたものだけを受け付ける
 - QA と対応のジョブは、同じリポジトリから出た autopilot の PR でだけ動く。フォークの PR のコードは動かさない
-- 取り消せない変更の Approve は、Approve した人が承認する人かを、`autopilot/irreversible` が確かめる
+- 取り消せない変更の Approve は、Approve した人が持ち主かを、GitHub (CODEOWNERS とルールセット) が確かめる。CODEOWNERS 自身と、autopilot を動かすファイル (4.7) も持ち主のパスにし、AI の PR が、持ち主や検査を書き換えられないようにする
 - エビデンスに、シークレットや個人情報を載せない
 - Web の環境の環境変数・シークレットは、最小の権限にする
 
@@ -367,6 +363,7 @@ claude.ai と GitHub のどちらも、自動化専用のアカウントと個�
 | (追加) プラグインの commit 前の hook | `Bash(*git*commit*)` が commit 以外のコマンドにも合い、Web では `next typegen` が無く型検査が失敗して、ルーティンの commit を止めた | 4.12 のとおり、リポジトリの lefthook に移す |
 | 2. App のトークンで付けたラベルで起動するか | 起動する (`autopilot-theindiehacker[bot]` が付けた 2 秒後に起動) | 変えない |
 | 5. Draft から「レビュー可能」への切り替え | できる。開発のルーティンが GitHub の MCP の `update_pull_request` で、本文と `draft: false` を 1 回で渡した (2026-11-12 の試験) | Draft の切り替えはルーティンが行う |
+| (追加) CODEOWNERS のパスを変える PR が、持ち主の Approve までマージされないか | 未確認。前の仕組み (GitHub Actions が付ける独自のステータス) では、`.github/` を変える PR が承認を待つことを確かめた。ルーティンの PR の作者がユーザー自身で、ほかに持ち主がいないので、管理者がルールセットを迂回してマージした | 試験 (10 章) で、CODEOWNERS の形でも確かめる |
 | (追加) ルーティンからの git push と PR の作成 | 未確認 (Web の環境の古いプラグインの hook が push を止めた)。新しいプラグインを入れた環境で、試験 (10 章) の最初に確かめる | — |
 
 ## 10. 試験
@@ -384,9 +381,9 @@ claude.ai と GitHub のどちらも、自動化専用のアカウントと個�
 ## 11. 完了の条件
 
 - 試験用のリポジトリで、`autopilot:ready` を付けた Issue から、人が触らずに PR のマージまで進む。デプロイのあるリポジトリでは、本番へのデプロイと確認まで進む
-- 取り消せない変更を含む PR は、承認する人が Approve するまでマージされない
+- CODEOWNERS のパスを変える PR は、持ち主が Approve するまでマージされない
 - QA のエビデンス (スクリーンショット・動画・JSON) が PR から見られる
-- 承認の依頼・`needs-human`・デプロイの失敗・対応の完了が、Slack に届く
+- `needs-human`・デプロイの失敗・対応の完了が、Slack に届く。承認の依頼は、GitHub のレビューの依頼で持ち主に届く
 - 対応が上限を超えるか、同じ失敗が 2 回出ると止まり、`needs-human` が付く
 - `autopilot:ready` が無い Issue (社外の人の Issue を含む) では起動しない
 - 構成の違う他社のリポジトリで、setup の聞き取りと提案が、そのリポジトリの構成に合っている
@@ -407,6 +404,8 @@ claude.ai と GitHub のどちらも、自動化専用のアカウントと個�
 - `/autopilot:onboard` を `/autopilot:setup` に改名する
 - autopilot の GitHub Actions は、会社ごとに作る GitHub App のトークンで操作する
 - 取り消せない変更の承認は、PR の Approve で受け付ける
+- 取り消せない変更の確認は、GitHub Actions が付ける独自のステータスをやめ、CODEOWNERS とルールセットの「コードオーナーのレビューを必須」で行う。初めのパスは、autopilot を動かすファイル・マイグレーション・Terraform。Terraform の apply は、手動のワークフローか別のリポジトリにする案を勧める (2026-11-12)
+- デプロイで自動で戻さない判定は、設定の `deploy.irreversible_paths` のパスで決める
 - 人があとで確かめられるように、スクリーンショット・動画・JSON などのエビデンスを PR に載せる
 - 人への依頼や報告は、すべて Issue ではなく Slack に通知する (人は Issue を見ないため)
 - 確かめと試験は、ユーザーの個人の claude.ai アカウントで動かす。運用では、個人か自動化専用かを選べるようにする
@@ -417,7 +416,6 @@ claude.ai と GitHub のどちらも、自動化専用のアカウントと個�
 
 - ラベルの名前と、コメントの印で状態を伝えること (4.2)
 - 対応の上限 3 回、見回りの 1 時間ごと・30 分・3 時間
-- 取り消せない変更の確認を、ステータス `autopilot/irreversible` にすること
 - デプロイの 3 つの方式と、確認に失敗したときに Issue を作ること
 - 設定ファイルの場所 `.github/autopilot.yml`
 - AI なしの処理を composite action にして、autopilot-plugin に置くこと
