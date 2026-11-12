@@ -8,6 +8,24 @@ import {
   sameLogin,
 } from "./context";
 
+// 対応を起こせるのは、設定のレビュアー・App・書き込み権限のある人だけ
+async function mayStartFix(ctx: Ctx): Promise<boolean> {
+  const bot = (login: string) => sameLogin(login, ctx.botLogin);
+  let login: string | undefined;
+  if (ctx.eventName === "pull_request_review") {
+    login = ctx.event.review?.user?.login;
+    if (login && sameLogin(login, ctx.config.review.reviewer)) return true;
+  } else if (ctx.eventName === "workflow_dispatch") {
+    login = ctx.event.sender?.login;
+  } else {
+    return true;
+  }
+  if (!login) return false;
+  if (bot(login)) return true;
+  const permission = await ctx.gh.getPermission(login);
+  return permission === "admin" || permission === "write";
+}
+
 export async function fixRound(ctx: Ctx): Promise<void> {
   const n = eventNumber(ctx.event);
   if (n === undefined) {
@@ -15,6 +33,10 @@ export async function fixRound(ctx: Ctx): Promise<void> {
     return;
   }
   ctx.setOutput("pr", String(n));
+  if (!(await mayStartFix(ctx))) {
+    ctx.setOutput("run", "false");
+    return;
+  }
   const pull = await ctx.gh.getPull(n);
   if (
     !isAutopilotPull(pull, ctx.repo) ||
@@ -40,5 +62,6 @@ export async function fixRound(ctx: Ctx): Promise<void> {
     return;
   }
   await ctx.gh.createComment(n, `${MARKERS.fixRound} 対応 ${rounds + 1} 回目`);
+  ctx.setOutput("ref", pull.head.ref);
   ctx.setOutput("run", "true");
 }

@@ -1,0 +1,49 @@
+# pull_request だけで動かす。ほかのイベントと同じファイルに置くと、
+# 別のイベントで起きた実行で "autopilot QA" が skipped になり、
+# 必須のチェックとして通ってしまう
+name: autopilot-qa
+
+on:
+  pull_request:
+    types: [opened, synchronize, reopened, ready_for_review]
+
+permissions:
+  contents: read
+
+jobs:
+  qa:
+    name: autopilot QA
+    if: >-
+      github.event.pull_request.head.repo.full_name == github.repository
+      && startsWith(github.event.pull_request.head.ref, 'autopilot/')
+      && !github.event.pull_request.draft
+    runs-on: ubuntu-latest
+    timeout-minutes: 30
+    concurrency:
+      group: autopilot-qa-${{ github.event.pull_request.number }}
+      cancel-in-progress: true
+    steps:
+      # checkout だけに使う。push は claude-code-action が、自分のトークンで行う
+      - id: app
+        uses: actions/create-github-app-token@64ab729a6294000f5aa4a4bc0b73d1f32bc45510 # v3.3.0
+        with:
+          app-id: ${{ secrets.AUTOPILOT_APP_ID }}
+          private-key: ${{ secrets.AUTOPILOT_APP_PRIVATE_KEY }}
+          permission-contents: read
+      # ref を指定せず、マージした結果 (refs/pull/N/merge) を検査する。
+      # マージ後の動きを確かめられ、head の SHA を直接 checkout しない
+      - uses: actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1 # v7.0.1
+        with:
+          token: ${{ steps.app.outputs.token }}
+          persist-credentials: false
+      - name: アプリを起動する
+        run: |
+          {{QA_START}}
+      - uses: theindiehacker/autopilot-plugin/actions/claude@{{AUTOPILOT_REF}}
+        with:
+          mode: qa
+          app-id: ${{ secrets.AUTOPILOT_APP_ID }}
+          private-key: ${{ secrets.AUTOPILOT_APP_PRIVATE_KEY }}
+          claude-code-oauth-token: ${{ secrets.CLAUDE_CODE_OAUTH_TOKEN }}
+          anthropic-api-key: ${{ secrets.ANTHROPIC_API_KEY }}
+          pr: ${{ github.event.pull_request.number }}

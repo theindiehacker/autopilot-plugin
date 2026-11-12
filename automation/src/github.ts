@@ -66,6 +66,8 @@ export interface ArtifactInfo {
 export interface GitHubClient {
   getRepo(): Promise<RepoInfo>;
   getPull(n: number): Promise<Pull>;
+  /** admin / write / read / none (maintain は write に入る) */
+  getPermission(login: string): Promise<string>;
   listPullFiles(n: number): Promise<string[]>;
   listReviews(n: number): Promise<Review[]>;
   listIssueEvents(n: number): Promise<IssueEvent[]>;
@@ -222,6 +224,13 @@ export function createGitHubClient(opts: {
   return {
     getRepo: () => json("GET", repoPath),
     getPull: (n) => json("GET", `${repoPath}/pulls/${n}`),
+    getPermission: async (login) =>
+      (
+        await json<{ permission: string }>(
+          "GET",
+          `${repoPath}/collaborators/${encodeURIComponent(login)}/permission`,
+        )
+      ).permission,
     listPullFiles: async (n) =>
       (
         await paginate<{ filename: string }>(`${repoPath}/pulls/${n}/files`)

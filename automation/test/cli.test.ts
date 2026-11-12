@@ -100,6 +100,8 @@ interface World {
   failRepo?: boolean;
   /** ref ごとに、設定の読み取りが 500 になる回数 */
   contentFailures?: Record<string, number>;
+  /** 人ごとの collaborator permission (無ければ none) */
+  permissions?: Record<string, string>;
 }
 
 function newWorld(): World {
@@ -189,6 +191,9 @@ function fakeFetch(w: World): typeof fetch {
         return Response.json({ errors: [{ message: w.graphqlError }] });
       return Response.json({ data: {} });
     }
+    const perm = path.match(/^\/collaborators\/([^/]+)\/permission$/)?.[1];
+    if (perm !== undefined)
+      return Response.json({ permission: w.permissions?.[perm] ?? "none" });
     if (path === "" && w.failRepo) return new Response("{}", { status: 500 });
     if (path === "")
       return Response.json({ default_branch: "main", full_name: "o/r" });
@@ -412,6 +417,8 @@ async function run(
   return { code, output: readFileSync(outPath, "utf8") };
 }
 
+const APP = { login: "app[bot]" };
+
 const prEvent = (n: number, action: string) => ({
   action,
   pull_request: { number: n },
@@ -546,6 +553,7 @@ test("fix-round は上限で needs-human を付け、run=false を書く", async
   w.issues.push({ number: 4, comments: [marker, marker, marker] });
   const { output } = await run(w, "fix-round", "workflow_dispatch", {
     inputs: { pr: "4" },
+    sender: APP,
   });
   expect(output).toContain("run=false");
   expect(output).toContain("pr=4");
@@ -563,8 +571,10 @@ test("fix-round は上限未満なら印をコメントして run=true を書く
   });
   const { output } = await run(w, "fix-round", "workflow_dispatch", {
     inputs: { pr: "4" },
+    sender: APP,
   });
   expect(output).toContain("run=true");
+  expect(output).toContain("ref=autopilot/4-x");
   expect(commentsOf(w, 4).at(-1)?.body).toBe(
     "<!-- autopilot:fix-round --> 対応 2 回目",
   );
@@ -576,13 +586,56 @@ test("fix-round は App 以外の印を数えず、autopilot の PR でなけれ
   const marker = { body: "<!-- autopilot:fix-round -->", login: "mallory" };
   w.issues.push({ number: 4, comments: [marker, marker, marker] });
   expect(
-    (await run(w, "fix-round", "workflow_dispatch", { inputs: { pr: "4" } }))
-      .output,
+    (
+      await run(w, "fix-round", "workflow_dispatch", {
+        inputs: { pr: "4" },
+        sender: APP,
+      })
+    ).output,
   ).toContain("run=true");
   expect(
-    (await run(w, "fix-round", "workflow_dispatch", { inputs: { pr: "6" } }))
-      .output,
+    (
+      await run(w, "fix-round", "workflow_dispatch", {
+        inputs: { pr: "6" },
+        sender: APP,
+      })
+    ).output,
   ).toContain("run=false");
+});
+
+const reviewEvent = (login: string) => ({
+  action: "submitted",
+  pull_request: { number: 4 },
+  review: { user: { login }, state: "changes_requested" },
+});
+
+test("fix-round は設定のレビュアーと書き込み権限のある人のレビューだけで動く", async () => {
+  const w = newWorld();
+  w.pulls.push({ number: 4 });
+  w.permissions = { maintainer: "write", reader: "read" };
+  const go = async (login: string) =>
+    (await run(w, "fix-round", "pull_request_review", reviewEvent(login)))
+      .output;
+  expect(await go("claude")).toContain("run=true");
+  expect(await go("maintainer")).toContain("run=true");
+  expect(await go("reader")).toContain("run=false");
+  expect(await go("stranger")).toContain("run=false");
+});
+
+test("fix-round は workflow_dispatch を App か書き込み権限のある人だけが起こせる", async () => {
+  const w = newWorld();
+  w.pulls.push({ number: 4 });
+  w.permissions = { admin1: "admin" };
+  const go = async (login: string) =>
+    (
+      await run(w, "fix-round", "workflow_dispatch", {
+        inputs: { pr: "4" },
+        sender: { login },
+      })
+    ).output;
+  expect(await go("app[bot]")).toContain("run=true");
+  expect(await go("admin1")).toContain("run=true");
+  expect(await go("mallory")).toContain("run=false");
 });
 
 test("ready は Draft のときだけ ready にする", async () => {
@@ -960,7 +1013,10 @@ test("人の判断が必要な理由のコメントには、印を入れる (I4)
     login: "app[bot]",
   };
   w.issues.push({ number: 4, comments: [marker, marker, marker] });
-  await run(w, "fix-round", "workflow_dispatch", { inputs: { pr: "4" } });
+  await run(w, "fix-round", "workflow_dispatch", {
+    inputs: { pr: "4" },
+    sender: APP,
+  });
   expect(commentsOf(w, 4).at(-1)?.body).toContain(
     "<!-- autopilot:needs-human -->",
   );
