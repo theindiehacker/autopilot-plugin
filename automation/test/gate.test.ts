@@ -360,6 +360,12 @@ test("承認者が Approve のあとに Request changes したら数えない", 
     config,
   );
   expect(d.state).toBe("pending");
+  expect(d.actions).toContainEqual({
+    type: "notify",
+    kind: "approval_request",
+    key: "approval:sha1",
+    reasons: ["パス: x"],
+  });
 });
 
 test("承認者が Approve のあとに DISMISSED なら数えない", () => {
@@ -376,6 +382,12 @@ test("承認者が Approve のあとに DISMISSED なら数えない", () => {
     config,
   );
   expect(d.state).toBe("pending");
+  expect(d.actions).toContainEqual({
+    type: "notify",
+    kind: "approval_request",
+    key: "approval:sha1",
+    reasons: ["パス: x"],
+  });
 });
 
 test("承認者の COMMENTED は最新の判定を打ち消さない", () => {
@@ -405,6 +417,12 @@ test("autopilot 以外の PR でも、取り消せない変更は承認を待つ
     config,
   );
   expect(d.state).toBe("pending");
+  expect(d.actions).toContainEqual({
+    type: "notify",
+    kind: "approval_request",
+    key: "approval:sha1",
+    reasons: ["パス: x"],
+  });
 });
 
 test("autopilot 以外の PR は Claude の CHANGES_REQUESTED を見ない", () => {
@@ -440,4 +458,64 @@ test("設定に autopilot/gate があっても必須にしない", () => {
     c,
   );
   expect(d.state).toBe("success");
+});
+
+test("同じ時刻なら、後に並んだ承認者のレビューを使う", () => {
+  const base = makeGateInput({ irreversible: ["パス: x"] });
+  const t = "2026-01-02T00:00:00Z";
+  const d = evaluateGate(
+    {
+      ...base,
+      reviews: [
+        ...base.reviews,
+        rev("boss", "APPROVED", "sha1", t),
+        rev("boss", "CHANGES_REQUESTED", "sha1", t),
+      ],
+    },
+    config,
+  );
+  expect(d.state).toBe("pending");
+  expect(d.actions[0]?.type).toBe("notify");
+});
+
+test("同じ時刻なら、後に並んだ Claude のレビューを使う", () => {
+  const t = "2026-01-02T00:00:00Z";
+  const d = evaluateGate(
+    makeGateInput({
+      reviews: [
+        rev(claude, "APPROVED", "sha1", t),
+        rev(claude, "DISMISSED", "sha1", t),
+      ],
+    }),
+    config,
+  );
+  expect(d.state).toBe("pending");
+  expect(d.actions).toEqual([]);
+  const cr = evaluateGate(
+    makeGateInput({
+      reviews: [
+        rev(claude, "APPROVED", "sha1", t),
+        rev(claude, "CHANGES_REQUESTED", "sha1", t),
+      ],
+    }),
+    config,
+  );
+  expect(cr.state).toBe("failure");
+});
+
+test("submittedAt が読めないレビューは、読めるものより古い扱い", () => {
+  const base = makeGateInput({ irreversible: ["パス: x"] });
+  const d = evaluateGate(
+    {
+      ...base,
+      reviews: [
+        ...base.reviews,
+        rev("boss", "APPROVED", "sha1", "not-a-date"),
+        rev("boss", "CHANGES_REQUESTED", "sha1", "2026-01-02T00:00:00Z"),
+      ],
+    },
+    config,
+  );
+  expect(d.state).toBe("pending");
+  expect(d.actions[0]?.type).toBe("notify");
 });

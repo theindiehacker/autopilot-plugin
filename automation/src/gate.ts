@@ -74,10 +74,18 @@ function requiredCheckNames(
 }
 
 // ユーザーごとの最新の判定 (COMMENTED は除く)。
+// 同じ時刻なら後に並んだものを使う。読めない時刻は、読める時刻より古い。
 function latestVerdict(reviews: Review[], user: string): Review | undefined {
-  return reviews
-    .filter((r) => r.user === user && r.state !== "COMMENTED")
-    .sort((a, b) => Date.parse(b.submittedAt) - Date.parse(a.submittedAt))[0];
+  const time = (r: Review) => {
+    const t = Date.parse(r.submittedAt);
+    return Number.isNaN(t) ? Number.NEGATIVE_INFINITY : t;
+  };
+  let latest: Review | undefined;
+  for (const r of reviews) {
+    if (r.user !== user || r.state === "COMMENTED") continue;
+    if (!latest || time(r) >= time(latest)) latest = r;
+  }
+  return latest;
 }
 
 // 最新のコミットに対する、取り下げられていない判定だけを返す。
