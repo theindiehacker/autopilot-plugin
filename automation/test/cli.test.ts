@@ -628,6 +628,8 @@ test("不明なコマンドは 2 を返す", async () => {
 const withIrr = (irr: string, extra = "") =>
   `${CONFIG.replace('irreversible: { paths: ["db/migrations/**"] }', irr)}${extra}`;
 const ON_MERGE = `deploy: { mode: on_merge, workflow: deploy.yml, verify: "check.sh", rollback: "rollback.sh", timeout_minutes: 5 }\n`;
+const hashOf = (text: string) =>
+  new Bun.CryptoHasher("sha256").update(text).digest("hex").slice(0, 16);
 const done = (conclusion: string) => ({ status: "completed", conclusion });
 const closed = { action: "closed", pull_request: { number: 1 } };
 
@@ -781,7 +783,10 @@ test("Issue と Slack に、コマンドの出力を入れない (I9)", async ()
   const issue = w.createdIssues[0];
   expect(issue?.body).not.toContain("SECRET-xyz");
   expect(issue?.body).toContain("終了コード: 3");
-  expect(issue?.body).toContain("<!-- autopilot:deploy-failure:boom # -->");
+  expect(issue?.body).toContain(
+    `<!-- autopilot:deploy-failure:${hashOf("boom #")} -->`,
+  );
+  expect(issue?.body).not.toContain("boom");
   expect(w.slack.join("")).not.toContain("SECRET-xyz");
 });
 
@@ -790,7 +795,7 @@ test("同じ印のある開いた Issue があれば needs-human にする。ラ
   w.issues.push({
     number: 30,
     labels: ["bug"],
-    body: "古い\n\n<!-- autopilot:deploy-failure:boom # -->",
+    body: `古い\n\n<!-- autopilot:deploy-failure:${hashOf("boom #")} -->`,
   });
   const sh = shell([{ code: 1, output: "boom 42" }, { code: 0 }]);
   await runDeploy(w, { runShell: sh.runShell });
@@ -1010,4 +1015,27 @@ test("verify のコマンドの環境から、秘密と同じ値の変数を外�
     timeoutMs: 100,
   });
   expect(slow.code).not.toBe(0);
+});
+
+async function markerFor(output: string): Promise<string | undefined> {
+  const w = deployWorld(withIrr("irreversible: { paths: [] }", ON_MERGE));
+  await runDeploy(w, {
+    runShell: shell([{ code: 1, output }, { code: 0 }]).runShell,
+  });
+  return w.createdIssues[0]?.body.match(
+    /<!-- autopilot:deploy-failure:(.*) -->/,
+  )?.[1];
+}
+
+test("失敗の印は 16 桁の 16 進数のハッシュで、出力の文字を含まない (R21)", async () => {
+  const marker = await markerFor("connect to db.internal.example failed 12");
+  expect(marker).toMatch(/^[0-9a-f]{16}$/);
+});
+
+test("時刻や番号だけが違う失敗は同じ印、違う失敗は違う印になる (R21)", async () => {
+  const a = await markerFor("2026-11-12T01:02:03Z request 123 timed out");
+  const b = await markerFor("2026-11-13T09:09:09Z request 456 timed out");
+  const c = await markerFor("2026-11-12T01:02:03Z disk full");
+  expect(a).toBe(b);
+  expect(a).not.toBe(c);
 });

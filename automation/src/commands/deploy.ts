@@ -157,11 +157,11 @@ async function handleFailure(
       return undefined;
     }
   };
-  // 指紋は出力から作るが、出力そのものは Issue にも Slack にも出さない
-  const fingerprint = failureFingerprint(step.output).replaceAll(
-    "-->",
-    "--&gt;",
-  );
+  // 指紋は出力から作るが、出力の文字は印に残さない (ハッシュだけを置く)
+  const fingerprint = new Bun.CryptoHasher("sha256")
+    .update(failureFingerprint(step.output))
+    .digest("hex")
+    .slice(0, 16);
   const marker = `${DEPLOY_FAILURE_MARKER}${fingerprint} -->`;
   const sameCause =
     (await attempt("同じ原因の Issue の確認", () =>
