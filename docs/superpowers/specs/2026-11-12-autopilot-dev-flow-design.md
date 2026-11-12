@@ -182,6 +182,27 @@ Claude のレビューの Approve は、autopilot 以外の PR では関門の�
 - 送るのは GitHub Actions (AI なし)。Slack の Incoming Webhook の URL をシークレットに入れて使う
 - 通知には、PR・デプロイのログ・Issue へのリンクと、何が起きたかを 2〜3 行で書く
 
+### 4.11 検査の hook (lint・型検査・シークレット・脆弱性)
+
+プラグインの検査の hook (編集後・commit 前・push 前) はやめ、`/autopilot:setup` が各リポジトリに入れる (ユーザーが決定)。起動時の hook (Web の環境の準備) はプラグインに残す。
+
+| いつ | どこに入れるか | 中身 |
+|---|---|---|
+| 編集後 | リポジトリの `.claude/settings.json` の hooks | 編集したファイルの整形と lint (Biome・Ruff) |
+| commit 前 | リポジトリの lefthook (`pre-commit`) | 型検査・deptry・import-linter・Gitleaks |
+| push 前 | リポジトリの lefthook (`pre-push`) | Semgrep・Trivy |
+
+- lefthook は git の hook なので、Claude だけでなく、人がターミナルで commit・push したときにも動く
+- Web の環境では、起動時の hook が `lefthook install` を行う
+- すでに lefthook や pre-commit を使っているリポジトリでは、足りない検査だけを足す
+
+### 4.12 ルーティンの GitHub への書き込みの許可
+
+ルーティンは自動モードで動き、`gh api` でのラベル・ステータスの書き込みが「外部システムへの書き込み」として拒否されることがある (9 章の確かめ)。setup が、リポジトリの `.claude/settings.json` の `permissions.allow` に、そのリポジトリへの `gh api` と `git push` だけを許可するルールを書く (ユーザーが決定)。
+
+- 許可はリポジトリの URL まで絞る (例: `Bash(gh api -X POST repos/<owner>/<repo>/*)`)
+- このリポジトリを手元で使う人にも同じ許可が効くことを、setup がユーザーに伝える
+
 ## 5. 設定ファイル `.github/autopilot.yml`
 
 setup が聞き取った答えを書く。関門・見回り・デプロイの再利用ワークフローが読む。項目の例:
@@ -329,6 +350,19 @@ claude.ai と GitHub のどちらも、自動化専用のアカウントと個�
 5. Web のセッションから、Draft から「レビュー可能」への切り替えができるか (できなければ GitHub Actions が行う)
 6. setup から RemoteTrigger でルーティンと GitHub トリガーを作れるか
 
+### 9.1 確かめの結果 (2026-11-12)
+
+| 確かめ | 結果 | 設計への影響 |
+|---|---|---|
+| 1. claude[bot] の Approve が承認 1 件に数えられるか | 数えられる (`reviewDecision` が `APPROVED`) | 変えない |
+| 6. setup からルーティンと GitHub トリガーを作れるか | 作れる。スケジュールなしのルーティンを `create` で作り、`create_webhook_trigger` に `{routine_trigger_id, source: "github", hook_type: "app", scope_id: "<owner>/<repo>", events: ["issues.labeled"]}` を渡す | 変えない |
+| 6'. API でラベルの絞り込みを付けられるか | `filter` は受け付けられるが効かず、どのラベルでも起動する。API でトリガーは消せない | ルーティンは、起動したら最初に REST でラベルを確かめ、対象外なら何もせず終える |
+| 3. イベントの中身が渡るか | `<github-trigger-context>` で、イベント名・リポジトリ・Issue/PR の番号と URL が渡る。PR では、ブランチと最新のコミットも渡る。ラベル名は渡らない | 上と同じく、ラベルは REST で読む |
+| 4. Web のセッションから REST で書き込めるか | コメントは書けた。ラベルとステータスは、ルーティンの自動モードに「外部システムへの書き込み」として拒否された | 4.12 の許可を setup が書く |
+| (追加) プラグインの commit 前の hook | `Bash(*git*commit*)` が commit 以外のコマンドにも合い、Web では `next typegen` が無く型検査が失敗して、ルーティンの commit を止めた | 4.11 のとおり、リポジトリの lefthook に移す |
+| 2. App のトークンで付けたラベルで起動するか | 未確認 (GitHub App の作成待ち) | — |
+| 5. Draft から「レビュー可能」への切り替え | 未確認 (書き込みの拒否で試せず)。切り替えは GitHub Actions が行うので、結果は設計に影響しない | — |
+
 ## 10. 試験
 
 | 種類 | 試す範囲 |
@@ -371,6 +405,8 @@ claude.ai と GitHub のどちらも、自動化専用のアカウントと個�
 - 人があとで確かめられるように、スクリーンショット・動画・JSON などのエビデンスを PR に載せる
 - 人への依頼や報告は、すべて Issue ではなく Slack に通知する (人は Issue を見ないため)
 - 確かめと試験は、ユーザーの個人の claude.ai アカウントで動かす。運用では、個人か自動化専用かを選べるようにする
+- ルーティンの書き込みの許可は、setup がリポジトリの `.claude/settings.json` に書く (4.12)
+- プラグインの検査の hook はやめ、setup がリポジトリの lefthook と `.claude/settings.json` に入れる。起動時の hook は残す (4.11)
 
 **設計者 (Claude) が決めたこと**
 
