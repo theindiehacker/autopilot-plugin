@@ -1,12 +1,14 @@
 # エビデンスを autopilot-evidence ブランチに置く手順
 
-qa と fix が使います。ファイルは `$RUNNER_TEMP/ev/pr-<PR 番号>/<sha7>/` に置いて、ブランチ `autopilot-evidence` に push します。`<PR 番号>` と `<sha7>` (コミットの先頭 7 文字) は、値に置き換えてください。
+qa (GitHub Actions の QA) と、動作確認の手順 (開発と対応、[self-check.md](self-check.md)) が使います。ファイルは置き場所 `$EV` の `pr-<PR 番号>/<sha7>/` に置いて、ブランチ `autopilot-evidence` に push します。`<PR 番号>` と `<sha7>` (コミットの先頭 7 文字) は、値に置き換えてください。
 
 ## 1. 置き場所を用意する
 
 ```bash
 REPO=$(git rev-parse --show-toplevel)
-EV="$RUNNER_TEMP/ev"
+# GitHub Actions では $RUNNER_TEMP。無いとき (ルーティン) は mktemp -d の場所
+EV="${RUNNER_TEMP:-$(mktemp -d)}/ev"
+echo "$EV"
 git -C "$REPO" ls-remote --exit-code --heads origin autopilot-evidence >/dev/null
 rc=$?
 if [ "$rc" = 0 ]; then
@@ -23,7 +25,7 @@ fi
 mkdir -p "$EV/pr-<PR 番号>/<sha7>"
 ```
 
-`exit 1` になったら、エビデンスは置けません。手順 3 の失敗の扱いに進みます。
+出力した `$EV` の値を控え、手順 2 でも同じ値を使います (コマンドの呼び出しをまたぐと、変数は消えます)。`exit 1` になったら、エビデンスは置けません。手順 3 の失敗の扱いに進みます。
 
 ## 2. ファイルを置いて push する
 
@@ -41,11 +43,11 @@ for i in 1 2 3; do
 done
 ```
 
-push は `git push` だけです。認証は、ジョブがすでに設定しています。トークンは扱いません。
+push は `git push` だけです。認証は、ジョブ (ルーティンではセッション) がすでに設定しています。トークンは扱いません。
 
 ## 3. 失敗したとき
 
-`$pushed` が 1 でなければ (手順 1 の失敗も含む)、結果のコメントに「エビデンスを push できませんでした: <エラーの 1 行目>」と書きます。画像は埋め込めないので、ログの文章で何を確かめたかを書きます。**エビデンスの失敗を理由に、受入条件を不合格にしません。** qa は、`summary` にも同じことを書きます。
+`$pushed` が 1 でなければ (手順 1 の失敗も含む)、ファイルへのリンクは書けません。結果 (QA の結果のコメント、または本文の `## 動作確認`) に「エビデンスを push できませんでした: <エラーの 1 行目>」と書き、何を確かめたかを文章とコードブロックで書きます。**エビデンスの失敗を理由に、受入条件を不合格にしません。** qa は、`summary` にも同じことを書きます。
 
 ## 4. 伏せる
 
@@ -53,4 +55,4 @@ push は `git push` だけです。認証は、ジョブがすでに設定して
 
 ## 5. リンク
 
-コメントには、画像を `![](<url>)` で埋め込み、動画と JSON はリンクにします。URL は `https://github.com/<owner>/<repo>/blob/autopilot-evidence/pr-<PR 番号>/<sha7>/<ファイル>?raw=true` です。`<owner>/<repo>` は、この PR のリポジトリに置き換えます。
+コメントと本文の `## 動作確認` には、画像を `![](<url>)` で埋め込み、動画などはリンク (`[](<url>)`) にします。JSON やコマンドの出力は、コードブロックに書いてもかまいません。URL は `https://github.com/<owner>/<repo>/blob/autopilot-evidence/pr-<PR 番号>/<sha7>/<ファイル>?raw=true` です。`<owner>/<repo>` は、この PR のリポジトリに置き換えます。

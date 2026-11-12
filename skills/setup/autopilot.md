@@ -73,7 +73,7 @@ QA を別のファイルにするのは、別のイベントで起きた実行�
 | `{{CI_WORKFLOWS}}` | CI のワークフロー名と `autopilot-qa` の YAML の配列。例: `["ci", "autopilot-qa"]`。Terraform の plan のワークフローがあれば、その名前も足す |
 | `{{TERRAFORM_PLAN_WORKFLOW}}` | Terraform の plan のワークフロー名。無ければ `(none)` |
 | `{{QA_START}}` | `qa.start` と同じコマンド |
-| `{{QA_MCP_SERVERS}}` | アプリが MCP サーバーを出していれば (survey の compose・README・CI)、`{"<名前>":{"type":"http","url":"<URL>"}}`。無ければ `{}`。そのサービスも `qa.start` で起動し、`qa.start` の最後で応答を確かめる (例: `tools/list` を curl で送る。CI に同じ確かめがあれば、それを踏襲する) |
+| `{{QA_MCP_SERVERS}}` | アプリが MCP サーバーを出していれば (survey の compose・README・CI)、`{"<名前>":{"type":"http","url":"<URL>"}}`。無ければ `{}`。そのサービスも `qa.start` で起動し、`qa.start` の最後で応答を確かめる (例: `tools/list` を curl で送る。CI に同じ確かめがあれば、それを踏襲する)。QA のワークフローと、`autopilot.yml` の `fix` の job (直した後の動作確認) の 2 か所に同じ値を入れる |
 | `{{REVIEWER_BOTS}}` | Claude のレビューの bot。既定は `claude` |
 | `{{REVIEWER}}` | `.github/autopilot.yml` の `review.reviewer` と同じ値。例 `claude[bot]` |
 

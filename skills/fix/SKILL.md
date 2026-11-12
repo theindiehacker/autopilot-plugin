@@ -65,23 +65,22 @@ gh api -X POST repos/{owner}/{repo}/pulls/<n>/comments/<id>/replies -f body='採
 - superpowers:systematic-debugging が使えれば、それで原因を見つけて直します。使えなければ、再現 → 原因の特定 → 直す、の順で進めます
 - コンフリクトは、デフォルトブランチを取り込んで直します (`git fetch origin && git merge origin/<デフォルトブランチ>`)
 
-### 6. 確かめて、エビデンスを残す
+### 6. push して、動作確認をする
 
-テストを通します (コマンドは `CLAUDE.md`・`README`・`Taskfile.yml` から探します)。直った指摘ごとに、直ったことがわかるエビデンス (スクリーンショットかテストの結果) を残します。
+1. テストを通します (コマンドは `CLAUDE.md`・`README`・`Taskfile.yml` から探します)
+2. 変更したファイルだけを `git add <ファイル>` で足し、commit して、`git push` で push します (変更が無ければ、push せずに今の head で確かめます)
+3. 新しい head で、この後の「動作確認の手順 (実装の側)」([../qa/self-check.md](../qa/self-check.md)) のとおり、PR の本文の `## 受入条件` を確かめ、エビデンスを置いて、`## 動作確認 (<sha7>)` を書きます。前の commit のエビデンスは消しません
 
-画像などのファイルは、[../qa/evidence.md](../qa/evidence.md) の手順で `autopilot-evidence` ブランチの `pr-<n>/<sha7>/` に置きます。push できなくても、直した変更の push は止めません。コメントにそう書きます。
+直せない条件があれば、次のコメントを PR に書いて終わります。
 
-エビデンスは PR のコメントにも書きます (テストの結果は文章で、画像は埋め込み、そのほかはリンク。書き方は evidence.md の「リンク」)。
-
-```bash
-gh api -X POST repos/{owner}/{repo}/issues/<n>/comments -f body="$(cat エビデンス.md)"
+```
+<!-- autopilot:needs-human -->
+受入条件を確かめられません。通らない条件: {条件}。見たこと: {1〜2 行}
 ```
 
-### 7. 記録して push する
+### 7. 記録する
 
-1. 変更したファイルだけを `git add <ファイル>` で足し、commit します
-2. `git push` で push します
-3. push のあとで、PR の本文の `## 対応の記録` に、この回の失敗と直したことを足します。前回までの記録は消しません
+PR の本文の `## 動作確認` を、手順 6 で書いたものに置き換え、`## 対応の記録` に、この回の失敗と直したことを足します。前回までの記録は消しません。
 
 ```bash
 gh api -X PATCH repos/{owner}/{repo}/pulls/<n> -f body="$(cat 新しい本文.md)"

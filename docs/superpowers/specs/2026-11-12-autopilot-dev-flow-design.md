@@ -58,7 +58,7 @@ Issue を起票すれば、Claude Code が開発・テスト・レビュー・QA
 
 | 段階 | どこで動くか | 中身 |
 |---|---|---|
-| 開発 | ルーティン (`/autopilot:develop`) | Issue から受入条件・テスト・実装・PR まで。GitHub への書き込みは git push・PR の作成・コメントだけ |
+| 開発 | ルーティン (`/autopilot:develop`) | Issue から受入条件・テスト・実装・動作確認・PR まで。GitHub への書き込みは git push・PR の作成・コメント (と、GitHub の MCP での PR の更新) |
 | CI | GitHub Actions (既存) | リポジトリのテスト・lint など |
 | レビュー | GitHub Actions (既存の Claude のレビュー) | claude[bot] が Approve か Request changes を出す |
 | QA | GitHub Actions のジョブ (claude-code-action) | アプリを起動して受入条件を確かめ、エビデンスを PR に載せる。ジョブの成否が結果 |
@@ -91,8 +91,8 @@ autopilot の PR は、同じリポジトリのブランチ `autopilot/<Issue �
 1. 人が Issue を書き、権限のある人が `autopilot:ready` を付ける
 2. 開発のルーティンが起動する。REST で Issue のラベルを読み、`autopilot:ready` が無いか `needs-human` があれば、何もせずに終える。始めたら、デフォルトブランチから `autopilot/<番号>-dev` を作って空の commit を push し、本文に `Closes #<番号>` と `<!-- autopilot:developing -->` を入れた Draft PR を作る (GitHub のプロジェクトの画面で、作業中の Issue が見える。ブランチ名を番号だけで決めるので、ほぼ同時に 2 つ起動しても、後の push は断られる)
 3. 受入条件を Issue にコメントする (ヒアリングしないと分からないときは、4.4 のとおり聞いて止まる。小さな選択は自分で決め、決めたことを書く)。その条件を確かめるテストを書き、直す前のコードで失敗するのを確かめてから実装する。ユニット・受入・E2E テストを通す
-4. 同じブランチに push し、開発のルーティンが GitHub の MCP (`update_pull_request`) で、PR の本文 (判断の理由・試してだめだった方法・テストの結果。最後の行は `Closes #<番号>`) を書き換え、「レビュー可能」にする。断られたら `needs-human` で止まる
-5. PR が「レビュー可能」になると、GitHub Actions で Claude のレビュー・QA のジョブが動く (CI・`autopilot/irreversible` は Draft のときから動く)。autopilot の PR では自動マージが有効になる
+4. 同じブランチに push する。人と同じく、レビューを頼む前に、アプリを起動して受入条件を 1 つずつ確かめ (`skills/qa/self-check.md`)、スクリーンショット・録画・JSON を PR の本文の `## 動作確認 (<sha7>)` に書く。続けて、開発のルーティンが GitHub の MCP (`update_pull_request`) で、PR の本文 (動作確認・判断の理由・試してだめだった方法・テストの結果。最後の行は `Closes #<番号>`) を書き換え、「レビュー可能」にする。断られたら `needs-human` で止まる
+5. PR が「レビュー可能」になると、GitHub Actions で Claude のレビュー・QA のジョブが動く。QA のジョブは、コードを書いていない別の Claude が、別の環境で受入条件を確かめ直す (必須のチェック) (CI・`autopilot/irreversible` は Draft のときから動く)。autopilot の PR では自動マージが有効になる
 6. Request changes・CI の失敗・QA の失敗・コンフリクトがあれば、対応のジョブが動く。PR の本文の記録と指摘を読み、指摘ごとに採否を決め、直して push し、返信する。Claude のレビューが PR を Draft に戻していれば、GitHub Actions が「レビュー可能」に戻す
 7. 必須のチェックと必須のレビュー (claude[bot] の Approve) がそろうと、GitHub の自動マージでマージされる
 8. マージの後、設定に書いたデプロイを動かし、本番で確かめる (4.8)
@@ -162,9 +162,9 @@ GitHub の標準の仕組みで決める。setup が、リポジトリのルー�
 
 | 誰が | 載せるもの |
 |---|---|
-| 開発のルーティン | テストの結果 (ユニット・受入・E2E の件数と、失敗から成功に変わったテスト)。PR の本文に書く |
+| 開発のルーティン | テストの結果 (ユニット・受入・E2E の件数と、失敗から成功に変わったテスト) と、動作確認 (受入条件ごとのスクリーンショット・録画・JSON)。PR の本文に書く |
 | QA のジョブ | 画面のスクリーンショット、操作の動画 (Playwright の録画)、API の応答などの JSON、確かめた手順 |
-| 対応のジョブ | 直した指摘ごとに、直ったことがわかるスクリーンショットかテストの結果 |
+| 対応のジョブ | 直した後の新しい commit での動作確認 (本文の `## 動作確認` を置き換える) |
 
 - PR のコメントに、何を確かめたかと、エビデンスへのリンク (画像は埋め込み) を書く
 - ファイルを置く場所は、作る人が決める。条件は次のとおり
