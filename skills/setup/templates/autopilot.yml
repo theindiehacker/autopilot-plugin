@@ -14,20 +14,9 @@ review:
 required_checks:
   - "{{CI_CHECK}}"   # CI のジョブ名。1 つずつ書く。paths: で飛ぶものは書かない
   - "autopilot QA"
-  - "autopilot/irreversible"
-
-irreversible:
-  paths:
-    - "{{IRREVERSIBLE_PATH}}"   # 例: backend/migration/versions/**
-  # terraform_plan_artifact: "{{TERRAFORM_PLAN_ARTIFACT}}"   # Terraform の apply がマージで動くとき
-
-approvers:
-  - "{{APPROVER}}"   # GitHub のユーザー名か team。irreversible.paths があるとき必須
 
 notify:
   slack_channel: "{{SLACK_CHANNEL}}"   # 例: "#alerts"
-  approver_mentions:
-    - "{{APPROVER_SLACK_MENTION}}"
 
 limits:
   max_fix_rounds: 3
@@ -40,3 +29,4 @@ deploy:
   # verify: curl -fsS https://example.com/healthz
   # rollback: rollback.yml
   # rollback_after_irreversible: false
+  # irreversible_paths: [backend/migration/versions/**]   # このパスを変えた PR は、デプロイの確認に失敗しても自動で戻さない

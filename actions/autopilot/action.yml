@@ -2,7 +2,7 @@ name: autopilot
 description: autopilot の AI を使わない処理 (automation/src/cli.ts のコマンド) を、GitHub App のトークンで動かす
 inputs:
   command:
-    description: cli.ts のコマンド (irreversible・automerge・label・fix-round・ready・sweep・deploy)
+    description: cli.ts のコマンド (automerge・label・fix-round・ready・sweep・deploy)
     required: true
   app-id:
     description: GitHub App の ID
@@ -11,7 +11,7 @@ inputs:
     description: GitHub App の秘密鍵
     required: true
   profile:
-    description: トークンの権限の組。default か deploy (members を読まない) か、irreversible (members の読み取りも要る)
+    description: トークンの権限の組。default か deploy (今は同じ権限)
     required: false
     default: default
   slack-webhook-url:
@@ -31,9 +31,8 @@ outputs:
 runs:
   using: composite
   steps:
-    # PR のコードは動かさない。権限は、組ごとに要るものだけにする
+    # PR のコードは動かさない。権限は、要るものだけにする
     - id: app
-      if: inputs.profile != 'irreversible'
       uses: actions/create-github-app-token@64ab729a6294000f5aa4a4bc0b73d1f32bc45510 # v3.3.0
       with:
         app-id: ${{ inputs.app-id }}
@@ -41,21 +40,7 @@ runs:
         permission-contents: write
         permission-pull-requests: write
         permission-issues: write
-        permission-statuses: write
         permission-actions: write
-    # 承認者のチームを読むのは irreversible だけ
-    - id: app-members
-      if: inputs.profile == 'irreversible'
-      uses: actions/create-github-app-token@64ab729a6294000f5aa4a4bc0b73d1f32bc45510 # v3.3.0
-      with:
-        app-id: ${{ inputs.app-id }}
-        private-key: ${{ inputs.private-key }}
-        permission-contents: write
-        permission-pull-requests: write
-        permission-issues: write
-        permission-statuses: write
-        permission-actions: write
-        permission-members: read
     - uses: oven-sh/setup-bun@0c5077e51419868618aeaa5fe8019c62421857d6 # v2.2.0
       with:
         bun-version-file: ${{ github.action_path }}/../../automation/package.json
@@ -65,7 +50,7 @@ runs:
       working-directory: ${{ github.action_path }}/../../automation
       env:
         AUTOPILOT_COMMAND: ${{ inputs.command }}
-        GITHUB_TOKEN: ${{ steps.app.outputs.token || steps.app-members.outputs.token }}
-        AUTOPILOT_APP_SLUG: ${{ steps.app.outputs.app-slug || steps.app-members.outputs.app-slug }}
+        GITHUB_TOKEN: ${{ steps.app.outputs.token }}
+        AUTOPILOT_APP_SLUG: ${{ steps.app.outputs.app-slug }}
         AUTOPILOT_SLACK_WEBHOOK_URL: ${{ inputs.slack-webhook-url }}
       run: bun run src/cli.ts "$AUTOPILOT_COMMAND"

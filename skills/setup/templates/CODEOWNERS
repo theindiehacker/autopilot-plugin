@@ -1,0 +1,21 @@
+# .github/CODEOWNERS (setup が、聞き取った答えで書く)
+# ここに書いたパスを変える PR は、そのパスの持ち主の承認 (Approve) が無いとマージできない。
+# ルールセットで「コードオーナーのレビューを必須」(require_code_owner_review) にすると効く。
+# {{...}} は setup が置き換える。当てはまらない行は、行ごと消す。
+# 持ち主は GitHub のユーザー名 (@user) か team (@org/team)。例: /backend/migration/versions/ @org/team
+
+# autopilot を動かすファイル (ワークフロー・設定・この CODEOWNERS・Claude の設定・git の hook の設定)。
+# AI の PR が、人の承認なしに、自分の検査や権限を変えられないようにする。
+# git の hook の設定は、リポジトリに無いものの行を消す (分からなければ残す)
+/.github/ {{OWNER}}
+/.claude/ {{OWNER}}
+/.mcp.json {{OWNER}}
+/lefthook.yml {{OWNER}}
+/.lefthook.yml {{OWNER}}
+/lefthook.yaml {{OWNER}}
+/.pre-commit-config.yaml {{OWNER}}
+/.husky/ {{OWNER}}
+
+# 取り消せない変更 (マイグレーション・Terraform)
+{{MIGRATION_PATH}} {{OWNER}}
+{{TERRAFORM_PATH}} {{OWNER}}

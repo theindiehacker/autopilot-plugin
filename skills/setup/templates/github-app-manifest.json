@@ -12,11 +12,9 @@
     "contents": "write",
     "pull_requests": "write",
     "issues": "write",
-    "statuses": "write",
     "actions": "write",
     "variables": "write",
-    "checks": "read",
-    "members": "read"
+    "checks": "read"
   },
   "default_events": []
 }

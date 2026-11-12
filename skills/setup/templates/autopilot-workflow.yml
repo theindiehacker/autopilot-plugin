@@ -4,20 +4,18 @@ on:
   # pull_request_target の job は、PR のコードを checkout しない。
   # PR のコードを動かすのは、同じリポジトリの autopilot/ のブランチの fix だけ
   pull_request_target:
-    types: [opened, synchronize, reopened, ready_for_review, labeled, closed, edited]
+    types: [opened, synchronize, reopened, ready_for_review, labeled, closed]
   pull_request_review:
-    types: [submitted, dismissed]
+    types: [submitted]
   # issue_comment の job (label) は、Bot か OWNER・MEMBER・COLLABORATOR のコメントだけで動き、
   # 中で書いた人をもう一度確かめる。PR のコードは動かさない
   issue_comment:
     types: [created]
   issues:
     types: [labeled]
-  # workflow_run の job のうち、fix は同じリポジトリの実行だけを受け、fix-round が PR の今の head の実行かを確かめる。
-  # irreversible-plan は workflow の名前だけで動き、PR のコードは動かさない
+  # workflow_run の job (fix) は、同じリポジトリの実行だけを受け、fix-round が PR の今の head の実行かを確かめる
   workflow_run:
-    # リポジトリの CI のワークフロー名と autopilot-qa (setup が入れる)。
-    # Terraform の plan を使うなら、その名前もここに入れる
+    # リポジトリの CI のワークフロー名と autopilot-qa (setup が入れる)
     workflows: {{CI_WORKFLOWS}}
     types: [completed]
   workflow_dispatch:
@@ -31,52 +29,6 @@ on:
 permissions: {}
 
 jobs:
-  irreversible:
-    if: >-
-      (github.event_name == 'pull_request_target'
-        && github.event.action != 'labeled' && github.event.action != 'closed'
-        && (github.event.action != 'edited' || github.event.changes.base))
-      || (github.event_name == 'pull_request_review'
-        && github.event.pull_request.head.repo.full_name == github.repository)
-    runs-on: ubuntu-latest
-    permissions:
-      contents: read
-    timeout-minutes: 10
-    concurrency:
-      group: autopilot-irreversible-${{ github.event.pull_request.number }}
-      cancel-in-progress: true
-    steps:
-      # pull_request_target なので、PR のコードは checkout しない
-      - uses: theindiehacker/autopilot-plugin/actions/autopilot@{{AUTOPILOT_REF}}
-        with:
-          command: irreversible
-          profile: irreversible
-          app-id: ${{ secrets.AUTOPILOT_APP_ID }}
-          private-key: ${{ secrets.AUTOPILOT_APP_PRIVATE_KEY }}
-          slack-webhook-url: ${{ secrets.AUTOPILOT_SLACK_WEBHOOK_URL }}
-
-  # TERRAFORM_PLAN:BEGIN (Terraform の plan が無いリポジトリでは、setup がこの job ごと消す)
-  irreversible-plan:
-    if: >-
-      github.event_name == 'workflow_run'
-      && github.event.workflow_run.name == '{{TERRAFORM_PLAN_WORKFLOW}}'
-    runs-on: ubuntu-latest
-    permissions:
-      contents: read
-    timeout-minutes: 10
-    concurrency:
-      group: autopilot-irreversible-plan-${{ github.event.workflow_run.pull_requests[0].number || github.event.workflow_run.head_sha }}
-      cancel-in-progress: true
-    steps:
-      - uses: theindiehacker/autopilot-plugin/actions/autopilot@{{AUTOPILOT_REF}}
-        with:
-          command: irreversible
-          profile: irreversible
-          app-id: ${{ secrets.AUTOPILOT_APP_ID }}
-          private-key: ${{ secrets.AUTOPILOT_APP_PRIVATE_KEY }}
-          slack-webhook-url: ${{ secrets.AUTOPILOT_SLACK_WEBHOOK_URL }}
-  # TERRAFORM_PLAN:END
-
   automerge:
     if: >-
       github.event_name == 'pull_request_target'
@@ -130,8 +82,7 @@ jobs:
       || (github.event_name == 'workflow_run'
         && contains(fromJSON('["failure", "timed_out", "startup_failure"]'), github.event.workflow_run.conclusion)
         && github.event.workflow_run.head_repository.full_name == github.repository
-        && startsWith(github.event.workflow_run.head_branch, 'autopilot/')
-        && github.event.workflow_run.name != '{{TERRAFORM_PLAN_WORKFLOW}}')
+        && startsWith(github.event.workflow_run.head_branch, 'autopilot/'))
       || (github.event_name == 'workflow_dispatch' && inputs.pr != '')
     runs-on: ubuntu-latest
     permissions:
