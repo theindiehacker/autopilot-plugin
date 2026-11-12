@@ -78,6 +78,7 @@ skills/setup/                   onboard を改名。SKILL.md・frontend.md・pyt
   templates/autopilot-workflow.yml               各リポジトリに置くワークフロー
   templates/claude-code-review-workflow.yml      レビューが無いリポジトリ用
   templates/github-app-manifest.json             GitHub App の権限
+  templates/rollback-cloud-run.yml               Cloud Run のロールバックのひな形
   templates/pr-body.md                           autopilot の PR の本文のひな形
 ```
 
@@ -323,7 +324,7 @@ test("時刻や数字が違っても同じ原因とみなす", () => {
 |---|---|
 | `approval_request` | `:raised_hand: 承認をお願いします: <{url}\|{title}>` |
 | `needs_human` | `:warning: 人の判断が必要です: <{url}\|{title}>` |
-| `deploy_hold` | `:rotating_light: 取り消せない変更を含むデプロイの確認に失敗しました (ロールバックしていません): <{url}\|{title}>` |
+| `deploy_hold` | `:rotating_light: デプロイの後の対応を止めました (自動でロールバックしていません): <{url}\|{title}>` (Task 8 の修正で変更) |
 | `deploy_rolled_back` | `:rewind: デプロイ後の確認に失敗したため、ロールバックしました: <{url}\|{title}>` |
 | `done` | `:white_check_mark: 対応が終わりました: <{url}\|{title}>` |
 
@@ -563,7 +564,7 @@ Task 13 の後、Task 14 の前に行う (設計書 4.11。ユーザーが決定
 
 **Files:**
 - Create: `skills/setup/survey.md`・`skills/setup/interview.md`・`skills/setup/autopilot.md`
-- Create: `skills/setup/templates/autopilot.yml`・`skills/setup/templates/claude-code-review-workflow.yml`・`skills/setup/templates/github-app-manifest.json`
+- Create: `skills/setup/templates/autopilot.yml`・`skills/setup/templates/claude-code-review-workflow.yml`・`skills/setup/templates/github-app-manifest.json`・`skills/setup/templates/rollback-cloud-run.yml`
 - Modify: `skills/setup/SKILL.md` (手順の表)
 
 **Interfaces:**
@@ -588,7 +589,7 @@ SKILL.md の手順の表を次にする (既存の 4 つは中身を変えない
   2. `.github/autopilot.yml` を、聞いた答えで `templates/autopilot.yml` から書く (`routine_github_user`・`qa.start`・`qa.url` を含む)
   3. `.github/workflows/autopilot.yml` を `templates/autopilot-workflow.yml` から書く (`{{AUTOPILOT_REF}}` は `v<plugin.json の version>`)
   4. Claude のレビューが無ければ `templates/claude-code-review-workflow.yml` を置く。CI が無ければ、そのリポジトリのテストを動かす CI を作る
-  5. ロールバックが無く、デプロイがあるなら、作るかを提案する
+  5. ロールバックが無く、デプロイがあるなら、ロールバックのワークフローを提案し、選ばれたら用意する (ユーザーの要望): デプロイのワークフローからデプロイ先 (Cloud Run・ECS・Vercel など) を見分け、案を見せる。選ばれたら `.github/workflows/rollback.yml` を書き、`deploy.rollback` に登録する。Cloud Run は `templates/rollback-cloud-run.yml` (トラフィックを 1 つ前のリビジョンに戻す。サービス名・リージョン・認証はデプロイのワークフローに合わせる) から作り、ほかのデプロイ先は、そのリポジトリのデプロイのワークフローに合わせて書く。ワークフローの変更なので、setup の PR で人が承認する
   6. Terraform の apply がマージで動くなら、plan の JSON を artifact (`irreversible.terraform_plan_artifact`) で残すジョブを足す
   7. ユーザーに頼む: GitHub App の作成 (`templates/github-app-manifest.json` の権限) と導入、Slack の Incoming Webhook の作成、シークレット (`AUTOPILOT_APP_ID`・`AUTOPILOT_APP_PRIVATE_KEY`・`AUTOPILOT_SLACK_WEBHOOK_URL`、claude-code-action の `CLAUDE_CODE_OAUTH_TOKEN` か `ANTHROPIC_API_KEY`) の登録、Web の環境の作成 (README の手順)。環境変数とシークレットは、使う操作に要る最小の権限にしてもらう
   8. リポジトリのルールセットを作る (`gh api -X POST repos/{o}/{r}/rulesets`): 必須のチェックは、設定の CI のジョブ・`autopilot QA`・`autopilot/irreversible`。必須のレビューは 1 件、push で古い Approve を取り消す。必須にするチェックが `paths:` で飛ばないかを確かめ、飛ぶものは必須にしないか、いつも動くジョブにまとめることを提案する。リポジトリの自動マージを有効にする (`allow_auto_merge: true`)。org のルールセットは変えず、変える必要があればユーザーに伝える
