@@ -4,7 +4,7 @@ on:
   # pull_request_target の job は、PR のコードを checkout しない。
   # PR のコードを動かすのは、同じリポジトリの autopilot/ のブランチの fix だけ
   pull_request_target:
-    types: [opened, synchronize, reopened, ready_for_review, labeled, closed]
+    types: [opened, synchronize, reopened, ready_for_review, labeled, closed, edited]
   pull_request_review:
     types: [submitted, dismissed]
   # issue_comment の job (label) は、Bot か OWNER・MEMBER・COLLABORATOR のコメントだけで動き、
@@ -34,7 +34,8 @@ jobs:
   irreversible:
     if: >-
       (github.event_name == 'pull_request_target'
-        && github.event.action != 'labeled' && github.event.action != 'closed')
+        && github.event.action != 'labeled' && github.event.action != 'closed'
+        && (github.event.action != 'edited' || github.event.changes.base))
       || (github.event_name == 'pull_request_review'
         && github.event.pull_request.head.repo.full_name == github.repository)
     runs-on: ubuntu-latest
@@ -127,7 +128,7 @@ jobs:
         && (github.event.review.user.login == '{{REVIEWER}}'
           || contains(fromJSON('["OWNER", "MEMBER", "COLLABORATOR"]'), github.event.review.author_association)))
       || (github.event_name == 'workflow_run'
-        && github.event.workflow_run.conclusion == 'failure'
+        && contains(fromJSON('["failure", "timed_out", "startup_failure"]'), github.event.workflow_run.conclusion)
         && github.event.workflow_run.head_repository.full_name == github.repository
         && startsWith(github.event.workflow_run.head_branch, 'autopilot/')
         && github.event.workflow_run.name != '{{TERRAFORM_PLAN_WORKFLOW}}')
