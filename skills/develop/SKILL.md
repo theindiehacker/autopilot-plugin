@@ -80,7 +80,7 @@ gh api repos/{owner}/{repo}/issues/<n>/comments --paginate \
     'add | map(select((.body | contains("<!-- autopilot:started -->")) and .user.login == $me and .created_at > $since)) | sort_by(.created_at, .id) | first | .id'
 ```
 
-それが自分の書いたコメントの ID でなければ、別の実行が先に始めているので、ほかには何も書かずに終わります (自分の開始のコメントは消しません)。ほぼ同時に起動した 2 つの実行のうち、先に書いたほうだけが進むためです。
+出力が空 (`null`。読み直しにまだ自分のコメントが出ていない) なら、進みます。出力が別のコメントの ID のときだけ、別の実行が先に始めているので、ほかには何も書かずに終わります (自分の開始のコメントは消しません)。ほぼ同時に起動した 2 つの実行のうち、先に書いたほうだけが進むためです。
 
 ### 5. 受入条件を書く
 
