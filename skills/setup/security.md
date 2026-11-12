@@ -1,11 +1,11 @@
 # 既存のシークレット・脆弱性を直す
-commit・push の前の検査 (Gitleaks・Semgrep・Trivy) が通るよう、リポジトリにすでにあるシークレットと脆弱性を直します。直せない指摘は、ユーザーに確かめて理由付きで除外ファイルに書きます。
+commit・push の前の検査 (lefthook の Gitleaks・Semgrep・Trivy。「検査を入れる」の手順で入れたもの) が通るよう、リポジトリにすでにあるシークレットと脆弱性を直します。直せない指摘は、ユーザーに確かめて理由付きで除外ファイルに書きます。
 
-対象はリポジトリ全体です。commit・push の前の hook は、差分ではなくリポジトリ全体を検査します。既存の指摘が 1 つでもあると、関係のない変更でも止まります。
+対象はリポジトリ全体です。push の前の検査 (Semgrep・Trivy) は、差分ではなくリポジトリ全体を検査します。既存の指摘が 1 つでもあると、関係のない変更でも止まります。commit の前の Gitleaks は、commit に入る差分 (`gitleaks git --staged`) だけを見るため、既存のシークレットは、この手順で全体を検査して見つけます。
 
 ## このプラグインの前提
-- hook は行内の除外 (`nosemgrep`・`gitleaks:allow`) を読みません (`--disable-nosem`・`--ignore-gitleaks-allow`)。除外は、下の除外ファイルだけで行います
-- Gitleaks と Trivy は、git に入るファイル (追跡中と、無視していない新規ファイル) だけを検査します。除外ファイルも git に入れてください
+- Semgrep の検査は行内の除外 (`nosemgrep`) を読みません (`--disable-nosem`)。除外は、下の除外ファイルで行います
+- この手順の全体の検査では、Gitleaks と Trivy は、git に入るファイル (追跡中と、無視していない新規ファイル) だけを検査します (`in-git-files.sh` を通すため)。除外ファイルも git に入れてください
 
 ## 1. 調べる
 まず、起動時と同じ処理でツールを揃えます。出た警告 (ツールが無い・起動できない) は、ユーザーに伝えてください。
@@ -14,10 +14,10 @@ commit・push の前の検査 (Gitleaks・Semgrep・Trivy) が通るよう、リ
 bash "${CLAUDE_PLUGIN_ROOT}/scripts/security/setup.sh"
 ```
 
-続けて、hook と同じコマンドで検査します。
+続けて、全体を検査します。Gitleaks は、commit 前の検査 (`git --staged`) とは違い、全体を見る `dir` で動かします。Semgrep と Trivy は、push 前の検査と同じコマンドです。
 
 ```bash
-CLAUDE_PROJECT_DIR="$PWD" bash "${CLAUDE_PLUGIN_ROOT}/scripts/security/in-git-files.sh" gitleaks dir . --redact --verbose --ignore-gitleaks-allow --exit-code 2
+CLAUDE_PROJECT_DIR="$PWD" bash "${CLAUDE_PLUGIN_ROOT}/scripts/security/in-git-files.sh" gitleaks dir . --redact --verbose --exit-code 1
 ```
 
 ```bash
@@ -25,7 +25,7 @@ semgrep scan --config p/owasp-top-ten --metrics off --severity ERROR --error --d
 ```
 
 ```bash
-CLAUDE_PROJECT_DIR="$PWD" bash "${CLAUDE_PLUGIN_ROOT}/scripts/security/in-git-files.sh" trivy fs --scanners vuln,misconfig,secret --severity HIGH,CRITICAL --ignore-unfixed --exit-code 2 .
+CLAUDE_PROJECT_DIR="$PWD" bash "${CLAUDE_PLUGIN_ROOT}/scripts/security/in-git-files.sh" trivy fs --scanners vuln,misconfig,secret --severity HIGH,CRITICAL --ignore-unfixed --exit-code 1 .
 ```
 
 Semgrep が `semgrep.dev` に、Trivy が DB の取得先に繋げないときは、環境の設定の「許可されたドメイン」に足すよう、ユーザーに頼んでください。足すまでは、その検査を確かめられないと伝えます。
@@ -34,7 +34,7 @@ Semgrep が `semgrep.dev` に、Trivy が DB の取得先に繋げないとき�
 指摘を一覧にし、項目ごとに「直す」か「理由を書いて除外する」かを、ユーザーに聞いてください。一覧には、ファイル・行・ルール (CVE) と、どちらを勧めるかとその理由を書きます。
 
 - 本物のシークレット・使われている脆弱なコードは、直すことを勧める
-- 除外を勧めてよいのは、誤検出・テスト用のダミーの値・上げると壊れる依存 (メジャー版の移行が要るなど) だけ。直す版の無い依存は、hook が `--ignore-unfixed` で出さないため、一覧に出ません
+- 除外を勧めてよいのは、誤検出・テスト用のダミーの値・上げると壊れる依存 (メジャー版の移行が要るなど) だけ。直す版の無い依存は、検査が `--ignore-unfixed` で出さないため、一覧に出ません
 
 ## 3. 直す
 聞いた順に、1 項目ずつ行ってください。

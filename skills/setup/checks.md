@@ -37,7 +37,7 @@ ls lefthook.yml lefthook.yaml .lefthook.yml .pre-commit-config.yaml .husky 2>/de
 - リポジトリのタスクランナー (`Taskfile.yml`・`Makefile`・`package.json` の `scripts` など) に同じ検査のコマンドがあれば、ひな形のコマンドではなく、それを呼びます (例: `run: task security:check`)。リポジトリで決めた検査の条件を、二重に書かないためです
 - フロントエンドやバックエンドが `frontend/`・`backend/` のようにフォルダで分かれていれば、検査ごとに `root: frontend/` を付けます
 - `.gitleaks.toml`・`.gitleaksignore`・`.semgrepignore`・`trivy.yaml` が既にあれば、そのまま使われます
-- ひな形のコマンドは、ツール (Gitleaks・Semgrep・Trivy・uv・bun) が無いと失敗します。Web では起動時の処理が入れます。ローカルでは、Mac なら `brew install semgrep gitleaks trivy` で入れるよう、README に書いてください
+- ひな形は、ツール (Gitleaks・Semgrep・Trivy・uv・bun) が無いと、警告を 1 行出してその検査を飛ばします (ローカルで入れていない人の commit・push を止めないため)。Web では起動時の処理が入れるので、飛ばされません。ローカルでは、Mac なら `brew install semgrep gitleaks trivy` で入れるよう、README に書いてください
 - pre-commit に足すときは、同じコマンドを `repo: local` の `hooks` (`language: system`・`pass_filenames: false`・`stages: [pre-commit]` か `[pre-push]`) に書きます
 - Trivy は、git に入らないファイル (`node_modules` など) も見ます。時間がかかるときは、`trivy.yaml` の `scan.skip-dirs` で絞ります
 
@@ -60,9 +60,9 @@ ls lefthook.yml lefthook.yaml .lefthook.yml .pre-commit-config.yaml .husky 2>/de
 1. `lefthook install` を動かす (pre-commit なら `pre-commit install`)。`lefthook` が無ければ、`brew install lefthook` か `bun add -d lefthook` で入れる。Web では起動時の処理が行うので、`lefthook.yml` があれば足りる
 2. わざとシークレットを入れたファイルを作り、`git add` して commit する。Gitleaks が止めれば成功
    ```bash
-   echo 'AWS_KEY=AKIAZ3MSJV4WWD7QXK2N' > leak-test.txt
+   printf 'AWS_KEY=AKIA%s\n' Z3MSJV4WWD7QXK2N > leak-test.txt
    ```
-   (`AKIAIOSFODNN7EXAMPLE` は AWS の例の鍵で、Gitleaks が見逃すため使いません)
+   (AWS の例の鍵 (`AKIA` と `IOSFODNN7EXAMPLE`) は Gitleaks が見逃すため使いません。鍵を分けて書くのは、この文書自体が検出されないようにするためです)
 3. そのファイルを `git reset` で外してから消す。commit は残さない
 4. `lefthook run pre-commit --all-files` を動かし、既存のコードで失敗する検査があれば、一覧にしてユーザーに伝える。直すのは、次の手順 (security.md) と、各技術スタックの手順で行う
 

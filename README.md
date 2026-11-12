@@ -8,7 +8,7 @@
   <a href="renovate.json"><img src="https://img.shields.io/badge/Renovate-308BE3?style=for-the-badge&logo=renovate&logoColor=white" alt="Renovate"></a>
 </p>
 
-<p align="center"><b>Claude Code に、Claude Code on the Web のセッションの準備、技術スタックの統一、hooks による自動チェック (lint・型検査・シークレット検出・脆弱性スキャン) を追加するプラグインです。</b></p>
+<p align="center"><b>Claude Code に、Claude Code on the Web のセッションの準備、技術スタックの統一を行い、`/autopilot:setup` で、自動の検査 (lint・型検査・シークレット検出・脆弱性スキャン) をリポジトリの lefthook と `.claude/settings.json` に入れるプラグインです。</b></p>
 
 ## ✨ 入れるとどう変わる？
 
@@ -34,7 +34,7 @@
 
 - **検査:** 編集後・commit 前・push 前の検査は、プラグインの hook ではありません。`/autopilot:setup` が、リポジトリの `lefthook.yml` (commit 前・push 前) と `.claude/settings.json` (編集後) に入れます。人がターミナルで commit・push したときにも動きます。Web では、起動時に `lefthook install` を行います (`pre-commit` を使うリポジトリでは `pre-commit install`)。
 - **LSP:** Claude が TypeScript と ty の LSP を使えます。
-- **ローカルでの準備:** Gitleaks・Semgrep・Trivy は、Mac では `brew install semgrep gitleaks trivy` で入れられます。無いと、commit・push 前の検査が失敗します。
+- **ローカルでの準備:** Gitleaks・Semgrep・Trivy は、Mac では `brew install semgrep gitleaks trivy` で入れられます。無いと、警告が 1 行出て、その検査は飛ばされます (commit・push は止まりません)。
 
 ### 📐 技術スタックの方針
 

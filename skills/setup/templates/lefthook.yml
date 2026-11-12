@@ -1,19 +1,19 @@
 pre-commit:
   jobs:
     - name: typecheck
-      run: grep -qs '"typecheck" *:' package.json || exit 0; bun run typecheck
+      run: grep -qs '"typecheck" *:' package.json || exit 0; command -v bun >/dev/null || { echo "bun が無いので飛ばします" >&2; exit 0; }; bun run typecheck
     - name: ty
-      run: '[ -f uv.lock ] || exit 0; uv run ty check'
+      run: '[ -f uv.lock ] || exit 0; command -v uv >/dev/null || { echo "uv が無いので飛ばします" >&2; exit 0; }; uv run ty check'
     - name: deptry
-      run: '[ -f uv.lock ] || exit 0; uv run deptry "$([ -d src ] && echo src || echo .)"'
+      run: '[ -f uv.lock ] || exit 0; command -v uv >/dev/null || { echo "uv が無いので飛ばします" >&2; exit 0; }; uv run deptry "$([ -d src ] && echo src || echo .)"'
     - name: import-linter
-      run: '[ -f .importlinter ] || grep -qs importlinter pyproject.toml setup.cfg || exit 0; uv run lint-imports'
+      run: '[ -f .importlinter ] || grep -qs importlinter pyproject.toml setup.cfg || exit 0; command -v uv >/dev/null || { echo "uv が無いので飛ばします" >&2; exit 0; }; uv run lint-imports'
     - name: gitleaks
-      run: gitleaks git --staged --redact --verbose
+      run: command -v gitleaks >/dev/null || { echo "gitleaks が無いので飛ばします" >&2; exit 0; }; gitleaks git --staged --redact --verbose
 
 pre-push:
   jobs:
     - name: semgrep
-      run: semgrep scan --config p/owasp-top-ten --metrics off --severity ERROR --error --disable-nosem
+      run: command -v semgrep >/dev/null || { echo "semgrep が無いので飛ばします" >&2; exit 0; }; semgrep scan --config p/owasp-top-ten --metrics off --severity ERROR --error --disable-nosem
     - name: trivy
-      run: trivy fs --scanners vuln,misconfig,secret --severity HIGH,CRITICAL --ignore-unfixed --exit-code 1 .
+      run: command -v trivy >/dev/null || { echo "trivy が無いので飛ばします" >&2; exit 0; }; trivy fs --scanners vuln,misconfig,secret --severity HIGH,CRITICAL --ignore-unfixed --exit-code 1 .
