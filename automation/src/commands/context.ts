@@ -32,7 +32,8 @@ export interface Ctx {
   botLogin: string;
   serverUrl: string;
   runUrl: string;
-  notify(n: Notification): Promise<void>;
+  /** config を渡すと、その設定で整える (承認者のメンションなど) */
+  notify(n: Notification, config?: AutopilotConfig): Promise<void>;
   setOutput(key: string, value: string): void;
   now(): Date;
   sleep(ms: number): Promise<void>;
@@ -103,27 +104,42 @@ export async function defaultRunShell(
     if (secrets.includes(value)) continue;
     env[key] = value;
   }
+  // 自分のプロセスグループで動かし、時間切れでは、孫のプロセスまでまとめて止める
   const proc = Bun.spawn(["bash", "-c", command], {
     env,
     stdout: "pipe",
     stderr: "pipe",
+    detached: true,
   });
-  let timedOut = false;
-  const timer = setTimeout(() => {
-    timedOut = true;
-    proc.kill();
-  }, opts.timeoutMs ?? SHELL_TIMEOUT_MS);
-  const [out, err, code] = await Promise.all([
-    new Response(proc.stdout).text(),
-    new Response(proc.stderr).text(),
-    proc.exited,
-  ]);
+  const collect = async () => {
+    const [out, err, code] = await Promise.all([
+      new Response(proc.stdout).text(),
+      new Response(proc.stderr).text(),
+      proc.exited,
+    ]);
+    return { code, output: out + err };
+  };
+  let timer: ReturnType<typeof setTimeout> | undefined;
+  const timeout = new Promise<"timeout">((resolve) => {
+    timer = setTimeout(
+      () => resolve("timeout"),
+      opts.timeoutMs ?? SHELL_TIMEOUT_MS,
+    );
+  });
+  const result = await Promise.race([collect(), timeout]);
   clearTimeout(timer);
-  let output = out + err;
+  if (result === "timeout") {
+    try {
+      process.kill(-proc.pid, "SIGKILL");
+    } catch {
+      proc.kill("SIGKILL");
+    }
+    // パイプを読み終わるのは待たない
+    return { code: 124, output: "時間切れで止めました" };
+  }
+  let output = result.output;
   for (const s of secrets) output = output.replaceAll(s, "***");
-  return timedOut
-    ? { code: 124, output: `${output}\n時間切れで止めました` }
-    : { code, output };
+  return { code: result.code, output };
 }
 
 export async function createCtx(
@@ -159,10 +175,10 @@ export async function createCtx(
     serverUrl,
     runUrl: `${serverUrl}/${repo}/actions/runs/${env.GITHUB_RUN_ID ?? ""}`,
     workflowFile: workflowRef?.[1] ?? "autopilot.yml",
-    notify: async (n) => {
+    notify: async (n, cfg = config) => {
       const url = env.AUTOPILOT_SLACK_WEBHOOK_URL;
       if (!url) throw new Error("AUTOPILOT_SLACK_WEBHOOK_URL が未設定です");
-      await sendSlack(url, formatSlackMessage(n, config), fetchImpl);
+      await sendSlack(url, formatSlackMessage(n, cfg), fetchImpl);
     },
     setOutput: (key, value) => {
       if (env.GITHUB_OUTPUT)
