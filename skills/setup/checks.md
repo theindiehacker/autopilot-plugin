@@ -48,8 +48,10 @@ ls lefthook.yml lefthook.yaml .lefthook.yml .pre-commit-config.yaml .husky 2>/de
 
 | 対象 | 動かすもの | 条件 |
 |---|---|---|
-| `.py`・`.pyi` | `uv run --frozen ruff check --fix --unfixable F401` → `uv run --frozen ruff format` → `uv run --frozen ruff check --ignore F401` | 編集したファイルから親フォルダをたどって、最初に見つかる `pyproject.toml` のフォルダで動かす |
+| `.py`・`.pyi` | `uv run --frozen ruff check --force-exclude --fix --unfixable F401` → `uv run --frozen ruff format --force-exclude` → `uv run --frozen ruff check --force-exclude --ignore F401` | 編集したファイルから親フォルダをたどって、最初に見つかる `pyproject.toml` のフォルダで動かす |
 | そのほか | `node_modules/.bin/biome check --write` | 同じく、最初に見つかる `biome.json(c)` のフォルダで動かす |
+
+- ファイルのパスを直接渡すと、ruff は pyproject.toml の exclude を見ないため、--force-exclude を付ける。
 
 - 使う前に足した import を消さないため、F401 (使っていない import) は自動で直さず、hook では伝えません (commit 前の検査と CI が見ます)
 - 直せない問題が残ったら、exit 2 で出力を Claude に渡し、直させます (編集は取り消しません)
