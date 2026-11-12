@@ -62,7 +62,7 @@ autopilot:ready を付けた <user> に、権限 (triage 以上) がありませ
 ### 4. 開始のコメントを書く
 
 ```bash
-gh api -X POST repos/{owner}/{repo}/issues/<n>/comments -f body="$(cat コメント.md)"
+gh api -X POST repos/{owner}/{repo}/issues/<n>/comments -f body="$(cat コメント.md)" --jq .id
 ```
 
 コメントの本文 (以降のコメントも同じ書き方です):
@@ -71,6 +71,16 @@ gh api -X POST repos/{owner}/{repo}/issues/<n>/comments -f body="$(cat コメン
 <!-- autopilot:started -->
 開発を始めました。
 ```
+
+書いたコメントの ID (出力) を取っておき、書いた直後に、開始のコメントを読み直します。手順 2 で取った最新の `autopilot:ready` の `labeled` の時刻 (`<ラベルの時刻>`) より新しく、ルーティンの持ち主 (`gh api user --jq .login`) が書いた `<!-- autopilot:started -->` 入りのコメントのうち、いちばん古いもの (`created_at`、同じなら `id` の小さいもの) の ID を出します。
+
+```bash
+gh api repos/{owner}/{repo}/issues/<n>/comments --paginate \
+  | jq -s -r --arg since "<ラベルの時刻>" --arg me "<ルーティンの持ち主>" \
+    'add | map(select((.body | contains("<!-- autopilot:started -->")) and .user.login == $me and .created_at > $since)) | sort_by(.created_at, .id) | first | .id'
+```
+
+それが自分の書いたコメントの ID でなければ、別の実行が先に始めているので、ほかには何も書かずに終わります (自分の開始のコメントは消しません)。ほぼ同時に起動した 2 つの実行のうち、先に書いたほうだけが進むためです。
 
 ### 5. 受入条件を書く
 
