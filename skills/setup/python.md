@@ -46,12 +46,12 @@ CLAUDE_PROJECT_DIR="$PWD" bash "${CLAUDE_PLUGIN_ROOT}/scripts/python/setup.sh"
 4. `uv run ty check` で残った問題を直す
 
 ### deptry
-`deptry src` (src レイアウトでなければ `deptry .`) で検査し、足りない依存は `uv add`、使っていない依存は `uv remove` で直してください。誤検知だけ `[tool.deptry]` で除外します (commit の前に precommit.sh がこれを動かします)。
+`deptry src` (src レイアウトでなければ `deptry .`) で検査し、足りない依存は `uv add`、使っていない依存は `uv remove` で直してください。誤検知だけ `[tool.deptry]` で除外します (commit の前に、lefthook がこれを動かします)。
 
 ### import-linter
 1. パッケージの層 (例: `presentation → application → domain`) と依存の向きを、ユーザーに確かめる
 2. `pyproject.toml` の `[tool.importlinter]` に `root_package` を書き、`[[tool.importlinter.contracts]]` に `type = "layers"` の契約を書く
-3. `lint-imports` で確かめる (commit の前に precommit.sh がこれを動かします)
+3. `lint-imports` で確かめる (commit の前に、lefthook がこれを動かします)
 
 ### pytest
 1. `uv add --dev pytest` で入れる

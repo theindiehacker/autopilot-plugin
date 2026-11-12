@@ -27,6 +27,13 @@ if [ -f mise.toml ]; then
     echo "⚠️ mise のツールを入れられませんでした。ユーザーに伝えてください"
 fi
 
+# 🪝 git の hook (commit 前・push 前の検査) を入れる。hook の中身はリポジトリの設定にある
+if [ -f lefthook.yml ] && command -v lefthook > /dev/null 2>&1; then
+  lefthook install > /dev/null 2>&1 || echo "⚠️ lefthook install に失敗しました"
+elif [ -f .pre-commit-config.yaml ] && command -v pre-commit > /dev/null 2>&1; then
+  pre-commit install > /dev/null 2>&1 || echo "⚠️ pre-commit install に失敗しました"
+fi
+
 # 🐳 compose のサービスを起動する。ビルドが入れている途中のツールを読まないよう、最後に行う
 COMPOSE=""
 for f in compose.yaml compose.yml docker-compose.yaml docker-compose.yml; do

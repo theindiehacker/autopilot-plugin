@@ -31,19 +31,10 @@
 | 起動時 | Gitleaks・Semgrep・Trivy を導入 | Web のみ。ローカルは無ければ警告だけ |
 | 起動時 | 下の「技術スタックの方針」を Claude に伝える | フロントエンドは `package.json`、Python は `pyproject.toml`・`requirements*.txt`・`setup.py` がある |
 | 起動時・再開時・要約の後 | 下の「Claude に渡す指示」を渡す | Web のみ |
-| 編集後 | `biome check --write` | `biome.json` がある |
-| 編集後 | `ruff check --fix` → `ruff format` → `ruff check`・`ty check` | `.py`・`.pyi` の編集で、`pyproject.toml` がある |
-| commit 前 | `bun run typecheck` (無ければ `tsc --noEmit`) | `tsconfig.json` がある |
-| commit 前 | `deptry` | `uv.lock` がある |
-| commit 前 | `lint-imports` | `uv.lock` と import-linter の設定がある |
-| commit 前 | `gitleaks dir` でシークレットを検出 | Gitleaks がある |
-| push 前 | `semgrep scan --config p/owasp-top-ten --severity ERROR` | Semgrep がある |
-| push 前 | `trivy fs --scanners vuln,misconfig,secret --severity HIGH,CRITICAL --ignore-unfixed` | Trivy がある |
 
-- **失敗時:** hook が exit 2 を返し、結果を Claude に渡します。commit・push 前の検査では commit・push も止まり、Claude が修正してやり直すと再び検査します。
-- **検査の範囲:** 編集後は、編集したファイルだけを検査します。commit 前の型検査は `tsconfig.json`、`deptry`・`lint-imports` は `uv.lock` のあるフォルダごとに、全体を検査します。Gitleaks・Semgrep・Trivy は、差分ではなくリポジトリ全体が対象です。Gitleaks と Trivy は、git に入るファイル (追跡中と、無視していない新規ファイル) だけを見ます。
+- **検査:** 編集後・commit 前・push 前の検査は、プラグインの hook ではありません。`/autopilot:setup` が、リポジトリの `lefthook.yml` (commit 前・push 前) と `.claude/settings.json` (編集後) に入れます。人がターミナルで commit・push したときにも動きます。Web では、起動時に `lefthook install` を行います (`pre-commit` を使うリポジトリでは `pre-commit install`)。
 - **LSP:** Claude が TypeScript と ty の LSP を使えます。
-- **ローカルでの準備:** Gitleaks・Semgrep・Trivy は、Mac では `brew install semgrep gitleaks trivy` で入れられます。無いときや起動できないときは、起動時に警告が出るだけで、検査は素通りします。
+- **ローカルでの準備:** Gitleaks・Semgrep・Trivy は、Mac では `brew install semgrep gitleaks trivy` で入れられます。無いと、commit・push 前の検査が失敗します。
 
 ### 📐 技術スタックの方針
 
@@ -179,7 +170,7 @@ Claude Code を開いていたら、起動し直します。
 
 > [!NOTE]
 > - Web 用の処理 (`dockerd`・`mise install`・`docker compose up`・Claude に渡す指示) は、PC では動きません。
-> - commit・push 前の検査には、Semgrep・Gitleaks・Trivy が要ります。Mac では `brew install semgrep gitleaks trivy` で入れられます。
+> - lefthook の検査には、Semgrep・Gitleaks・Trivy が要ります。Mac では `brew install semgrep gitleaks trivy` で入れられます。
 
 </details>
 
@@ -217,13 +208,13 @@ claude plugin install autopilot@indiehacker
 | 1 | フロントエンドの技術スタックの移行 | `package.json` がある | npm・yarn・pnpm を bun に、ESLint・Prettier を Biome に置き換える。Tailwind CSS・shadcn/ui・Playwright が無ければ入れる。`package.json` に `typecheck` を足す |
 | 2 | Python の技術スタックの移行 | `pyproject.toml`・`requirements*.txt`・`setup.py` がある | pip・poetry・pipenv を uv に、flake8・black・isort・pylint を Ruff に、mypy・pyright を ty に置き換える。deptry の指摘を直し、import-linter の `layers` の契約を書く。pytest が無ければ入れる |
 | 3 | Web で Docker を起動できるようにする | 毎回 | compose ファイルを用意し、Dockerfile の通信する `RUN` でプロキシの CA を読む。`.env` が無くても起動できるようにし、Mac 専用の設定や終了するサービスを直す。遮断されたドメインは、環境の「許可されたドメイン」への追加を頼む |
-| 4 | 既存のシークレット・脆弱性を直す | 毎回 | Gitleaks・Semgrep・Trivy の指摘を直す。誤検出などでユーザーが選んだものだけ、理由を書いて除外する |
+| 4 | 検査を入れる | 毎回 | `lefthook.yml` (commit 前: 型検査・ty・deptry・import-linter・`gitleaks git --staged`、push 前: Semgrep・Trivy) と `.claude/settings.json` (編集後の Biome・Ruff) を作る。すでに lefthook や pre-commit があれば、足りない検査だけを足す。`lefthook install` を動かし、シークレットを入れた commit が止まることを確かめる |
+| 5 | 既存のシークレット・脆弱性を直す | 毎回 | Gitleaks・Semgrep・Trivy の指摘を直す。誤検出などでユーザーが選んだものだけ、理由を書いて除外する |
 
 技術スタックの移行を先に行うのは、3 で動かす `docker compose up --build` が、移行した後の lock ファイルでビルドするためです。セキュリティを最後に行うのは、移行で変わった依存も検査するためです。
 
-4 つが終わったら、PR を作るかを聞き、作ると答えたら PR を 1 つ作ります。
+5 つが終わったら、PR を作るかを聞き、作ると答えたら PR を 1 つ作ります。
 
 ## ⚠️ 注意
 
-- hooks が動くのは Claude Code の操作だけです。ターミナルで直接 commit・push すると動きません。
 - これらのツールで検出できない脆弱性もあります。

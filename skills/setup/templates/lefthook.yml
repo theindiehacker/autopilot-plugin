@@ -1,0 +1,19 @@
+pre-commit:
+  jobs:
+    - name: typecheck
+      run: grep -qs '"typecheck" *:' package.json || exit 0; bun run typecheck
+    - name: ty
+      run: '[ -f uv.lock ] || exit 0; uv run ty check'
+    - name: deptry
+      run: '[ -f uv.lock ] || exit 0; uv run deptry "$([ -d src ] && echo src || echo .)"'
+    - name: import-linter
+      run: '[ -f .importlinter ] || grep -qs importlinter pyproject.toml setup.cfg || exit 0; uv run lint-imports'
+    - name: gitleaks
+      run: gitleaks git --staged --redact --verbose
+
+pre-push:
+  jobs:
+    - name: semgrep
+      run: semgrep scan --config p/owasp-top-ten --metrics off --severity ERROR --error --disable-nosem
+    - name: trivy
+      run: trivy fs --scanners vuln,misconfig,secret --severity HIGH,CRITICAL --ignore-unfixed --exit-code 1 .
