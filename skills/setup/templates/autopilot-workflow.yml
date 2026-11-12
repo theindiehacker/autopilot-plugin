@@ -205,6 +205,7 @@ jobs:
       - name: git の hook を止める
         if: steps.round.outputs.run == 'true'
         run: git config --local core.hooksPath /dev/null
+      # アプリは step では起動しない。Claude が動作確認の手順で qa.start を動かす
       - if: steps.round.outputs.run == 'true'
         uses: theindiehacker/autopilot-plugin/actions/claude@{{AUTOPILOT_REF}}
         with:
@@ -215,6 +216,8 @@ jobs:
           claude-code-oauth-token: ${{ secrets.CLAUDE_CODE_OAUTH_TOKEN }}
           anthropic-api-key: ${{ secrets.ANTHROPIC_API_KEY }}
           pr: ${{ steps.round.outputs.pr }}
+          # アプリの MCP サーバー (qa.start で起動する)。無ければ {}
+          mcp-servers: '{{QA_MCP_SERVERS}}'
 
   # Claude の Bash が動いた job では、秘密鍵を使わない。ready は別の job で行う
   # Claude の step が失敗しても、Draft から戻す (戻した後のレビューと CI が、次の対応を起こす。回数の上限で止まる)

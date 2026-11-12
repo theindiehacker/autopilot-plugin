@@ -1,5 +1,5 @@
 name: autopilot claude
-description: QA と対応を、claude-code-action で行う。プロンプトは skills/<mode>/SKILL.md から読む
+description: QA と対応を、claude-code-action で行う。プロンプトは skills/<mode>/SKILL.md から読む (対応は、動作確認の手順 skills/qa/self-check.md も続ける)
 inputs:
   mode:
     description: qa か fix
@@ -27,7 +27,7 @@ inputs:
     required: false
     default: claude
   mcp-servers:
-    description: 'QA の Claude に足す MCP サーバー。Claude Code の mcpServers と同じ形の JSON の object (例: {"app":{"type":"http","url":"http://127.0.0.1:8002/mcp"}})。mode が qa のときだけ使う'
+    description: 'QA と対応の Claude に足す MCP サーバー。Claude Code の mcpServers と同じ形の JSON の object (例: {"app":{"type":"http","url":"http://127.0.0.1:8002/mcp"}})。qa と fix (動作確認) で使う'
     required: false
     default: "{}"
 runs:
@@ -42,8 +42,12 @@ runs:
         SKILLS: ${{ github.action_path }}/../../skills
       run: |
         case "$MODE" in
-          qa)
-            tools='Bash,Read,Write,Glob,Grep,mcp__playwright__*'
+          qa|fix)
+            if [ "$MODE" = qa ]; then
+              tools='Bash,Read,Write,Glob,Grep,mcp__playwright__*'
+            else
+              tools='Bash,Read,Edit,Write,Glob,Grep,mcp__playwright__*'
+            fi
             # Playwright の MCP サーバーは版を固定する
             playwright='{"playwright":{"command":"npx","args":["-y","@playwright/mcp@0.0.85","--headless"]}}'
             if ! printf '%s' "$MCP_SERVERS" | jq -e 'type == "object"' > /dev/null 2>&1; then
@@ -63,13 +67,17 @@ runs:
               *"'"*) echo "mcp-servers に ' は使えません" >&2; exit 1 ;;
             esac
             ;;
-          fix) tools='Bash,Read,Edit,Write,Glob,Grep' ;;
           *) echo "mode は qa か fix にしてください: $MODE" >&2; exit 1 ;;
         esac
         {
           echo "prompt<<AUTOPILOT_PROMPT_EOF"
           # 先頭の frontmatter (--- から ---) を除く
           awk 'NR == 1 && $0 == "---" { skip = 1; next } skip && $0 == "---" { skip = 0; next } !skip' "$SKILLS/$MODE/SKILL.md"
+          if [ "$MODE" = fix ]; then
+            # 直した後に、新しい commit で動作確認をする手順を続ける
+            echo
+            cat "$SKILLS/qa/self-check.md"
+          fi
           if [ -n "$PR" ]; then
             echo
             echo "対象の PR は #$PR です。"
@@ -79,8 +87,8 @@ runs:
           printf '%s' "--allowedTools \"$tools\""
           # 環境変数や /proc から秘密を出すコマンドを断る (完全な防ぎではない)
           printf ' %s' "--disallowedTools \"Bash(env:*),Bash(printenv:*),Bash(set),Bash(export -p),Bash(cat /proc/*)\""
+          printf ' %s' "--mcp-config '$mcp_config'"
           if [ "$MODE" = qa ]; then
-            printf ' %s' "--mcp-config '$mcp_config'"
             printf ' %s' "--json-schema '{\"type\":\"object\",\"properties\":{\"passed\":{\"type\":\"boolean\"},\"summary\":{\"type\":\"string\"}},\"required\":[\"passed\",\"summary\"]}'"
           fi
           echo
