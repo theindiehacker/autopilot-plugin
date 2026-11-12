@@ -1,0 +1,43 @@
+name: autopilot
+description: autopilot の AI を使わない処理 (automation/src/cli.ts のコマンド) を、GitHub App のトークンで動かす
+inputs:
+  command:
+    description: cli.ts のコマンド (irreversible・automerge・label・fix-round・ready・sweep・deploy)
+    required: true
+  app-id:
+    description: GitHub App の ID
+    required: true
+  private-key:
+    description: GitHub App の秘密鍵
+    required: true
+  slack-webhook-url:
+    description: Slack の Incoming Webhook の URL
+    required: false
+    default: ""
+outputs:
+  run:
+    description: fix-round のとき、対応を行うなら true
+    value: ${{ steps.cli.outputs.run }}
+  pr:
+    description: fix-round のとき、対象の PR の番号
+    value: ${{ steps.cli.outputs.pr }}
+runs:
+  using: composite
+  steps:
+    - id: app
+      uses: actions/create-github-app-token@64ab729a6294000f5aa4a4bc0b73d1f32bc45510 # v3.3.0
+      with:
+        app-id: ${{ inputs.app-id }}
+        private-key: ${{ inputs.private-key }}
+    - uses: oven-sh/setup-bun@0c5077e51419868618aeaa5fe8019c62421857d6 # v2.2.0
+      with:
+        bun-version-file: ${{ github.action_path }}/../../automation/package.json
+    - id: cli
+      shell: bash
+      env:
+        AUTOPILOT_COMMAND: ${{ inputs.command }}
+        GITHUB_TOKEN: ${{ steps.app.outputs.token }}
+        AUTOPILOT_APP_SLUG: ${{ steps.app.outputs.app-slug }}
+        AUTOPILOT_SLACK_WEBHOOK_URL: ${{ inputs.slack-webhook-url }}
+        CLI: ${{ github.action_path }}/../../automation/src/cli.ts
+      run: bun run "$CLI" "$AUTOPILOT_COMMAND"

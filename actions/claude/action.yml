@@ -1,0 +1,73 @@
+name: autopilot claude
+description: QA と対応を、claude-code-action で行う。プロンプトは skills/<mode>/SKILL.md から読む
+inputs:
+  mode:
+    description: qa か fix
+    required: true
+  app-id:
+    description: GitHub App の ID
+    required: true
+  private-key:
+    description: GitHub App の秘密鍵
+    required: true
+  claude-code-oauth-token:
+    description: Claude Code の OAuth トークン (anthropic-api-key のどちらか一方でよい)
+    required: false
+    default: ""
+  anthropic-api-key:
+    description: Anthropic の API キー
+    required: false
+    default: ""
+  pr:
+    description: 対象の PR の番号
+    required: false
+    default: ""
+runs:
+  using: composite
+  steps:
+    - id: prompt
+      shell: bash
+      env:
+        MODE: ${{ inputs.mode }}
+        PR: ${{ inputs.pr }}
+        SKILLS: ${{ github.action_path }}/../../skills
+      run: |
+        case "$MODE" in
+          qa | fix) ;;
+          *) echo "mode は qa か fix にしてください: $MODE" >&2; exit 1 ;;
+        esac
+        {
+          echo "prompt<<AUTOPILOT_PROMPT_EOF"
+          # 先頭の frontmatter (--- から ---) を除く
+          awk 'NR == 1 && $0 == "---" { skip = 1; next } skip && $0 == "---" { skip = 0; next } !skip' "$SKILLS/$MODE/SKILL.md"
+          if [ -n "$PR" ]; then
+            echo
+            echo "対象の PR は #$PR です。"
+          fi
+          echo "AUTOPILOT_PROMPT_EOF"
+        } >> "$GITHUB_OUTPUT"
+    - id: app
+      uses: actions/create-github-app-token@64ab729a6294000f5aa4a4bc0b73d1f32bc45510 # v3.3.0
+      with:
+        app-id: ${{ inputs.app-id }}
+        private-key: ${{ inputs.private-key }}
+    - id: claude
+      uses: anthropics/claude-code-action@4fa93a88de49bbef68b10eb15aabedf28ca0e1ed # v1.0.271
+      with:
+        github_token: ${{ steps.app.outputs.token }}
+        claude_code_oauth_token: ${{ inputs.claude-code-oauth-token }}
+        anthropic_api_key: ${{ inputs.anthropic-api-key }}
+        prompt: ${{ steps.prompt.outputs.prompt }}
+        claude_args: ${{ inputs.mode == 'qa' && '--json-schema ''{"type":"object","properties":{"passed":{"type":"boolean"},"summary":{"type":"string"}},"required":["passed","summary"]}''' || '' }}
+    - if: inputs.mode == 'qa'
+      shell: bash
+      env:
+        RESULT: ${{ steps.claude.outputs.structured_output }}
+      run: |
+        passed=$(printf '%s' "$RESULT" | jq -r '.passed') || passed=""
+        summary=$(printf '%s' "$RESULT" | jq -r '.summary // ""') || summary=""
+        echo "QA: $summary"
+        if [ "$passed" != "true" ]; then
+          echo "::error::QA が通りませんでした (passed=${passed:-不明})"
+          exit 1
+        fi
