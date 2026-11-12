@@ -56,7 +56,7 @@ QA を別のファイルにするのは、別のイベントで起きた実行�
 
 | デプロイ先 | 書き方 |
 |---|---|
-| Cloud Run | [templates/rollback-cloud-run.yml](templates/rollback-cloud-run.yml)。`{{SERVICE}}`・`{{REGION}}`・認証 (`{{WORKLOAD_IDENTITY_PROVIDER}}`・`{{SERVICE_ACCOUNT}}`) は、デプロイのワークフローの値に合わせる。トラフィックを、最後に正常だったリビジョン (Ready で、配信中でなく、`autopilot-bad-` のタグが無い、いちばん新しいもの) に戻す。戻す元には `autopilot-bad-<日時>` のタグを付け、候補が無ければ失敗する |
+| Cloud Run | [templates/rollback-cloud-run.yml](templates/rollback-cloud-run.yml)。`{{SERVICE}}`・`{{REGION}}`・認証 (`{{WORKLOAD_IDENTITY_PROVIDER}}`・`{{SERVICE_ACCOUNT}}`) は、デプロイのワークフローの値に合わせる。トラフィックを、最後に正常だったリビジョン (Ready で、配信中でなく、`AUTOPILOT_BAD_REVISIONS` に無い、いちばん新しいもの) に戻す。戻した後、戻す元を Actions の変数 `AUTOPILOT_BAD_REVISIONS` に記録し、次の候補から外す (トラフィックのタグは作らない。タグは公開の URL になるため)。候補が無ければ失敗する。App の ID・秘密鍵のシークレットを使う |
 | そのほか | そのリポジトリのデプロイのワークフローに合わせて書く。`workflow_dispatch` で動き、最後に正常だった版に戻す |
 
 ワークフローの変更なので、この PR で人が承認します。actions は、SHA で固定し、`# vX.Y.Z` を付けます。
@@ -90,11 +90,12 @@ GitHub App を、autopilot を使うリポジトリにだけ入れるのは、QA
 | App の権限 | 値 | 使うところ |
 |---|---|---|
 | Contents・Pull requests・Issues・Commit statuses・Actions | Read and write | ラベル・コメント・ステータス・自動マージ・push・ワークフローの起動 |
+| Variables (リポジトリ) | Read and write | ロールバックのワークフローが、戻す元のリビジョンを変数 `AUTOPILOT_BAD_REVISIONS` に記録する |
 | Checks | Read | 必須のチェックの結果 |
 | Metadata | Read | 常に付く |
 | Organization の Members | Read | 承認する人の team を読む (`irreversible`) |
 
-作成の画面は、個人のアカウントなら `https://github.com/settings/apps/new`、org なら `https://github.com/organizations/<org>/settings/apps/new` です。manifest の権限を、画面で同じにしてもらいます。作り終えたら、App の設定の「Permissions & events」の画面を見せてもらい (または、スクリーンショットか、`gh api` で読める範囲の値)、上の表と 1 つずつ照らします。違いがあれば直してもらいます。App の ID も控えてもらいます (手順 9 で使います)。
+作成の画面は、個人のアカウントなら `https://github.com/settings/apps/new`、org なら `https://github.com/organizations/<org>/settings/apps/new` です。manifest の権限を、画面で同じにしてもらいます。作り終えたら、App の設定の「Permissions & events」の画面を見せてもらい (または、スクリーンショットか、`gh api` で読める範囲の値)、上の表と 1 つずつ照らします。すでに App があるリポジトリでは、Variables (Read and write) が足りないので、App の設定で足してもらいます (足したら、導入先で権限の更新を承認してもらう)。ロールバックを入れないなら、要りません。違いがあれば直してもらいます。App の ID も控えてもらいます (手順 9 で使います)。
 
 | シークレット | 内容 |
 |---|---|
@@ -153,7 +154,8 @@ JSON
 gh api -X PATCH repos/{o}/{r} -F allow_auto_merge=true
 ```
 
-4. ワークフローの既定の権限を、読み取りだけにし、Actions が PR を Approve することを禁じます。
+4. 最初の autopilot の PR で、`autopilot/irreversible` (App が付けるコミットステータス) が、ルールセットの `integration_id` の固定で受け付けられるかを確かめます。GitHub が App が付けたものと見なさず、必須のチェックが満たされないときは、その 1 つだけ固定を外し、ユーザーに伝えます
+5. ワークフローの既定の権限を、読み取りだけにし、Actions が PR を Approve することを禁じます。
 
 ```bash
 gh api -X PUT repos/{o}/{r}/actions/permissions/workflow \

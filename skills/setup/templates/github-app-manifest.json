@@ -14,6 +14,7 @@
     "issues": "write",
     "statuses": "write",
     "actions": "write",
+    "variables": "write",
     "checks": "read",
     "members": "read"
   },
