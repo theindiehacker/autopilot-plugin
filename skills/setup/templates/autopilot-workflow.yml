@@ -217,9 +217,10 @@ jobs:
           pr: ${{ steps.round.outputs.pr }}
 
   # Claude の Bash が動いた job では、秘密鍵を使わない。ready は別の job で行う
+  # Claude の step が失敗しても、Draft から戻す (戻した後のレビューと CI が、次の対応を起こす。回数の上限で止まる)
   ready:
     needs: fix
-    if: needs.fix.outputs.run == 'true'
+    if: always() && needs.fix.outputs.run == 'true'
     runs-on: ubuntu-latest
     permissions:
       contents: read
