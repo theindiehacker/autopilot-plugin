@@ -154,6 +154,7 @@ jobs:
           persist-credentials: false
       # リポジトリが固定したツール (bun・uv・task など) を入れる。shim は PATH に足さない
       # (shim があると、PR のフォルダで mise の管理するツールを呼ぶたびに、PR の mise.toml が読まれて動く。ツールの PATH は export_path で足される)
+      # setup-bun・setup-uv のキャッシュは、PR のコードの後 (job の最後) に保存されるので切る。mise-action は、ツールを入れた直後 (PR の checkout の前) に保存するので、そのままにする
       - name: ツールを入れる (mise)
         if: steps.round.outputs.run == 'true' && hashFiles('mise.toml', '.mise.toml') != ''
         uses: jdx/mise-action@b44d12e7d0d8ee7461bb893e1b1993500433185b # v5.2.7
@@ -161,8 +162,12 @@ jobs:
           add_shims_to_path: false
       - if: steps.round.outputs.run == 'true' && hashFiles('mise.toml', '.mise.toml') == '' && hashFiles('bun.lock', 'bun.lockb') != ''
         uses: oven-sh/setup-bun@0c5077e51419868618aeaa5fe8019c62421857d6 # v2.2.0
+        with:
+          no-cache: true
       - if: steps.round.outputs.run == 'true' && hashFiles('mise.toml', '.mise.toml') == '' && hashFiles('uv.lock') != ''
         uses: astral-sh/setup-uv@68559e99cc807c1eb7e9238fd43a15bba460eec2 # v10.3.3
+        with:
+          enable-cache: false
       # fix-round が、同じリポジトリの autopilot の PR だと確かめている
       - if: steps.round.outputs.run == 'true'
         uses: actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1 # v7.0.1
