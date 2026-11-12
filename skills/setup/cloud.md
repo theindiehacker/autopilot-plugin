@@ -10,11 +10,7 @@ Claude Code on the Web のクラウド環境で Docker (docker compose) を起�
 - マシンは x86_64 です
 
 ## 1. 調べて聞く
-まず、起動時と同じ処理を動かしてください。出た警告・エラー (依存を入れられない、ツールが無いなど) は、下の表の項目と一緒に「直す」項目に加えます。原因が許可されていないドメインなら、環境の設定の「許可されたドメイン」に足すよう、ユーザーに頼んでください。
-
-```bash
-CLAUDE_PROJECT_DIR="$PWD" bash "${CLAUDE_PLUGIN_ROOT}/scripts/cloud/setup.sh"
-```
+setup.sh は、Web のクラウド環境 (`CLAUDE_CODE_REMOTE` がある) でだけ動き、ローカルでは何もしません。ここでは動かしません。ローカルで調べるのは、下の表と、`docker compose config` (と、ビルドできるサービスの `docker compose build`) です。起動時の処理の警告・エラーは、Web のセッションでユーザーに確かめてもらいます。原因が許可されていないドメインなら、環境の設定の「許可されたドメイン」に足すよう、ユーザーに頼んでください。
 
 次の表で、今の状態を調べてください。
 
@@ -79,7 +75,7 @@ OS の証明書を読まないツールには、同じ `RUN` で環境変数を�
 名前を解決できないドメインを一覧にし、環境の設定の「許可されたドメイン」に足すよう、ユーザーに頼んでください (例: Debian の `apt-get` → `deb.debian.org`)。Dockerfile の手順を消したり、別の経路で回避したりしないでください。足すまでは、そのビルドを確かめられないと伝えます。
 
 ## 3. 確かめる
-リポジトリのルートで、起動時と同じ処理を動かしてください。CA を渡す compose ファイルを作り直し、`docker compose up --build -d --wait` を行います。
+setup.sh は Web の環境でだけ動きます。ローカルでは動かさず (動かしても何もしません)、`docker compose config` が通ることと、ローカルの Docker での `docker compose up --build -d --wait` を確かめます。Web での確かめは、ユーザーに頼みます (Web のセッションで、次のコマンドを動かしてもらう)。Web では、setup.sh が CA を渡す compose ファイルを作り直し、`docker compose up --build -d --wait` を行います。
 
 ```bash
 CLAUDE_PROJECT_DIR="$PWD" bash "${CLAUDE_PLUGIN_ROOT}/scripts/cloud/setup.sh"

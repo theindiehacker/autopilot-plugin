@@ -7,13 +7,13 @@
 | タスクランナー・git hook | `ls Taskfile.yml Makefile mise.toml .mise.toml lefthook.yml .pre-commit-config.yaml .husky 2>/dev/null` | あるもの |
 | CI | `ls .github/workflows` | 各ファイルの `on:` (動く条件)・`name:`・ジョブ名。`paths:` で飛ぶものはどれか |
 | Claude のレビュー | `grep -rl -e claude-code-action -e claude-code-review .github/workflows` | あるか。起動のしかた (PR の作成・コメント) |
-| デプロイ | `grep -il -e deploy -e gcloud -e aws-actions -e vercel .github/workflows/*` | 動く条件 (main への push・`workflow_dispatch`)。デプロイ先 (Cloud Run・ECS・Vercel など)。環境の名前 |
+| デプロイ | `grep -il -e 'uses: .*deploy' -e 'gcloud run deploy' -e 'gcloud app deploy' -e aws-actions -e vercel .github/workflows/*` | 候補だけ。説明文・コメント・E2E のワークフローも当たるので、各ファイルの `on:` とジョブの中身 (デプロイするコマンドか) を読んで決める。動く条件 (main への push・`workflow_dispatch`)。デプロイ先 (Cloud Run・ECS・Vercel など)。環境の名前 |
 | ロールバック | `ls .github/workflows/*rollback* 2>/dev/null` | あるか |
 | DB とマイグレーション | `git ls-files -- '*migration*' '*alembic*' '*.sql' 'prisma/*'` | マイグレーションのパス |
 | IaC | `git ls-files -- '*.tf'` と、`grep -l 'terraform' .github/workflows/*` | Terraform があるか。plan と apply が動く条件。apply がマージで動くか |
 | compose | `git ls-files -- '*compose*.y*ml' '*Dockerfile*'` | アプリを `docker compose up` で起動できそうか |
 | ルールセット | `gh api repos/{o}/{r}/rulesets` と `gh api repos/{o}/{r}/rules/branches/<デフォルトブランチ>` | 今ある必須のチェック・必須のレビュー。org のルールセットは `gh api repos/{o}/{r}/rulesets?includes_parents=true` で見る |
-| デフォルトブランチ | `gh repo view --json defaultBranchRef,autoMergeAllowed,viewerPermission` | main か master。自動マージが有効か。自分の権限が admin か |
+| デフォルトブランチ | `gh repo view --json defaultBranchRef,viewerPermission` と `gh api repos/{o}/{r} --jq .allow_auto_merge` | main か master。自動マージが有効か (`gh repo view` に自動マージのフィールドは無い)。自分の権限が admin か |
 | 環境 | `gh api repos/{o}/{r}/environments` | 環境の名前と、保護ルール |
 | Renovate | `ls renovate.json .github/renovate.json .renovaterc* 2>/dev/null` | あるか |
 | `.claude/` | `ls .claude; cat .claude/settings.json` | 既存の設定。hooks・permissions |

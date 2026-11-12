@@ -48,13 +48,13 @@ ls lefthook.yml lefthook.yaml .lefthook.yml .pre-commit-config.yaml .husky 2>/de
 
 | 対象 | 動かすもの | 条件 |
 |---|---|---|
-| `.py`・`.pyi` | `uv run ruff check --fix` → `uv run ruff format` → `uv run ruff check` | 常に |
-| そのほか | `bunx biome check --write` | リポジトリのルートに `biome.json` がある |
+| `.py`・`.pyi` | `uv run ruff check --fix` → `uv run ruff format` → `uv run ruff check` | 編集したファイルから親フォルダをたどって、最初に見つかる `pyproject.toml` のフォルダで動かす |
+| そのほか | `bunx biome check --write` | 同じく、最初に見つかる `biome.json(c)` のフォルダで動かす |
 
 - 直せない問題が残ったら、exit 2 で出力を Claude に渡し、直させます (編集は取り消しません)
 - 1 行で書いてあるのは、スクリプトを別に置かないためです。ファイルの読み取りに `jq` を使わないのは、Mac に無いことがあるためです
 - ツール (`uv`・ruff・`bunx`・Biome) が無いときや、`pyproject.toml`・`biome.json(c)` が無いときは、何もせず通します (直す問題として Claude に伝えないため)。プロジェクトの外のファイルとシンボリックリンクも見ません
-- `biome.json` がルートに無い (`frontend/biome.json` など) ときは、`[ -f biome.json ]` のパスを直し、`cd` もそのフォルダにします
+- ひな形は、`pyproject.toml`・`biome.json(c)` を、編集したファイルの親フォルダからリポジトリのルートまでたどって探し、見つかったフォルダに `cd` して動かします。`backend/`・`frontend/` のように分かれていても、直さずに動きます。見つからなければ何もしません
 - Python の型検査 (ty) は、編集のたびには動かしません。commit 前の検査で動きます
 
 ## 4. 入れて、確かめる

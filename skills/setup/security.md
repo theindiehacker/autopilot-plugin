@@ -89,6 +89,8 @@ scripts/admin.py
 ```
 
 ### Trivy → `.trivyignore.yaml` と `trivy.yaml`
+リポジトリに、すでに Trivy を動かすタスク (`task security:check` など) と除外ファイルがあれば、それを優先します。ここの `trivy.yaml` や、上のコマンドの条件を重ねて足さず、そのタスクのコマンドと除外ファイルの方式に合わせてください (例: `--ignorefile .trivyignore.yaml` を渡している)。
+
 Trivy は `.trivyignore.yaml` を自動では読まないため、リポジトリのルートの `trivy.yaml` で読ませます。`.trivyignore` (テキスト) はパスで絞れず、シークレットのルールをリポジトリ全体で消してしまうため使いません。
 
 ```yaml
