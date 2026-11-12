@@ -1,0 +1,40 @@
+# .github/workflows/rollback.yml (Cloud Run)
+# トラフィックを 1 つ前のリビジョンに戻す。デプロイのワークフローと同じサービス・リージョン・認証にする
+name: rollback
+
+on:
+  workflow_dispatch:
+
+permissions:
+  contents: read
+  id-token: write
+
+env:
+  SERVICE: "{{SERVICE}}"
+  REGION: "{{REGION}}"
+
+jobs:
+  rollback:
+    runs-on: ubuntu-latest
+    timeout-minutes: 15
+    steps:
+      # デプロイのワークフローの認証の step をそのまま写す (Workload Identity Federation)
+      - uses: google-github-actions/auth@7c6bc770dae815cd3e89ee6cdf493a5fab2cc093 # v3.0.0
+        with:
+          workload_identity_provider: "{{WORKLOAD_IDENTITY_PROVIDER}}"
+          service_account: "{{SERVICE_ACCOUNT}}"
+      - uses: google-github-actions/setup-gcloud@aa5489c8933f4cc7a4f7d45035b3b1440c9c10db # v3.0.1
+      - name: 1 つ前のリビジョンに戻す
+        run: |
+          # 新しい順に並べ、いまのリビジョンの次を選ぶ
+          previous="$(gcloud run revisions list \
+            --service "$SERVICE" --region "$REGION" \
+            --sort-by '~metadata.creationTimestamp' \
+            --format 'value(metadata.name)' --limit 2 | sed -n 2p)"
+          if [ -z "$previous" ]; then
+            echo "::error::1 つ前のリビジョンがありません"
+            exit 1
+          fi
+          echo "戻し先: $previous"
+          gcloud run services update-traffic "$SERVICE" \
+            --region "$REGION" --to-revisions "${previous}=100"

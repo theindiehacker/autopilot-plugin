@@ -1,0 +1,42 @@
+# .github/autopilot.yml (setup が、聞き取った答えで書く)
+# {{...}} は setup が置き換える。当てはまらない項目は、行ごと消す
+routine_github_user: "{{ROUTINE_GITHUB_USER}}"   # ルーティンの持ち主の GitHub のユーザー名
+
+qa:
+  start: "{{QA_START}}"   # 例: docker compose up --build -d --wait
+  url: "{{QA_URL}}"       # 例: http://localhost:3000
+
+review:
+  reviewer: "{{REVIEWER}}"   # 判定を出すアカウント。例: claude[bot]
+  trigger: ready_for_review  # ready_for_review / comment / none
+  # command: "/code-review"  # trigger が comment のとき
+
+required_checks:
+  - "{{CI_CHECK}}"   # CI のジョブ名。1 つずつ書く。paths: で飛ぶものは書かない
+  - "autopilot QA"
+  - "autopilot/irreversible"
+
+irreversible:
+  paths:
+    - "{{IRREVERSIBLE_PATH}}"   # 例: backend/migration/versions/**
+  # terraform_plan_artifact: "{{TERRAFORM_PLAN_ARTIFACT}}"   # Terraform の apply がマージで動くとき
+
+approvers:
+  - "{{APPROVER}}"   # GitHub のユーザー名か team。irreversible.paths があるとき必須
+
+notify:
+  slack_channel: "{{SLACK_CHANNEL}}"   # 例: "#alerts"
+  approver_mentions:
+    - "{{APPROVER_SLACK_MENTION}}"
+
+limits:
+  max_fix_rounds: 3
+  stale_hours: 3
+
+deploy:
+  mode: none   # none / on_merge / dispatch
+  # workflow: deploy.yml
+  # environments: [production]
+  # verify: curl -fsS https://example.com/healthz
+  # rollback: rollback.yml
+  # rollback_after_irreversible: false

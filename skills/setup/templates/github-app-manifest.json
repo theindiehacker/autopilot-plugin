@@ -1,0 +1,21 @@
+{
+  "name": "{{APP_NAME}}",
+  "url": "{{REPO_URL}}",
+  "redirect_url": "https://github.com",
+  "public": false,
+  "hook_attributes": {
+    "url": "https://example.com/unused",
+    "active": false
+  },
+  "default_permissions": {
+    "metadata": "read",
+    "contents": "write",
+    "pull_requests": "write",
+    "issues": "write",
+    "statuses": "write",
+    "actions": "write",
+    "checks": "read",
+    "members": "read"
+  },
+  "default_events": []
+}
