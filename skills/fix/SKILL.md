@@ -71,6 +71,12 @@ gh api -X POST repos/{owner}/{repo}/pulls/<n>/comments/<id>/replies -f body='採
 
 画像などのファイルは、[../qa/evidence.md](../qa/evidence.md) の手順で `autopilot-evidence` ブランチの `pr-<n>/<sha7>/` に置きます。push できなくても、直した変更の push は止めません。コメントにそう書きます。
 
+エビデンスは PR のコメントにも書きます (テストの結果は文章で、画像は埋め込み、そのほかはリンク。書き方は evidence.md の「リンク」)。
+
+```bash
+gh api -X POST repos/{owner}/{repo}/issues/<n>/comments -f body="$(cat エビデンス.md)"
+```
+
 ### 7. 記録して push する
 
 1. 変更したファイルだけを `git add <ファイル>` で足し、commit します

@@ -30,10 +30,8 @@ mkdir -p "$EV/pr-<PR 番号>/<sha7>"
 スクリーンショット・動画・JSON を `$EV/pr-<PR 番号>/<sha7>/` に置いたあと、次を行います。
 
 ```bash
-git -C "$EV" config user.name autopilot
-git -C "$EV" config user.email autopilot@users.noreply.github.com
 git -C "$EV" add "pr-<PR 番号>/<sha7>"
-git -C "$EV" commit -q -m "evidence: pr-<PR 番号> <sha7>"
+git -C "$EV" -c user.name=autopilot -c user.email=autopilot@users.noreply.github.com commit -q -m "evidence: pr-<PR 番号> <sha7>"
 pushed=0
 for i in 1 2 3; do
   if git -C "$EV" push origin HEAD:autopilot-evidence; then pushed=1; break; fi
@@ -55,4 +53,4 @@ push は `git push` だけです。認証は、ジョブがすでに設定して
 
 ## 5. リンク
 
-コメントには、画像を `![](<url>)` で埋め込み、動画と JSON はリンクにします。URL は `https://github.com/<owner>/<repo>/blob/autopilot-evidence/pr-<PR 番号>/<sha7>/<ファイル>?raw=true` です。
+コメントには、画像を `![](<url>)` で埋め込み、動画と JSON はリンクにします。URL は `https://github.com/<owner>/<repo>/blob/autopilot-evidence/pr-<PR 番号>/<sha7>/<ファイル>?raw=true` です。`<owner>/<repo>` は、この PR のリポジトリに置き換えます。

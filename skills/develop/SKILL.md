@@ -32,9 +32,11 @@ gh api repos/{owner}/{repo}/issues/<n> --jq '[.labels[].name]'
 
 ```bash
 gh api repos/{owner}/{repo}/issues/<n>/events --paginate \
-  | jq -s '[add[] | select(.event=="labeled" and .label.name=="autopilot:ready")] | last | .actor.login'
+  | jq -s -r '[add[] | select(.event=="labeled" and .label.name=="autopilot:ready")] | last | "\(.actor.login) \(.created_at)"'
 gh api repos/{owner}/{repo}/collaborators/<user>/permission --jq .role_name
 ```
+
+出力の 1 つ目がラベルを付けた人 `<user>`、2 つ目がその時刻です (手順 3 で使います)。
 
 `.role_name` は `triage`・`maintain` も正しく出します (`.permission` は出しません)。
 `triage`・`write`・`maintain`・`admin` のどれでもなければ、次のコメントを書いて終わります。
