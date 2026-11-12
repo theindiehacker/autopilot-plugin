@@ -7,7 +7,7 @@ on:
     types: [opened, synchronize, reopened, ready_for_review, labeled, closed, edited]
   pull_request_review:
     types: [submitted, dismissed]
-  # issue_comment の job (label) は、Bot か OWNER・MEMBER・COLLABORATOR のコメントだけで動き、
+  # issue_comment の job (label・developed) は、Bot (label だけ) か OWNER・MEMBER・COLLABORATOR のコメントだけで動き、
   # 中で書いた人をもう一度確かめる。PR のコードは動かさない
   issue_comment:
     types: [created]
@@ -114,6 +114,28 @@ jobs:
       - uses: theindiehacker/autopilot-plugin/actions/autopilot@{{AUTOPILOT_REF}}
         with:
           command: label
+          app-id: ${{ secrets.AUTOPILOT_APP_ID }}
+          private-key: ${{ secrets.AUTOPILOT_APP_PRIVATE_KEY }}
+          slack-webhook-url: ${{ secrets.AUTOPILOT_SLACK_WEBHOOK_URL }}
+
+  developed:
+    # 書いた人は CLI がもう一度確かめる (ルーティンの持ち主だけ)。PR のコードは動かさない
+    if: >-
+      github.event_name == 'issue_comment'
+      && github.event.issue.pull_request
+      && contains(github.event.comment.body, '<!-- autopilot:developed -->')
+      && contains(fromJSON('["OWNER", "MEMBER", "COLLABORATOR"]'), github.event.comment.author_association)
+    runs-on: ubuntu-latest
+    permissions:
+      contents: read
+    timeout-minutes: 10
+    concurrency:
+      group: autopilot-developed-${{ github.event.issue.number }}
+      cancel-in-progress: false
+    steps:
+      - uses: theindiehacker/autopilot-plugin/actions/autopilot@{{AUTOPILOT_REF}}
+        with:
+          command: developed
           app-id: ${{ secrets.AUTOPILOT_APP_ID }}
           private-key: ${{ secrets.AUTOPILOT_APP_PRIVATE_KEY }}
           slack-webhook-url: ${{ secrets.AUTOPILOT_SLACK_WEBHOOK_URL }}

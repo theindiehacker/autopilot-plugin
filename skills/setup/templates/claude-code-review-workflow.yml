@@ -17,7 +17,7 @@ jobs:
     # 呼び出される側にも同じ条件がある。ここでも絞り、権限のある人のコメント以外では動かさない。
     # コメントで起動するときの合図 (/code-review) は、review.command に合わせる
     if: >-
-      github.event_name == 'pull_request'
+      (github.event_name == 'pull_request' && !github.event.pull_request.draft)
       || (github.event_name == 'issue_comment'
         && github.event.issue.pull_request
         && contains(github.event.comment.body, '/code-review')
