@@ -95,3 +95,10 @@ test("routine_github_user と qa を読む", () => {
   expect(c.qa).toEqual({ start: "task dev", url: "http://localhost:3000" });
   expect(parseConfig(base).qa).toEqual({});
 });
+
+test("routine_github_user が空文字だと ConfigError", () => {
+  const yaml = base.replace("autopilot-bot", '""');
+  expect(issuesOf(`${yaml}deploy: {mode: none}`).join("\n")).toContain(
+    "routine_github_user",
+  );
+});

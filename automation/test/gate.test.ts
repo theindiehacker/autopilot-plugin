@@ -157,3 +157,8 @@ test("description は 140 文字以内", () => {
   expect([...d.description].length).toBeLessThanOrEqual(140);
   expect(d.description.endsWith("…")).toBe(true);
 });
+
+test("通知済みの鍵は、別のコミットのものなら数えない", () => {
+  const d = evaluateIrreversible(makeInput({ notified: ["approval:old"] }));
+  expect(d.actions).toEqual([notifyAction]);
+});

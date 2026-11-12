@@ -79,7 +79,11 @@ test("開始から 3 時間たっても PR が無ければ needs-human", () => {
 
 test("PR があれば Issue は needs-human にしない", () => {
   expect(
-    planSweep([issue({ startedAt: ago(240), hasPr: true })], now, config),
+    planSweep(
+      [issue({ startedAt: ago(240), hasPr: true, updatedAt: ago(240) })],
+      now,
+      config,
+    ),
   ).toEqual([]);
 });
 
@@ -116,4 +120,29 @@ test("設定の limits に従う", () => {
     1,
   );
   expect(planSweep([pr({ updatedAt: ago(61) })], now, c)).toHaveLength(1);
+});
+
+test("ready ラベルが無い Issue は何もしない", () => {
+  expect(
+    planSweep([issue({ labels: [], readyLabeledAt: ago(60) })], now, config),
+  ).toEqual([]);
+});
+
+test("コンフリクトして古い PR は dispatchFix", () => {
+  expect(
+    planSweep([pr({ conflicting: true, updatedAt: ago(600) })], now, config),
+  ).toEqual([{ type: "dispatchFix", number: 9 }]);
+});
+
+test("Issue の stale は設定の staleHours に従う", () => {
+  const c = { ...config, limits: { ...config.limits, staleHours: 1 } };
+  const a = planSweep([issue({ startedAt: ago(61) })], now, c);
+  expect(a).toHaveLength(1);
+  expect(a[0]?.type).toBe("needsHuman");
+});
+
+test("ちょうど readyRetryMinutes なら何もしない", () => {
+  expect(planSweep([issue({ readyLabeledAt: ago(30) })], now, config)).toEqual(
+    [],
+  );
 });
