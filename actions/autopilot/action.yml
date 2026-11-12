@@ -2,7 +2,7 @@ name: autopilot
 description: autopilot の AI を使わない処理 (automation/src/cli.ts のコマンド) を、GitHub App のトークンで動かす
 inputs:
   command:
-    description: cli.ts のコマンド (irreversible・automerge・label・fix-round・ready・sweep・deploy)
+    description: cli.ts のコマンド (irreversible・automerge・label・developed・fix-round・ready・sweep・deploy)
     required: true
   app-id:
     description: GitHub App の ID

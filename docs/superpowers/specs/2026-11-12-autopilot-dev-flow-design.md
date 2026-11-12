@@ -110,7 +110,7 @@ autopilot の PR は、同じリポジトリのブランチ `autopilot/<Issue �
 ### 4.5 見回り (GitHub Actions、1 時間ごと)
 
 - `autopilot:ready` の Issue で、30 分たっても、開発の Draft PR (ラベルより後に作られたもの) が無い → 起動に失敗したとみなし、ラベルを付け直す (App のトークンで付けたラベルでも起動することは確かめ済み)。付け直しても始まらなければ `needs-human`
-- 開発の Draft PR (ラベルより後に作られたもの) が無いまま、`autopilot:ready` から 3 時間たった Issue、3 時間動きの無い autopilot の PR → `needs-human`
+- 3 時間動きの無い autopilot の PR (開発中の Draft PR を含む) → `needs-human`
 - コンフリクトのある autopilot の PR → 対応のジョブを起動する
 - 1 時間ごとなので、GitHub Actions の時間は 1 リポジトリで月 720 分ほどになる (1 回を 1 分に切り上げて数える)
 
