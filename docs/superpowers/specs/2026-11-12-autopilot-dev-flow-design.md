@@ -81,7 +81,6 @@ Issue を起票すれば、Claude Code が開発・テスト・レビュー・QA
 | 印 | 書く人 | 意味 |
 |---|---|---|
 | `<!-- autopilot:developing -->` | 開発のルーティン (Draft PR の本文に) | 開発中。この印がある間は、対応のジョブを動かさない |
-| `<!-- autopilot:developed -->` | 開発のルーティン (PR のコメントに) | 開発が終わった。コメントの内容で PR の本文を書き換え、「レビュー可能」にしてほしい |
 | `<!-- autopilot:needs-human -->` | ルーティン・対応のジョブ | 進めない。理由は同じコメントに書く。GitHub Actions が `needs-human` を付けて Slack で知らせる |
 | `<!-- autopilot:fix-round -->` | 対応のジョブ (PR に) | 対応を 1 回行った。回数を数えるのに使う |
 
@@ -92,7 +91,7 @@ autopilot の PR は、同じリポジトリのブランチ `autopilot/<Issue �
 1. 人が Issue を書き、権限のある人が `autopilot:ready` を付ける
 2. 開発のルーティンが起動する。REST で Issue のラベルを読み、`autopilot:ready` が無いか `needs-human` があれば、何もせずに終える。始めたら、デフォルトブランチから `autopilot/<番号>-dev` を作って空の commit を push し、本文に `Closes #<番号>` と `<!-- autopilot:developing -->` を入れた Draft PR を作る (GitHub のプロジェクトの画面で、作業中の Issue が見える。ブランチ名を番号だけで決めるので、ほぼ同時に 2 つ起動しても、後の push は断られる)
 3. 受入条件を Issue にコメントする (ヒアリングしないと分からないときは、4.4 のとおり聞いて止まる。小さな選択は自分で決め、決めたことを書く)。その条件を確かめるテストを書き、直す前のコードで失敗するのを確かめてから実装する。ユニット・受入・E2E テストを通す
-4. 同じブランチに push し、PR に `<!-- autopilot:developed -->` 付きのコメントで、PR の本文 (判断の理由・試してだめだった方法・テストの結果。最後の行は `Closes #<番号>`) を書く。GitHub Actions が、このコメントで PR の本文を書き換え、「レビュー可能」にする
+4. 同じブランチに push し、開発のルーティンが GitHub の MCP (`update_pull_request`) で、PR の本文 (判断の理由・試してだめだった方法・テストの結果。最後の行は `Closes #<番号>`) を書き換え、「レビュー可能」にする。断られたら `needs-human` で止まる
 5. PR が「レビュー可能」になると、GitHub Actions で Claude のレビュー・QA のジョブが動く (CI・`autopilot/irreversible` は Draft のときから動く)。autopilot の PR では自動マージが有効になる
 6. Request changes・CI の失敗・QA の失敗・コンフリクトがあれば、対応のジョブが動く。PR の本文の記録と指摘を読み、指摘ごとに採否を決め、直して push し、返信する。Claude のレビューが PR を Draft に戻していれば、GitHub Actions が「レビュー可能」に戻す
 7. 必須のチェックと必須のレビュー (claude[bot] の Approve) がそろうと、GitHub の自動マージでマージされる
@@ -153,7 +152,7 @@ GitHub の標準の仕組みで決める。setup が、リポジトリのルー�
 
 - Web のセッション (ルーティンを含む) では、GraphQL が使えない。`gh pr`・`gh issue` は動かず、`gh api` (REST) だけが使える ([cloud-environments](https://code.claude.com/docs/en/cloud-environments.md))
 - ルーティンでは、REST でのラベル・ステータスの書き込みが自動モードに拒否される。`.claude/settings.json` で許可しても変わらない。REST でのブランチ作成は、GitHub のプロキシに拒否される。コメントは書ける
-- そのため、ルーティンが GitHub に書くのは、git push・PR の作成・コメントだけにする。ラベル・自動マージ・Draft の切り替えは GitHub Actions が行う
+- そのため、ルーティンが GitHub に書くのは、git push・PR の作成・コメントと、GitHub の MCP での PR の本文の書き換え・Draft の切り替え (9.1 の 5) だけにする。ラベル・自動マージは GitHub Actions が行う
 - GitHub Actions の `GITHUB_TOKEN` で行った操作では、ほかのワークフローが起動しない (`workflow_dispatch`・`repository_dispatch` を除く)。自動マージを `GITHUB_TOKEN` で有効にすると、マージの push で main の CI もデプロイも動かない。また、承認する人が team に入っているかも確かめられない
 - そのため、autopilot の GitHub Actions と claude-code-action は、会社ごとに作る GitHub App のトークンで操作する (6.2)。App のトークンで付けたラベルでルーティンが起動することは、確かめ済み
 
@@ -367,7 +366,7 @@ claude.ai と GitHub のどちらも、自動化専用のアカウントと個�
 | 4. Web のセッションから REST で書き込めるか | コメントは書けた。ラベルとステータスは、ルーティンの自動モードに拒否された (「頼まれていない連携アプリへの書き込み」「自分の作業を自分で承認している」)。リポジトリの `.claude/settings.json` で許可しても変わらなかった。REST でのブランチ作成は、GitHub のプロキシに拒否された (403) | ルーティンは開発だけにし、書き込みは git push・PR の作成・コメントに絞る。状態の変更は GitHub Actions が行う (4.1・4.9) |
 | (追加) プラグインの commit 前の hook | `Bash(*git*commit*)` が commit 以外のコマンドにも合い、Web では `next typegen` が無く型検査が失敗して、ルーティンの commit を止めた | 4.12 のとおり、リポジトリの lefthook に移す |
 | 2. App のトークンで付けたラベルで起動するか | 起動する (`autopilot-theindiehacker[bot]` が付けた 2 秒後に起動) | 変えない |
-| 5. Draft から「レビュー可能」への切り替え | 未確認 (書き込みの拒否で試せず)。試験で、開発のルーティンが GitHub の MCP (`update_pull_request`) で試し、断られたら GitHub Actions に頼む (`developed`) | 通れば、`developed` の job は要らない |
+| 5. Draft から「レビュー可能」への切り替え | できる。開発のルーティンが GitHub の MCP の `update_pull_request` で、本文と `draft: false` を 1 回で渡した (2026-11-12 の試験) | Draft の切り替えはルーティンが行う |
 | (追加) ルーティンからの git push と PR の作成 | 未確認 (Web の環境の古いプラグインの hook が push を止めた)。新しいプラグインを入れた環境で、試験 (10 章) の最初に確かめる | — |
 
 ## 10. 試験
