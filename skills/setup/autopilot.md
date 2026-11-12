@@ -9,7 +9,20 @@ gh label create needs-human --force --color D93F0B --description "止まった�
 `.github/ISSUE_TEMPLATE/` のテンプレートの `labels:` に `autopilot:ready` があれば、消すようユーザーに提案します。`autopilot:ready` は、権限のある人が付けるものだからです。
 
 ## 2. `.github/autopilot.yml` を書く
-[templates/autopilot.yml](templates/autopilot.yml) から、聞いた答えで書きます。`routine_github_user`・`qa.start`・`qa.url` を必ず入れます。当てはまらない項目 (取り消せない変更が無ければ `irreversible` と `approvers` など) は、行ごと消します。`required_checks` には、`autopilot QA`・`autopilot/irreversible` を残します。
+[templates/autopilot.yml](templates/autopilot.yml) から、聞いた答えで書きます。`routine_github_user`・`qa.start`・`qa.url` を必ず入れます。置き換える文字列は、次の答えから取ります。
+
+| 文字列 | 取る先 |
+|---|---|
+| `{{ROUTINE_GITHUB_USER}}` | interview のアカウント (ルーティンの持ち主の GitHub のユーザー名) |
+| `{{QA_START}}`・`{{QA_URL}}` | interview の「アプリの起動」 |
+| `{{REVIEWER}}` | interview の「Claude のレビュー」の bot。Claude なら `claude[bot]` |
+| `{{CI_CHECK}}` | interview の「必須にするチェック」(survey の CI のジョブ名)。1 つずつ行を足す |
+| `{{IRREVERSIBLE_PATH}}` | interview の「取り消せない変更」のパス |
+| `{{TERRAFORM_PLAN_ARTIFACT}}` | 手順 6 で決めた artifact 名 (Terraform の apply がマージで動くときだけ) |
+| `{{APPROVER}}` | interview の「承認する人」 |
+| `{{SLACK_CHANNEL}}`・`{{APPROVER_SLACK_MENTION}}` | interview の「Slack の通知先」 |
+
+当てはまらない項目 (取り消せない変更が無ければ `irreversible` と `approvers` など) は、行ごと消します。`required_checks` には、`autopilot QA`・`autopilot/irreversible` を残します。
 
 ## 3. ワークフローを 2 つ書く
 | 書くファイル | ひな形 |
@@ -32,7 +45,7 @@ QA を別のファイルにするのは、別のイベントで起きた実行�
 - 書いたら `actionlint` で確かめます
 
 ## 4. Claude のレビューと CI
-- Claude のレビューが無ければ、[templates/claude-code-review-workflow.yml](templates/claude-code-review-workflow.yml) を `.github/workflows/claude-code-review.yml` に置きます。`review.trigger` が `ready_for_review` ならこのままで、`comment` ならコメントで起動します
+- Claude のレビューが無ければ、[templates/claude-code-review-workflow.yml](templates/claude-code-review-workflow.yml) を `.github/workflows/claude-code-review.yml` に置きます。`review.trigger` が `ready_for_review` ならこのままで、`comment` ならコメントで起動します (合図は `review.command` に合わせる)。`review.reviewer: claude[bot]` と、ワークフローの `{{REVIEWER_BOTS}}: claude` は、同じ bot を 2 通りに書いたものです
 - CI が無ければ、そのリポジトリのテストを動かす CI を作ります (survey.md で見たタスクランナーのコマンドを呼びます)。`pull_request` で、`paths:` を付けずに動かします
 
 ## 5. ロールバック (デプロイがあり、ロールバックが無いとき)
@@ -43,8 +56,8 @@ QA を別のファイルにするのは、別のイベントで起きた実行�
 
 | デプロイ先 | 書き方 |
 |---|---|
-| Cloud Run | [templates/rollback-cloud-run.yml](templates/rollback-cloud-run.yml)。`{{SERVICE}}`・`{{REGION}}`・認証 (`{{WORKLOAD_IDENTITY_PROVIDER}}`・`{{SERVICE_ACCOUNT}}`) は、デプロイのワークフローの値に合わせる。トラフィックを 1 つ前のリビジョンに戻す |
-| そのほか | そのリポジトリのデプロイのワークフローに合わせて書く。`workflow_dispatch` で動き、前の版に戻す |
+| Cloud Run | [templates/rollback-cloud-run.yml](templates/rollback-cloud-run.yml)。`{{SERVICE}}`・`{{REGION}}`・認証 (`{{WORKLOAD_IDENTITY_PROVIDER}}`・`{{SERVICE_ACCOUNT}}`) は、デプロイのワークフローの値に合わせる。トラフィックを、最後に正常だったリビジョン (Ready で、配信中でなく、`autopilot-bad-` のタグが無い、いちばん新しいもの) に戻す。戻す元には `autopilot-bad-<日時>` のタグを付け、候補が無ければ失敗する |
+| そのほか | そのリポジトリのデプロイのワークフローに合わせて書く。`workflow_dispatch` で動き、最後に正常だった版に戻す |
 
 ワークフローの変更なので、この PR で人が承認します。actions は、SHA で固定し、`# vX.Y.Z` を付けます。
 
@@ -81,7 +94,7 @@ GitHub App を、autopilot を使うリポジトリにだけ入れるのは、QA
 | Metadata | Read | 常に付く |
 | Organization の Members | Read | 承認する人の team を読む (`irreversible`) |
 
-作成の画面は、個人のアカウントなら `https://github.com/settings/apps/new`、org なら `https://github.com/organizations/<org>/settings/apps/new` です。manifest の権限を、画面で同じにしてもらいます。
+作成の画面は、個人のアカウントなら `https://github.com/settings/apps/new`、org なら `https://github.com/organizations/<org>/settings/apps/new` です。manifest の権限を、画面で同じにしてもらいます。作り終えたら、App の設定の「Permissions & events」の画面を見せてもらい (または、スクリーンショットか、`gh api` で読める範囲の値)、上の表と 1 つずつ照らします。違いがあれば直してもらいます。App の ID も控えてもらいます (手順 9 で使います)。
 
 | シークレット | 内容 |
 |---|---|
@@ -92,10 +105,26 @@ GitHub App を、autopilot を使うリポジトリにだけ入れるのは、QA
 
 登録は `gh secret set <名前>` (org で共有するなら `--org <org> --repos <リポジトリ>`) です。環境変数とシークレットは、使う操作に要る最小の権限にしてもらいます。値は、会話や commit に書きません。
 
-## 8. ルールセットを作る
-1. 必須にするチェックが、PR ごとに必ず結果を出すかを確かめます。ワークフローの `paths:` で飛ぶものは、必須にしないか、いつも動くジョブにまとめることをユーザーに提案します
+## 8. PR にまとめて、マージしてもらう
+SKILL.md の「PR を作る」の節のとおりに、ここまでの変更を 1 つの PR にまとめます。本文には、次も書きます。
+
+- 入れたワークフローと、`.github/autopilot.yml` の内容
+- ユーザーがすること (まだ終えていないシークレット・App・Webhook・Web の環境)
+- マージした後に、setup がルールセットとルーティンを作ること
+
+PR を作ったら、ユーザーにマージを頼み、マージされるのを待ちます。ルールセットとルーティンは、**マージの後**に作ります。ワークフローがデフォルトブランチに入るまで、`autopilot QA` と `autopilot/irreversible` は報告されません。先に必須にすると、この PR が永遠に待ちになります。マージされたら、`git fetch` でデフォルトブランチを更新してから、次に進みます。
+
+## 9. ルールセットを作る (マージの後)
+1. 必須にするチェックが、PR ごとに必ず結果を出すかを確かめます。
+   - `autopilot QA` と `autopilot/irreversible` は、ひな形のワークフローに `paths:` の絞り込みが無く、PR ごとに必ず報告します。setup は、この 2 つのワークフローに `paths:` や `paths-ignore:` を足しません
+   - CI のジョブは、`paths:` で飛ぶものを必須にしません。飛ぶものは、必須にしないか、いつも動くジョブにまとめることをユーザーに提案します
 2. 今あるルールセットを `gh api repos/{o}/{r}/rulesets` で見ます。あれば、新しく作らず、足りないものだけを足す案を見せます
-3. 作ります。`<デフォルトブランチ>`・チェック名は、survey.md と `.github/autopilot.yml` の値にします。
+3. 作ります。チェック名は、survey.md と `.github/autopilot.yml` の値にします。`integration_id` で、チェックを出す側を固定します。同じ名前のチェックを、ほかのアプリや PR のコードが出しても、数えません。
+
+| チェック | `integration_id` |
+|---|---|
+| `autopilot/irreversible` | autopilot の GitHub App の ID (手順 7 で控えたもの。App のページか `AUTOPILOT_APP_ID` と同じ) |
+| `autopilot QA`・CI のジョブ | GitHub Actions の `15368` |
 
 ```bash
 gh api -X POST repos/{o}/{r}/rulesets --input - <<'JSON'
@@ -114,9 +143,9 @@ gh api -X POST repos/{o}/{r}/rulesets --input - <<'JSON'
     { "type": "required_status_checks", "parameters": {
         "strict_required_status_checks_policy": false,
         "required_status_checks": [
-          { "context": "<CI のジョブ名>" },
-          { "context": "autopilot QA" },
-          { "context": "autopilot/irreversible" }
+          { "context": "<CI のジョブ名>", "integration_id": 15368 },
+          { "context": "autopilot QA", "integration_id": 15368 },
+          { "context": "autopilot/irreversible", "integration_id": <App の ID> }
         ] } }
   ]
 }
@@ -124,9 +153,18 @@ JSON
 gh api -X PATCH repos/{o}/{r} -F allow_auto_merge=true
 ```
 
+4. ワークフローの既定の権限を、読み取りだけにし、Actions が PR を Approve することを禁じます。
+
+```bash
+gh api -X PUT repos/{o}/{r}/actions/permissions/workflow \
+  -f default_workflow_permissions=read -F can_approve_pull_request_reviews=false
+```
+
+   既存のワークフローが書き込みの権限を使っていれば、そのワークフローに `permissions:` で明示する必要があります。survey.md で見たワークフローから、該当しそうなものをユーザーに伝えます。
+
 org のルールセットは変えません。変える必要があれば、ユーザーに伝えます。
 
-## 9. ルーティンを作る
+## 10. ルーティンを作る (マージの後)
 ルーティンは、いまログインしている claude.ai アカウントのものになります。作る前に、interview.md で選んだアカウント (自動化専用か個人) でログインしているかを、ユーザーに確かめます。違えば、ここで止まってログインし直してもらいます。
 
 RemoteTrigger で、次の 2 つを順に呼びます。
@@ -147,10 +185,3 @@ RemoteTrigger で、次の 2 つを順に呼びます。
 絞り込み (ラベル名など) は効かないので付けません。ルーティンが最初にラベルを確かめます。
 
 作れなかったとき (ログインが違う・RemoteTrigger が使えない) は、claude.ai/code の画面で作る手順を示して、ユーザーに頼みます。
-
-## 10. PR にまとめる
-SKILL.md の「PR を作る」の節のとおりに、ここまでの変更を 1 つの PR にまとめます。本文には、次も書きます。
-
-- 入れたワークフローと、`.github/autopilot.yml` の内容
-- ユーザーがすること (まだ終えていないシークレット・App・Webhook・Web の環境)
-- ルールセットの作成と、自動マージの有効化

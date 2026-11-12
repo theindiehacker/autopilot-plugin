@@ -1,5 +1,6 @@
 # .github/workflows/rollback.yml (Cloud Run)
-# トラフィックを 1 つ前のリビジョンに戻す。デプロイのワークフローと同じサービス・リージョン・認証にする
+# トラフィックを、最後に正常だったリビジョンに戻す。デプロイのワークフローと同じサービス・リージョン・認証にする
+# 正常 = Ready で、いま配信中でなく、`autopilot-bad-` のタグが付いていないもののうち、いちばん新しいもの
 name: rollback
 
 on:
@@ -24,17 +25,26 @@ jobs:
           workload_identity_provider: "{{WORKLOAD_IDENTITY_PROVIDER}}"
           service_account: "{{SERVICE_ACCOUNT}}"
       - uses: google-github-actions/setup-gcloud@aa5489c8933f4cc7a4f7d45035b3b1440c9c10db # v3.0.1
-      - name: 1 つ前のリビジョンに戻す
+      - name: 最後に正常だったリビジョンに戻す
         run: |
-          # 新しい順に並べ、いまのリビジョンの次を選ぶ
-          previous="$(gcloud run revisions list \
+          desc="$(gcloud run services describe "$SERVICE" --region "$REGION" --format json)"
+          # 配信中のリビジョンと、前に戻した元として印を付けたリビジョン
+          serving="$(jq -r '[.status.traffic[] | select(.percent > 0)] | sort_by(-.percent) | .[].revisionName // empty' <<<"$desc")"
+          bad="$(jq -r '.status.traffic[] | select((.tag // "") | startswith("autopilot-bad-")) | .revisionName' <<<"$desc")"
+          current="$(head -n1 <<<"$serving")"
+          # Ready なリビジョンを新しい順に並べ、配信中と印付きを除いて先頭を選ぶ
+          candidate="$(gcloud run revisions list \
             --service "$SERVICE" --region "$REGION" \
-            --sort-by '~metadata.creationTimestamp' \
-            --format 'value(metadata.name)' --limit 2 | sed -n 2p)"
-          if [ -z "$previous" ]; then
-            echo "::error::1 つ前のリビジョンがありません"
+            --sort-by '~metadata.creationTimestamp' --format json \
+            | jq -r '.[] | select(any(.status.conditions[]?; .type == "Ready" and .status == "True")) | .metadata.name' \
+            | grep -vxF -e "$serving" -e "$bad" | head -n1 || true)"
+          if [ -z "$candidate" ] || [ -z "$current" ]; then
+            echo "::error::戻し先にできる正常なリビジョンがありません (Ready で、配信中でも autopilot-bad- 付きでもないもの)"
             exit 1
           fi
-          echo "戻し先: $previous"
+          echo "戻す元: $current / 戻し先: $candidate"
+          # 戻す元に印を付ける (トラフィックは 0%)。次に戻すときの候補から外すため
+          gcloud run services update-traffic "$SERVICE" --region "$REGION" \
+            --update-tags "autopilot-bad-$(date -u +%Y%m%d%H%M%S)=${current}"
           gcloud run services update-traffic "$SERVICE" \
-            --region "$REGION" --to-revisions "${previous}=100"
+            --region "$REGION" --to-revisions "${candidate}=100"
