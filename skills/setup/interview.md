@@ -11,7 +11,7 @@ survey.md の結果をもとに、次の項目を聞きます。調べて分か�
 | デプロイ | 方式 (none・on_merge・dispatch)。方式を確かめるだけで、autopilot はデプロイに何もしない | GitHub の Slack アプリの購読の案内 (デプロイのワークフローの失敗。autopilot.md の 5-B) |
 | 人の承認が要るパスと、その持ち主 | CODEOWNERS に書くパスと持ち主 (GitHub のユーザー名か team)。初めの値は、autopilot を動かすファイル (`.github/`・`.claude/`・`.mcp.json`・git の hook の設定)、検査を定めるファイル (`style:check`・`security:check`・`dev:up` を書いたタスクランナーのファイルと、`.gitleaks.toml`・`.gitleaksignore`・`.semgrepignore`・`trivy.yaml`・`.trivyignore`・`.trivyignore.yaml`。リポジトリに無いものも、AI の PR が新しく作って検査を弱めないように、行を残す)、マイグレーション・Terraform。前の 2 つは、AI の PR が、人の承認なしに自分の検査を変えられないようにするため。タスクがルートの `package.json` の `scripts` にあれば、`package.json` も持ち主のパスになる (依存を足す PR にも Approve が要る) と伝える。ほかにあれば足す (課金・メール送信のコードのパスなど) | `.github/CODEOWNERS` |
 | Terraform の apply の方針 | apply がマージで動くか (survey の IaC)。動くなら、手動のワークフローか別のリポジトリにする案を勧める (autopilot は作らない。デプロイの仕組みを新しく作らないため) | 提案 |
-| Slack の通知先 | チャンネル | GitHub の Slack アプリの購読 (autopilot.md の 5-B) |
+| Slack の通知先 | `needs-human` (人が要る知らせ) のチャンネルと、デプロイがあればデプロイの知らせのチャンネル (別にする。デプロイの知らせは成功も届くため) | GitHub の Slack アプリの購読 (autopilot.md の 5-B) |
 | Claude のレビューの認証 | setup が Claude のレビューのワークフローを置くときだけ。`CLAUDE_CODE_OAUTH_TOKEN` か `ANTHROPIC_API_KEY` | シークレット (autopilot.md の 5-A) |
 | アカウント | 下の「アカウント」 | ルーティン |
 | デフォルトブランチ | main・master | ルールセット |

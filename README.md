@@ -314,4 +314,4 @@ setup は、リポジトリを調べて環境を整え、autopilot を入れて�
 - 必須にできる CI が無いリポジトリでは、必須のチェックが無いので、CI の結果を待たずに、Claude のレビューの承認だけで自動マージされます。
 - 公開リポジトリでは、だれのコメントも、自動モードのルーティンのセッションに入ります。autopilot のリポジトリだけに届く、自動化専用の GitHub アカウントを使うことを勧めます。
 - Terraform の apply がマージで動くリポジトリでは、CODEOWNERS の Approve の後に、取り消せない操作が自動で走ります。apply を、手動のワークフローか別のリポジトリにすることを勧めます (setup は案を出すだけで、作りません)。
-- デプロイは、autopilot ではなく、リポジトリのデプロイの仕組みが動きます。autopilot は、デプロイを動かさず、確かめません。デプロイの失敗は、GitHub の Slack アプリの購読 (`/github subscribe <owner>/<repo> workflows:{name:"<デプロイのワークフローの名前>"}`) で知らせられます。
+- デプロイは、autopilot ではなく、リポジトリのデプロイの仕組みが動きます。autopilot は、デプロイを動かさず、確かめません。デプロイの失敗は、GitHub の Slack アプリの購読 (`/github subscribe <owner>/<repo> workflows:{event:"push" branch:"<デフォルトブランチ>"}`) で知らせられます。成功も届くので、`needs-human` とは別のチャンネルで購読します。

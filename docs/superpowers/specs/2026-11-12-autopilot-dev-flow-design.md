@@ -414,6 +414,7 @@ claude.ai と GitHub のどちらも、自動化専用のアカウントと個�
 | (試験 2) paths で飛ぶ CI を必須にする | CI が 8 つのワークフローに分かれ、どれも `on.pull_request.paths` で飛んでいた。常に動く `ci.yml` が変わったファイルで呼ぶワークフローを決め (`workflow_call`)、集約のジョブ `ci-ok` を必須にした。本物の PR で、呼んだワークフローも `ci-ok` も動いた | setup の「CI の必須のチェック」の形 (B) にした |
 | (試験 2) OIDC の `workflow_ref` | Terraform の plan の SA の WIF が、`terraform.yml` からの実行だけを受け付けていた。`ci.yml` から呼ぶと認証できないので、plan は呼ばずに別に動かした (必須にしない) | setup の手順に、この落とし穴を書いた |
 | (試験 2) Issue から本番へのデプロイまで | QA のジョブと見回りの無い形で、ラベルから約 2 分で Draft の PR ができた。受入条件・動作確認 (5 つの条件のスクリーンショット)・claude[bot] の承認・`ci-ok` を経て、ラベルから約 10 分で自動でマージされた。マージで、リポジトリのデプロイ (Cloud Run) が約 2 分半で成功した | 変えない |
+| (試験 2) デプロイの知らせの購読 | `workflows:{name:"🚀 Deploy"}` と `workflows:{name:"🏗️ Terraform"}` を続けて購読すると、後の 1 つだけが残った。Slack は名前の絵文字を `:building_construction:` に変え、名前が合わなかった。まとめて貼ると、2 行目からが 1 行目の続きとして読まれ、エラーになった | デプロイの購読は `workflows:{event:"push" branch:"<デフォルトブランチ>"}` の 1 つにする。ワークフローの購読は失敗だけに絞れず、成功も届くので、`needs-human` とは別のチャンネルにする (ユーザーが決定)。setup は、1 行ずつ送ってもらい、`/github subscribe list features` で確かめてもらう |
 
 ## 10. 試験
 

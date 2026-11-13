@@ -196,14 +196,26 @@ Slack への通知は、GitHub の Slack アプリの購読で届けます (Webh
 2. Slack で `/github signin` を打ち、GitHub のアカウントとつないでもらいます
 3. GitHub の側に、Slack のアプリ (https://github.com/apps/slack) を入れてもらいます。組織のリポジトリなら、「Install on another account」から組織を選びます。入れるリポジトリに、このリポジトリを選びます (もう入っていれば、このリポジトリを足します)。入れていないと、購読のコマンドに「`I couldn't find <owner>/<repo>`」と返ります
 4. 通知先のチャンネル (interview の「Slack の通知先」) で、次を打ってもらいます
-5. デプロイがあれば、デプロイのワークフローの失敗を知らせる購読も案内します (名前は、survey.md で見たデプロイのワークフローの `name:`)
+5. デプロイがあれば、デプロイのワークフローの結果を知らせる購読を、**別のチャンネル** (デプロイの知らせ用) で案内します。ワークフローの購読は、失敗だけには絞れず、成功もすべて届きます。`needs-human` と同じチャンネルにすると、デプロイのたびに知らせが届き、人が要る知らせが埋もれるためです。デプロイがデフォルトブランチへの push で動くなら、`event` と `branch` で絞ります (`<branch>` はデフォルトブランチ)
+   - 新しいチャンネルで初めて購読すると、`issues`・`pulls`・`commits`・`releases`・`deployments` も付きます。ワークフローだけにするため、続けて外してもらいます
+   - ワークフローの名前 (`name`) では絞りません。Slack が名前の絵文字を `:building_construction:` のような文字に変えるため、名前が合わず、知らせが届きません
+   - 1 つのリポジトリに残る `workflows` の絞り込みは 1 つだけです。2 回目の購読は、1 回目を置き換えます。デプロイと Terraform の apply のように、同じ push で動くものは、1 つの購読でまとめて届きます
+   - 1 行ずつ、別々に送ってもらいます。まとめて貼ると、2 行目からが 1 行目の続きとして読まれ、エラーになります
+
+`needs-human` のチャンネル:
 
 ```text
 /github subscribe <owner>/<repo> issues pulls comments +label:"needs-human"
-/github subscribe <owner>/<repo> workflows:{name:"<デプロイのワークフローの名前>"}
 ```
 
-コマンドの細かな形は、Slack で `/github help` を見て合わせてもらいます。ラベルで絞る 1 つ目の購読で、止まった知らせと質問のコメントが届くことは、確かめ済みです。
+デプロイの知らせのチャンネル (1 行ずつ送る):
+
+```text
+/github subscribe <owner>/<repo> workflows:{event:"push" branch:"<branch>"}
+/github unsubscribe <owner>/<repo> issues pulls commits releases deployments
+```
+
+コマンドの細かな形は、Slack で `/github help` を見て合わせてもらいます。ラベルで絞る 1 つ目の購読で、止まった知らせと質問のコメントが届くことは、確かめ済みです。送った後に `/github subscribe list features` を打ってもらい、購読が思ったとおりかを確かめます。
 
 ## 6. PR にまとめて、マージしてもらう
 SKILL.md の「PR を作る」の節のとおりに、ここまでの変更を 1 つの PR にまとめます。本文には、次も書きます。
