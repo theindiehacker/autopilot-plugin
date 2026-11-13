@@ -129,6 +129,7 @@ autopilot の PR は、同じリポジトリのブランチ `autopilot/<Issue �
 | PR | コンフリクト (`mergeable_state` が `dirty`) か、`stale_hours` (既定 3 時間) 動きが無い。今の head への印が無い | 起こす (`wake`) |
 | PR | 同じ条件で、今の head への印があり、いちばん新しい印から `stale_hours` たった | `needs-human` (理由: `起こしても、{staleHours} 時間直りませんでした ({コンフリクト / 動きがありません})`) |
 | PR | 同じ条件で、今の head への印があり、まだ `stale_hours` たっていない | 何もしない |
+| PR | 動きが無いが、人にレビューを頼んでいて、まだ届いていない (`requested_reviewers` か `requested_teams` がある。CODEOWNERS の持ち主の Approve 待ちなど)。コンフリクトは無い | 何もしない (起こしても直すことが無く、`needs-human` にすると、持ち主の Approve でマージされなくなるため。コンフリクトなら、上の 3 行のとおり) |
 
 起こすコメントの本文 (この文字のまま):
 

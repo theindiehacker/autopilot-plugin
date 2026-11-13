@@ -20,6 +20,8 @@ export interface SweepItem {
   issueNumber?: number;
   /** App のボットが書いた、起こす印 (PR だけ) */
   wakes: { at: string; headSha: string }[];
+  /** 人 (CODEOWNERS の持ち主など) にレビューを頼んでいて、まだ届いていない (PR だけ。requested_reviewers か requested_teams がある) */
+  reviewRequested?: boolean;
 }
 
 export type SweepAction =
@@ -30,9 +32,12 @@ export type SweepAction =
 const elapsedMs = (from: string, now: Date) =>
   now.getTime() - new Date(from).getTime();
 
-/** needs-human のコメントで、理由の次の行に書く、人がすること。where は「Issue #<n> の 」など */
-const nextStep = (where = "") =>
-  `直してから、${where}${LABELS.needsHuman} を外して ${LABELS.ready} を付け直してください。`;
+// needs-human のコメントで、理由の次の行に書く、人がすること。
+// autopilot:ready は、付いたままでは起動しない (起動は issues.labeled だけ)。一度外してから付け直してもらう
+const issueNextStep = `直してから、${LABELS.needsHuman} を外してください。続けて、${LABELS.ready} を一度外してから、付け直してください。`;
+// 見回りは、PR にだけ needs-human を付ける。PR の needs-human は、再開した開発のルーティンが外す
+const pullNextStep = (issueNumber?: number) =>
+  `続けるときは、Issue${issueNumber === undefined ? "" : ` #${issueNumber}`} の ${LABELS.ready} を一度外してから、付け直してください。PR の ${LABELS.needsHuman} は、再開した開発のルーティンが外します。`;
 
 function planItem(
   item: SweepItem,
@@ -55,13 +60,16 @@ function planItem(
       return {
         type: "needsHuman",
         number: item.number,
-        reason: `${LABELS.ready} を付け直しましたが、${readyRetryMinutes} 分たっても起動しませんでした。\n${nextStep()}`,
+        reason: `${LABELS.ready} を付け直しましたが、${readyRetryMinutes} 分たっても起動しませんでした。\n${issueNextStep}`,
       };
     }
     return undefined;
   }
 
-  const stale = elapsedMs(item.updatedAt, now) > staleMs;
+  // 人のレビュー (CODEOWNERS の持ち主の Approve など) を待っている PR は、動きが無くても困りごとにしない。
+  // 起こしても直すことが無く、needs-human にすると、持ち主の Approve でマージされなくなるため。コンフリクトは起こす
+  const stale =
+    elapsedMs(item.updatedAt, now) > staleMs && item.reviewRequested !== true;
   if (!item.conflicting && !stale) return undefined;
   const headSha = item.headSha ?? "";
   const lastWake = item.wakes
@@ -80,14 +88,10 @@ function planItem(
     };
   }
   if (elapsedMs(lastWake, now) > staleMs) {
-    const where =
-      item.issueNumber === undefined
-        ? "Issue の "
-        : `Issue #${item.issueNumber} の `;
     return {
       type: "needsHuman",
       number: item.number,
-      reason: `起こしても、${staleHours} 時間直りませんでした (${item.conflicting ? "コンフリクト" : "動きがありません"})\n${nextStep(where)}`,
+      reason: `起こしても、${staleHours} 時間直りませんでした (${item.conflicting ? "コンフリクト" : "動きがありません"})\n${pullNextStep(item.issueNumber)}`,
     };
   }
   return undefined;

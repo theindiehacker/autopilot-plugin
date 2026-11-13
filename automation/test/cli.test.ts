@@ -18,6 +18,8 @@ interface PullData {
   mergeable_state?: string;
   updated_at?: string;
   created_at?: string;
+  requested_reviewers?: string[];
+  requested_teams?: string[];
 }
 
 interface IssueData {
@@ -76,6 +78,10 @@ function pullJson(p: PullData) {
     user: { login: "author" },
     labels: (p.labels ?? []).map((name) => ({ name })),
     auto_merge: null,
+    requested_reviewers: (p.requested_reviewers ?? []).map((login) => ({
+      login,
+    })),
+    requested_teams: (p.requested_teams ?? []).map((slug) => ({ slug })),
     head: {
       sha: `sha${p.number}`,
       ref: p.ref ?? `autopilot/${p.number}-x`,
@@ -254,7 +260,7 @@ test("sweep の readyRetries は autopilot:ready の labeled の数 − 1", asyn
   );
   // 何をすればよいかも書く (I4)
   expect(commentsOf(w, 10).at(-1)?.body).toBe(
-    "<!-- autopilot:needs-human -->\nautopilot:ready を付け直しましたが、30 分たっても起動しませんでした。\n直してから、needs-human を外して autopilot:ready を付け直してください。",
+    "<!-- autopilot:needs-human -->\nautopilot:ready を付け直しましたが、30 分たっても起動しませんでした。\n直してから、needs-human を外してください。続けて、autopilot:ready を一度外してから、付け直してください。",
   );
   expect(w.removed).toEqual(["/issues/11/labels/autopilot%3Aready"]);
   expect(
@@ -318,7 +324,7 @@ test("sweep は、起こして stale_hours たっても直らない PR を needs
   await run(w);
   expect(w.issues[0]?.labels).toEqual(["needs-human"]);
   expect(commentsOf(w, 8).at(-1)?.body).toBe(
-    "<!-- autopilot:needs-human -->\n起こしても、3 時間直りませんでした (コンフリクト)\n直してから、Issue #14 の needs-human を外して autopilot:ready を付け直してください。",
+    "<!-- autopilot:needs-human -->\n起こしても、3 時間直りませんでした (コンフリクト)\n続けるときは、Issue #14 の autopilot:ready を一度外してから、付け直してください。PR の needs-human は、再開した開発のルーティンが外します。",
   );
 });
 
@@ -566,4 +572,33 @@ test("sweep は、review が無くても、qa・review・required_checks に不�
     expect((await run(w)).code).toBe(0);
     expect(commentsOf(w, 8)).toHaveLength(1);
   }
+});
+
+test("sweep は、人にレビューを頼んでいる PR (requested_reviewers・requested_teams) を、動きが無くても起こさない (I2)", async () => {
+  const w = newWorld();
+  // どれも 12 時間動きが無い
+  w.pulls.push(
+    { number: 8, requested_reviewers: ["owner"] },
+    { number: 9, requested_teams: ["owners"] },
+    { number: 10 },
+  );
+  await run(w);
+  expect(w.issues.some((i) => i.number === 8)).toBe(false);
+  expect(w.issues.some((i) => i.number === 9)).toBe(false);
+  expect(commentsOf(w, 10).at(-1)?.body).toStartWith(
+    "<!-- autopilot:wake -->\n<!-- autopilot:head sha10 -->\n",
+  );
+});
+
+test("sweep は、人にレビューを頼んでいる PR でも、コンフリクトなら起こす (I2)", async () => {
+  const w = newWorld();
+  w.pulls.push({
+    number: 8,
+    mergeable_state: "dirty",
+    requested_reviewers: ["owner"],
+  });
+  await run(w);
+  expect(commentsOf(w, 8).at(-1)?.body).toStartWith(
+    "<!-- autopilot:wake -->\n<!-- autopilot:head sha8 -->\n",
+  );
 });

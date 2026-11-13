@@ -4,7 +4,7 @@ import { planSweep, type SweepItem } from "../src/sweeper";
 import { LABELS } from "../src/types";
 
 const config = parseConfig(`routine_github_user: autopilot-bot
-review: {reviewer: claude[bot], trigger: ready_for_review}
+review: {reviewer: "claude[bot]", trigger: ready_for_review}
 notify: {slack_channel: '#dev'}
 `);
 const now = new Date("2026-11-12T12:00:00Z");
@@ -56,7 +56,7 @@ test("付け直しても起動しなければ needs-human。何をすればよ�
       type: "needsHuman",
       number: 7,
       reason:
-        "autopilot:ready を付け直しましたが、30 分たっても起動しませんでした。\n直してから、needs-human を外して autopilot:ready を付け直してください。",
+        "autopilot:ready を付け直しましたが、30 分たっても起動しませんでした。\n直してから、needs-human を外してください。続けて、autopilot:ready を一度外してから、付け直してください。",
     },
   ]);
 });
@@ -168,7 +168,7 @@ test("起こしてから stale_hours たっても直らなければ needs-human"
       type: "needsHuman",
       number: 9,
       reason:
-        "起こしても、3 時間直りませんでした (コンフリクト)\n直してから、Issue #7 の needs-human を外して autopilot:ready を付け直してください。",
+        "起こしても、3 時間直りませんでした (コンフリクト)\n続けるときは、Issue #7 の autopilot:ready を一度外してから、付け直してください。PR の needs-human は、再開した開発のルーティンが外します。",
     },
   ]);
   expect(
@@ -187,7 +187,7 @@ test("起こしてから stale_hours たっても直らなければ needs-human"
       type: "needsHuman",
       number: 9,
       reason:
-        "起こしても、3 時間直りませんでした (動きがありません)\n直してから、Issue #7 の needs-human を外して autopilot:ready を付け直してください。",
+        "起こしても、3 時間直りませんでした (動きがありません)\n続けるときは、Issue #7 の autopilot:ready を一度外してから、付け直してください。PR の needs-human は、再開した開発のルーティンが外します。",
     },
   ]);
 });
@@ -258,6 +258,45 @@ test("ブランチ名から Issue の番号が読めない PR は、番号を書
     config,
   );
   expect(a[0]?.type === "needsHuman" && a[0].reason).toBe(
-    "起こしても、3 時間直りませんでした (コンフリクト)\n直してから、Issue の needs-human を外して autopilot:ready を付け直してください。",
+    "起こしても、3 時間直りませんでした (コンフリクト)\n続けるときは、Issue の autopilot:ready を一度外してから、付け直してください。PR の needs-human は、再開した開発のルーティンが外します。",
   );
+});
+
+test("人のレビューを待っている PR は、動きが無くても起こさない (I2)", () => {
+  expect(
+    planSweep(
+      [pr({ updatedAt: ago(240), reviewRequested: true })],
+      now,
+      config,
+    ),
+  ).toEqual([]);
+});
+
+test("人のレビューを待っている PR は、起こした後に動きが無くても needs-human にしない (I2)", () => {
+  expect(
+    planSweep(
+      [
+        pr({
+          updatedAt: ago(240),
+          reviewRequested: true,
+          wakes: [{ at: ago(181), headSha: "h1" }],
+        }),
+      ],
+      now,
+      config,
+    ),
+  ).toEqual([]);
+});
+
+test("人のレビューを待っていても、コンフリクトなら起こす (I2)", () => {
+  expect(
+    planSweep([pr({ conflicting: true, reviewRequested: true })], now, config),
+  ).toEqual([
+    {
+      type: "wake",
+      number: 9,
+      headSha: "h1",
+      reason: "コンフリクトがあります (デフォルトブランチを取り込んでください)",
+    },
+  ]);
 });

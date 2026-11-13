@@ -19,6 +19,9 @@ export interface Pull {
   user: { login: string };
   labels: { name: string }[];
   auto_merge: unknown | null;
+  /** レビューを頼んで、まだ届いていない人と team (CODEOWNERS の持ち主など) */
+  requested_reviewers?: { login: string }[];
+  requested_teams?: { slug: string }[];
   head: { sha: string; ref: string; repo: { full_name: string } | null };
 }
 

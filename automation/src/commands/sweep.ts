@@ -68,6 +68,9 @@ async function pullItem(ctx: Ctx, pull: Pull): Promise<SweepItem> {
     headSha: full.head.sha,
     ...(issueNumber ? { issueNumber: Number(issueNumber) } : {}),
     wakes,
+    reviewRequested:
+      (full.requested_reviewers ?? []).length > 0 ||
+      (full.requested_teams ?? []).length > 0,
   };
 }
 
