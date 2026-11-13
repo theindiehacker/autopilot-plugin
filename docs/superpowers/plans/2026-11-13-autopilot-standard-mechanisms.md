@@ -248,3 +248,17 @@ autopilot の見回り: {理由}。開発のセッションは、この PR を�
 - [ ] **Step 5:** 止まる道を確かめる: 回数の上限か、聞いて止まる Issue で、`needs-human` が MCP で付き、自動マージが外れ、GitHub の Slack アプリの知らせが届く (ユーザーに確かめてもらう。ほかの通知まで出ないかも見る)
 - [ ] **Step 6:** 再開を確かめる: Step 5 で止まった Issue の `needs-human` を外し、`autopilot:ready` を付け直す → 新しいルーティンが前の PR を使い、PR の `needs-human` を外し (ラベルが 1 つだけのときの `labels: []` も)、すぐに commit を push し、購読し直す → 30 分後の見回りが `needs-human` を付けない
 - [ ] **Step 7:** 結果を設計書 9.1 と引き継ぎに書き、commit する (`docs: 標準の仕組みの試験の結果を書く`)
+
+### Task 8: 試験 1 で見つかった穴を直す
+
+試験 1 (Task 7) の結果: `.superpowers/sdd/2026-11-13-autopilot-standard-mechanisms/task7-results.md` (ワークスペースの外では、引き継ぎに写す)。
+
+**Files:**
+- Modify: `skills/fix/SKILL.md`・`skills/develop/SKILL.md`・`skills/qa/SKILL.md`・`skills/setup/autopilot.md`・`docs/superpowers/specs/2026-11-12-autopilot-dev-flow-design.md`
+
+- [ ] **Step 1: レビューを頼み直す (穴 1)。** `autopilot:fix` に足す: PR が Draft でなく、今の head の CI が終わり (check_suite.completed など)、`review.reviewer` の今の head (`commit_id`) へのレビューが無いときは、レビューを頼み直す。`review.trigger` が `comment` なら `review.command` をコメントする。`ready_for_review` なら `update_pull_request` で `draft: true` にしてから `draft: false` に戻し、自動マージが外れていれば付け直す。head ごとに 1 回まで (同じ head で 2 回目は頼まない。見回りが人に回す)。develop の手順 10 の、購読の直後の直しでも同じに見る
+- [ ] **Step 2: コメントの本文をファイルから渡す (穴 2)。** skills の `gh api ... -f body="$(cat <ファイル>)"` を、`-F body=@<ファイル>` に替える (コマンドの置き換えが効かない環境があるため)。`title` などほかの欄は変えない
+- [ ] **Step 3: Slack の前提 (setup の 6-C)。** 購読の前に、Slack で `/github signin`、GitHub の側で Slack のアプリ (https://github.com/apps/slack) を組織に入れてリポジトリを選ぶ (「Install on another account」) ことを足す。入れていないと出る文 (「I couldn't find <owner>/<repo>」) も書く。ラベルで絞る購読で、止まった知らせと質問のコメントが届いたことを、確かめ済みとして書く
+- [ ] **Step 4: 設計書 9.1 に、試験 1 の結果の行を足す** (task7-results.md の表。リポジトリの名前と番号は書かない)。4.4 か 4.6 に、穴 1 の頼み直しを 1 文で書く
+- [ ] **Step 5: 確かめる** — Run: `grep -rn '\$(cat' skills/` / Expected: 0 件
+- [ ] **Step 6: Commit** (`skills: 試験 1 で見つかった穴 (レビューの頼み直し・本文の渡し方・Slack の前提) を直す`)
