@@ -46,3 +46,18 @@
 - [ ] **Step 5: README を直す。** 流れの表・ラベル・止まる条件・人がすること・setup の後にすること・注意から、QA のジョブ・見回り・GitHub App・シークレットを消す
 - [ ] **Step 6: 確かめる。** Step 1 の grep。`claude plugin validate .` (あれば)。試験のリポジトリの名前で `git grep -nI` して 0 件
 - [ ] **Step 7: Commit** (場所ごとに分けてよい。例 `docs: 設計書から QA と見回りを消す`・`skills: …`・`automation: 見回りのコードを消す`)
+
+### Task 2: setup を PC だけで動かし、マージの後のルールセットとルーティンまで setup が行う
+
+試験 2 で、setup を Web のセッションで動かしたため、ルールセット・ワークフローの権限 (GitHub の API がプロキシに拒否された) とルーティン (クラウドのセッションからは作れない) を、ユーザーに頼むことになった。ユーザーの感想は「オンボーディングが重い」。ユーザーが決めた (U7): setup は PC で行うよう促し、PC で行わせる。
+
+**Files:**
+- Modify: `skills/setup/SKILL.md`・`skills/setup/autopilot.md`・`skills/setup/interview.md` (要れば)・`README.md`・設計書 (7.1・7.2・12 章)
+
+- [ ] **Step 1: 始めに、クラウドのセッションなら止める。** `skills/setup/SKILL.md` の最初に、`CLAUDE_CODE_REMOTE` が `true` なら、何も変えずに止まり、「PC の Claude Code で、このリポジトリを開いて `/autopilot:setup` を動かしてください」と、理由 (クラウドのセッションでは、ルールセット・ワークフローの権限を変える GitHub の API が拒否され、ルーティンも作れない) を添えて伝える手順を書く。今の「PC の Claude Code で実行します」の 1 文は、この手順に置き換える
+- [ ] **Step 2: マージを待って、続きを setup が行う。** `autopilot.md` の 6 (PR にまとめて、マージしてもらう) の後、setup はユーザーにマージを頼み、マージされたら (ユーザーの「マージした」の返事か、`gh pr view <n> --json state` が `MERGED`) 続けて 7 (ルールセット)・ワークフローの既定の権限・8 (ルーティン) を、setup 自身が `gh` と RemoteTrigger で行う、と書く。失敗したとき (権限が足りない・RemoteTrigger が使えない) だけ、画面の手順を示して頼む
+- [ ] **Step 3: 手作業を 1 つの一覧にする。** ユーザーに頼むこと (Claude の GitHub App の導入・GitHub の Slack アプリの購読・Web の環境・Claude のレビューの認証) を、聞き取りの後か PR を作るときに、1 回の一覧で頼むように、`autopilot.md` の 5 と `SKILL.md` を直す。1 つずつ聞いて待つ書き方をやめる
+- [ ] **Step 4: README と設計書を合わせる。** README の setup の説明に、PC で動かすことと、マージの後にルールセットとルーティンを setup が作ることを書く。設計書 7.1・7.2 を合わせ、12 章に U7 を足す
+- [ ] **Step 5: Task 1 のレビューの残り (minor) を直す。** (a) 設計書 5 章の「前の版で使っていた `notify`・`deploy` と、`limits` の `max_fix_rounds` 以外の項目は読まない」を、「`notify`・`deploy` は読まない。`limits` は `max_fix_rounds` だけを読む。」のように分ける。(b) `README.md` と `skills/setup/SKILL.md` で、2 つの理由を 1 文にしているところを、`autopilot.md` と同じく 2 文に分ける。(c) `templates/CODEOWNERS` の冒頭の「当てはまらない行は、行ごと消す」に「(セキュリティの設定・除外のファイルの行を除く)」を足す。(d) 設計書 6.2 の「(R37)」を、今はレビューのワークフローの `uses:` にだけ当てはまると直す。(e) 設計書 4.3 のコンフリクトを見直す時点を、fix の手順 (Draft の間はどの通知でも見直す) に合わせる。(f) `autopilot.md` の「入れ済みのリポジトリを新しい形に移す」に、CODEOWNERS にセキュリティの設定・除外のファイルの行を足すことを加える
+- [ ] **Step 6: 確かめる。** `claude plugin validate .` (あれば)。試験のリポジトリの名前で `git grep -nI` して 0 件
+- [ ] **Step 7: Commit**
