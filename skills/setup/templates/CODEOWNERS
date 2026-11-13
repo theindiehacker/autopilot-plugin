@@ -1,7 +1,7 @@
 # .github/CODEOWNERS (setup が、聞き取った答えで書く)
 # ここに書いたパスを変える PR は、そのパスの持ち主の承認 (Approve) が無いとマージできない。
 # ルールセットで「コードオーナーのレビューを必須」(require_code_owner_review) にすると効く。
-# {{...}} は setup が置き換える。当てはまらない行は、行ごと消す。
+# {{...}} は setup が置き換える。当てはまらない行は、行ごと消す (セキュリティの設定・除外のファイルの行を除く)。
 # 持ち主は GitHub のユーザー名 (@user) か team (@org/team)。例: /backend/migration/versions/ @org/team
 
 # autopilot を動かすファイル (ワークフロー・設定・この CODEOWNERS・Claude の設定・git の hook の設定)。

@@ -166,15 +166,17 @@ jobs:
 - 持ち主には、リポジトリへの書き込みの権限が要ります (GitHub の決まり)
 - 持ち主への承認の依頼は、Slack ではなく GitHub のレビューの依頼で届きます (GitHub の Slack 連携を入れれば、Slack にも出せます)
 
-## 5. ユーザーに頼むこと
-画面でしかできないことを、手順を示して頼みます。1 つ終えるごとに、できたかを聞きます。
+## 5. ユーザーに頼むことの一覧
+画面でしかできないことは、手順を示して、1 つの一覧にして頼みます。1 つずつ聞いて待ちません。
+一覧は、手順 6 で PR を作るときに、PR の本文と、ユーザーへの返事の両方に出します。
+ユーザーは、マージを待つ間に、好きな順で済ませます。済ませたら、まとめて知らせてもらいます。
 
 | 頼むこと | 手順 |
 |---|---|
 | Claude の GitHub App を入れる | https://github.com/apps/claude を、このリポジトリに入れる。Claude のレビュー (claude[bot]) が、PR にレビューを書くために要る。既存の Claude のレビューのワークフローを使うときも、入っているかを確かめてもらう (リポジトリの設定の「GitHub Apps」) |
 | Claude のレビューの認証 | 手順 3 で Claude のレビューのワークフローを置いたときだけ。下の「5-A」 |
 | GitHub の Slack アプリの購読 | Slack に GitHub のアプリを入れ、通知先のチャンネルで購読する (下の「5-B」) |
-| Web の環境を作る | README の手順 |
+| Web の環境を作る | README の手順。手順 8 のルーティンが使う |
 
 ### 5-A. Claude のレビューの認証
 手順 3 で置いた `.github/workflows/claude-code-review.yml` は、シークレット `CLAUDE_CODE_OAUTH_TOKEN` か `ANTHROPIC_API_KEY` (どちらか) を使います。interview の「Claude のレビューの認証」で選んだほうを、登録してもらいます。既存の Claude のレビューのワークフローを使うときは、頼みません。
@@ -208,10 +210,17 @@ SKILL.md の「PR を作る」の節のとおりに、ここまでの変更を 1
 
 - 入れたもの (`.github/autopilot.yml` の内容・CODEOWNERS・手順 2 と 3 で置いたワークフロー)
 - 必須のチェックが無いときは、そのこと (CI の結果では自動マージが止まらず、レビューの承認だけでマージされる。手順 2 の「CI の必須のチェック」)
-- ユーザーがすること (まだ終えていない Claude の GitHub App・Claude のレビューの認証・Slack の購読・Web の環境)
-- マージした後に、setup がルールセットとルーティンを作ること
+- ユーザーがすること (手順 5 の一覧のうち、まだ終えていないもの)
+- マージした後に、setup がルールセット・ワークフローの既定の権限・ルーティンを作ること
 
-PR を作ったら、ユーザーにマージを頼み、マージされるのを待ちます。ルールセットとルーティンは、**マージの後**に作ります。ルールセットを先に作ると、この PR も必須のレビューを待つことになります。ルーティンは、デフォルトブランチの `.github/autopilot.yml` (`qa.start` など) を読みます。マージされたら、`git fetch` でデフォルトブランチを更新してから、次に進みます。
+PR を作ったら、手順 5 の一覧をユーザーに出し、マージを頼みます。そして、マージされるのを待ちます。
+ルールセット・ワークフローの既定の権限・ルーティンは、**マージの後**に、setup が行います。ルールセットを先に作ると、この PR も必須のレビューを待つことになります。ルーティンは、デフォルトブランチの `.github/autopilot.yml` (`qa.start` など) を読みます。
+
+マージされたことは、次のどちらかで確かめます。
+- ユーザーが「マージした」と答える
+- `gh pr view <n> --json state --jq .state` が `MERGED` を返す
+
+マージされたら、`git fetch` でデフォルトブランチを更新します。続けて、手順 7 (ルールセットとワークフローの既定の権限)・手順 8 (ルーティン) を、setup 自身が `gh` と RemoteTrigger で行います。ユーザーには、画面の操作を頼みません。失敗したとき (権限が足りない・RemoteTrigger が使えない) だけ、その手順の末尾のとおり、画面の手順を示して頼みます。
 
 ## 7. ルールセットを作る (マージの後)
 1. 必須にするチェックが、PR ごとに必ず結果を出すかを確かめます。
@@ -260,6 +269,11 @@ gh api -X PUT repos/{o}/{r}/actions/permissions/workflow \
 
 org のルールセットは変えません。変える必要があれば、ユーザーに伝えます。
 
+手順 7 の `gh api` が 403 などで失敗したら (権限が足りない)、ユーザーに、リポジトリの Settings の画面で行う手順を示して頼みます。
+- ルールセット: Settings → Rules → Rulesets → New branch ruleset で、上の JSON と同じ設定にする
+- 自動マージ: Settings → General → Pull Requests の「Allow auto-merge」をオンにする
+- ワークフローの既定の権限: Settings → Actions → General → Workflow permissions で、「Read repository contents and packages permissions」を選び、「Allow GitHub Actions to create and approve pull requests」をオフにする
+
 ## 8. ルーティンを作る (マージの後)
 ルーティンは、いまログインしている claude.ai アカウントのものになります。作る前に、interview.md で選んだアカウント (自動化専用か個人) でログインしているかを、ユーザーに確かめます。違えば、ここで止まってログインし直してもらいます。
 
@@ -280,14 +294,14 @@ RemoteTrigger で、次の 2 つを順に呼びます。
 
 絞り込み (ラベル名など) は効かないので付けません。ルーティンが最初にラベルを確かめます。
 
-作れなかったとき (ログインが違う・RemoteTrigger が使えない) は、claude.ai/code の画面で作る手順を示して、ユーザーに頼みます。
+作れなかったとき (ログインが違う・RemoteTrigger が使えない) だけ、claude.ai/code の画面で作る手順を示して、ユーザーに頼みます。
 
 ## 入れ済みのリポジトリを新しい形に移す
 `.github/workflows/autopilot.yml` か `.github/workflows/autopilot-qa.yml` があれば、前の形の autopilot が入っています (`autopilot.yml` に `automerge`・`label`・`fix`・`ready`・`deploy` の job がある、もっと前の形も含みます)。今の形は、autopilot のワークフローを置きません。次の順に、新しい形に移します。
 
 1. 開いている autopilot の PR (ブランチが `autopilot/` で始まる) が無いときに行います。あれば、マージか close されるのを待つか、その Issue と PR に `needs-human` を付けて止めます。止めた PR は、移した後に、Issue の `needs-human` を外し、`autopilot:ready` を一度外してから付け直すと、同じ PR で続きから進みます
 2. ルールセットの必須のチェックに `autopilot QA` があれば、先に外します。今の形には、このチェックを報告するワークフローが無いので、残すと、3 の PR も、この後の autopilot の PR も、待ちのままになります。`gh api repos/{o}/{r}/rulesets` で ID を探し、`gh api repos/{o}/{r}/rulesets/<id>` で読みます。`rules` の `required_status_checks` から `autopilot QA` を除き、`name`・`target`・`enforcement`・`conditions`・`rules`・`bypass_actors` を `gh api -X PUT repos/{o}/{r}/rulesets/<id> --input -` で書き戻します。ほかに必須のチェックが無くなれば、`required_status_checks` のルールごと消します。組織のルールセットにあれば、変えずに、ユーザーに伝えます
-3. 新しい設定を入れる PR を作り、マージしてもらいます。手順 2 (`.github/autopilot.yml`) のひな形から書き直し、手順 6 のとおり PR にします。下の「消すもの」のうち、リポジトリのファイルも、同じ PR で消します
+3. 新しい設定を入れる PR を作り、マージしてもらいます。手順 2 (`.github/autopilot.yml`) のひな形から書き直し、手順 6 のとおり PR にします。下の「消すもの」のうち、リポジトリのファイルも、同じ PR で消します。CODEOWNERS に、セキュリティの設定・除外のファイル (`/.gitleaks.toml`・`/.gitleaksignore`・`/.semgrepignore`・`/trivy.yaml`・`/.trivyignore`・`/.trivyignore.yaml`) の行が無ければ、手順 4 のひな形のとおりに足します (リポジトリに無いファイルの行も入れます)
 4. ルーティンの Web の環境の写しを、作り直してもらいます (環境の設定のスクリプトのコメントを 1 行変えると、作り直されます)。ルーティンが、新しいプラグインの開発と対応の手順を読むためです。ルーティンは作り直しません
 
 | 消すもの | 消し方 |

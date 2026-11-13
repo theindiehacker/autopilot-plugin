@@ -68,7 +68,7 @@
 
 ### 入れたら setup の後にすること
 
-`/autopilot:setup` は、ラベル・`.github/autopilot.yml`・CODEOWNERS (無ければ、Claude のレビューと CI のワークフローも) を入れた PR を作ります。autopilot のためのワークフローは置きません。次は、画面でしかできないので、手順を案内されてユーザーがします。
+`/autopilot:setup` は、ラベル・`.github/autopilot.yml`・CODEOWNERS (無ければ、Claude のレビューと CI のワークフローも) を入れた PR を作ります。autopilot のためのワークフローは置きません。次は、画面でしかできないので、手順を案内されてユーザーがします。setup は、PR を作るときに、1 つの一覧にして頼みます。
 
 | こと | 中身 |
 |---|---|
@@ -77,7 +77,7 @@
 | GitHub の Slack アプリ | Slack で `/github signin` を打つ。GitHub の側に Slack のアプリを入れてリポジトリを選ぶ。通知先のチャンネルで `/github subscribe …` を打つ |
 | Web の環境 | 下の「入れ方」の手順 |
 
-PR がマージされたら、setup が続きを行います。ルールセットを先に作ると、この PR も必須のレビューを待つことになり、ルーティンは、デフォルトブランチの `.github/autopilot.yml` を読むためです。
+PR がマージされたら、setup が続きを行います。ユーザーが「マージした」と答えるか、PR の状態が `MERGED` になると、setup が `gh` と RemoteTrigger で作ります。ルールセットを先に作ると、この PR も必須のレビューを待つことになります。ルーティンは、デフォルトブランチの `.github/autopilot.yml` を読みます。
 
 | こと | 中身 |
 |---|---|
@@ -284,7 +284,9 @@ claude plugin install autopilot@indiehacker
 
 ## 🔧 入れたら setup を実行する
 
-プラグインを入れただけでは、既存のリポジトリに、検査も autopilot も入りません。Claude Code on the Web では、起動時の `docker compose up` などが失敗することもあります。PC の Claude Code で `/autopilot:setup` を実行すると、リポジトリを調べて環境を整え、autopilot を入れて、PR を作ります (クラウドのセッションでは、ルーティンを作れません)。
+プラグインを入れただけでは、既存のリポジトリに、検査も autopilot も入りません。Claude Code on the Web では、起動時の `docker compose up` などが失敗することもあります。`/autopilot:setup` は、PC の Claude Code で実行します。クラウドのセッションで実行すると、setup は何も変えずに止まり、PC で実行するよう伝えます。クラウドのセッションでは、ルールセットとワークフローの権限を変える GitHub の API が拒否され、ルーティンも作れないためです。
+
+setup は、リポジトリを調べて環境を整え、autopilot を入れて、PR を作ります。PR がマージされたら、続けて setup が、ルールセット・ワークフローの既定の権限・ルーティンを作ります。画面の操作を頼むのは、それが失敗したときだけです。
 
 次の 8 つを、この順に行います。調べて、聞いて、提案してから変えます。ユーザーが提案に同意するまで、リポジトリは変えません。
 
