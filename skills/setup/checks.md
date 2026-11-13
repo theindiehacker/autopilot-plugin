@@ -168,7 +168,7 @@ tasks:
 - pre-commit に足すときは、同じコマンドを `repo: local` の `hooks` (`language: system`・`pass_filenames: false`・`stages: [pre-commit]` か `[pre-push]`) に書きます
 
 ### Claude の Stop の hook
-[templates/claude-settings.json](templates/claude-settings.json) の `hooks` を、リポジトリの `.claude/settings.json` に足します。ファイルが無ければ、そのまま置きます。あれば、既存の設定は消さず、`hooks.Stop` の配列に足します。`{{RUNNER}}`・`{{STYLE_CHECK}}` は lefthook と同じ値に、`{{STYLE_FIX}}` は `style:fix` のコマンド (例: `task style:fix`) に置き換えます。前の setup が入れた編集後の hook (`hooks.PostToolUse` の、Ruff・Biome を動かす 1 行のもの) があれば、消します。QA のジョブでは、この hook は動きません (QA のワークフローが `AUTOPILOT_QA` を付ける。QA はコードを直さないため)。対応のジョブ (GitHub Actions) では動きます。そこでは git の hook を止めているので、push の前にスタイルを直す場所は、この hook だけです
+[templates/claude-settings.json](templates/claude-settings.json) の `hooks` を、リポジトリの `.claude/settings.json` に足します。ファイルが無ければ、そのまま置きます。あれば、既存の設定は消さず、`hooks.Stop` の配列に足します。`{{RUNNER}}`・`{{STYLE_CHECK}}` は lefthook と同じ値に、`{{STYLE_FIX}}` は `style:fix` のコマンド (例: `task style:fix`) に置き換えます。前の setup が入れた編集後の hook (`hooks.PostToolUse` の、Ruff・Biome を動かす 1 行のもの) があれば、消します。QA のジョブでは、この hook は動きません (QA のワークフローが `AUTOPILOT_QA` を付ける。QA はコードを直さないため)。開発のルーティン (Claude Code on the web) の開発と対応では動きます。そこでは SessionStart の hook が lefthook を入れるので、commit 前・push 前の検査も動きます
 
 この hook は、Claude が作業を終えて止まるときに、`style:fix` → `style:check` を動かします。`style:fix` が失敗しても (直せない問題が残っても)、`style:check` は動かします。リポジトリ全体の問題を、まとめて Claude に伝えるためです。
 

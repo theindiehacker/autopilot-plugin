@@ -8,7 +8,6 @@
 | CI | `ls .github/workflows` | 各ファイルの `on:` (動く条件)・`name:`・ジョブ名。`paths:` で飛ぶものはどれか |
 | Claude のレビュー | `grep -rl -e claude-code-action -e claude-code-review .github/workflows` | あるか。起動のしかた (PR の作成・コメント) |
 | デプロイ | `grep -il -e 'uses: .*deploy' -e 'gcloud run deploy' -e 'gcloud app deploy' -e aws-actions -e vercel .github/workflows/*` | 候補だけ。説明文・コメント・E2E のワークフローも当たるので、各ファイルの `on:` とジョブの中身 (デプロイするコマンドか) を読んで決める。動く条件 (main への push・`workflow_dispatch`)。デプロイ先 (Cloud Run・ECS・Vercel など)。環境の名前 |
-| ロールバック | `ls .github/workflows/*rollback* 2>/dev/null` | あるか |
 | DB とマイグレーション | `git ls-files -- '*migration*' '*alembic*' '*.sql' 'prisma/*'` | マイグレーションのパス |
 | IaC | `git ls-files -- '*.tf'` と、`grep -l 'terraform' .github/workflows/*` | Terraform があるか。plan と apply が動く条件。apply がマージで動くか |
 | compose | `git ls-files -- '*compose*.y*ml' '*Dockerfile*'` | アプリを `docker compose up` で起動できそうか |

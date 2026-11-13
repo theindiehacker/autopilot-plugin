@@ -12,8 +12,6 @@
     "contents": "write",
     "pull_requests": "write",
     "issues": "write",
-    "actions": "write",
-    "variables": "write",
     "checks": "read"
   },
   "default_events": []

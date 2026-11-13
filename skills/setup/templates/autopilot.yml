@@ -1,7 +1,5 @@
 # .github/autopilot.yml (setup が、聞き取った答えで書く)
 # {{...}} は setup が置き換える。当てはまらない項目は、行ごと消す
-routine_github_user: "{{ROUTINE_GITHUB_USER}}"   # ルーティンの持ち主の GitHub のユーザー名
-
 qa:
   start: "{{QA_START}}"   # 例: docker compose up --build -d --wait
   url: "{{QA_URL}}"       # 例: http://localhost:3000
@@ -15,18 +13,6 @@ required_checks:
   - "{{CI_CHECK}}"   # CI のジョブ名。1 つずつ書く。paths: で飛ぶものは書かない
   - "autopilot QA"
 
-notify:
-  slack_channel: "{{SLACK_CHANNEL}}"   # 例: "#alerts"
-
 limits:
-  max_fix_rounds: 3
+  max_fix_rounds: 3   # 開発のルーティンが読む (PR の指摘・CI の失敗を直す回数の上限)
   stale_hours: 3
-
-deploy:
-  mode: none   # none / on_merge / dispatch
-  # workflow: deploy.yml
-  # environments: [production]
-  # verify: curl -fsS https://example.com/healthz
-  # rollback: rollback.yml
-  # rollback_after_irreversible: false
-  # irreversible_paths: [backend/migration/versions/**]   # このパスを変えた PR は、デプロイの確認に失敗しても自動で戻さない
