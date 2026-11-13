@@ -1,13 +1,12 @@
 # エビデンスを autopilot-evidence ブランチに置く手順
 
-qa (GitHub Actions の QA) と、動作確認の手順 (開発と対応、[self-check.md](self-check.md)) が使います。ファイルは置き場所 `$EV` の `pr-<PR 番号>/<sha7>/` に置いて、ブランチ `autopilot-evidence` に push します。`<PR 番号>` と `<sha7>` (コミットの先頭 7 文字) は、値に置き換えてください。
+動作確認の手順 (開発と対応、[self-check.md](self-check.md)) が使います。ファイルは置き場所 `$EV` の `pr-<PR 番号>/<sha7>/` に置いて、ブランチ `autopilot-evidence` に push します。`<PR 番号>` と `<sha7>` (コミットの先頭 7 文字) は、値に置き換えてください。
 
 ## 1. 置き場所を用意する
 
 ```bash
 REPO=$(git rev-parse --show-toplevel)
-# GitHub Actions では $RUNNER_TEMP。無いとき (ルーティン) は mktemp -d の場所
-EV="${RUNNER_TEMP:-$(mktemp -d)}/ev"
+EV="$(mktemp -d)/ev"
 echo "$EV"
 git -C "$REPO" ls-remote --exit-code --heads origin autopilot-evidence >/dev/null
 rc=$?
@@ -43,11 +42,11 @@ for i in 1 2 3; do
 done
 ```
 
-push は `git push` だけです。認証は、ジョブ (ルーティンではセッション) がすでに設定しています。トークンは扱いません。
+push は `git push` だけです。認証は、セッションがすでに設定しています。トークンは扱いません。
 
 ## 3. 失敗したとき
 
-`$pushed` が 1 でなければ (手順 1 の失敗も含む)、ファイルへのリンクは書けません。結果 (QA の結果のコメント、または本文の `## 動作確認`) に「エビデンスを push できませんでした: <エラーの 1 行目>」と書き、何を確かめたかを文章とコードブロックで書きます。**エビデンスの失敗を理由に、受入条件を不合格にしません。** qa は、`summary` にも同じことを書きます。
+`$pushed` が 1 でなければ (手順 1 の失敗も含む)、ファイルへのリンクは書けません。本文の `## 動作確認` に「エビデンスを push できませんでした: <エラーの 1 行目>」と書き、何を確かめたかを文章とコードブロックで書きます。**エビデンスの失敗を理由に、受入条件を不合格にしません。**
 
 ## 4. 伏せる
 
@@ -55,4 +54,4 @@ push は `git push` だけです。認証は、ジョブ (ルーティンでは�
 
 ## 5. リンク
 
-コメントと本文の `## 動作確認` には、画像を `![](<url>)` で埋め込み、動画などはリンク (`[](<url>)`) にします。JSON やコマンドの出力は、コードブロックに書いてもかまいません。URL は `https://github.com/<owner>/<repo>/blob/autopilot-evidence/pr-<PR 番号>/<sha7>/<ファイル>?raw=true` です。`<owner>/<repo>` は、この PR のリポジトリに置き換えます。
+本文の `## 動作確認` には、画像を `![](<url>)` で埋め込み、動画などはリンク (`[](<url>)`) にします。JSON やコマンドの出力は、コードブロックに書いてもかまいません。URL は `https://github.com/<owner>/<repo>/blob/autopilot-evidence/pr-<PR 番号>/<sha7>/<ファイル>?raw=true` です。`<owner>/<repo>` は、この PR のリポジトリに置き換えます。

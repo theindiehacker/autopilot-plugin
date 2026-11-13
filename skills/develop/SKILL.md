@@ -87,7 +87,7 @@ gh api 'repos/{owner}/{repo}/pulls?state=open&per_page=100' --paginate \
 
 プロジェクトの画面で作業中と分かるように、始めるときに空の Draft PR を作ります。ブランチ名を Issue の番号だけで決めるので、ほぼ同時に起動しても、後の push は断られます。
 
-前の試みの PR があれば、新しい PR は作りません。そのブランチに切り替え、デフォルトブランチ (`gh api repos/{owner}/{repo} --jq .default_branch`) を取り込んで、すぐに push します。見回りは、PR が更新されたことで再開を見分けます。head も新しくなるので、前の head への見回りの印も数えなくなります。
+前の試みの PR があれば、新しい PR は作りません。そのブランチに切り替え、デフォルトブランチ (`gh api repos/{owner}/{repo} --jq .default_branch`) を取り込んで、すぐに push します。head が新しくなるので、前の head への印 (`<!-- autopilot:undraft <sha> -->`) は数えなくなります。
 
 ```bash
 git fetch origin <ブランチ>
@@ -202,7 +202,7 @@ git push
 gh api repos/{owner}/{repo}/pulls/<PR の番号> --jq .head.sha
 ```
 
-動作確認の手順 ([../qa/self-check.md](../qa/self-check.md)) で、手順 5 の受入条件を確かめ、エビデンスを置いて、`## 動作確認 (<sha7>)` を書きます。手順 9 で渡す本文に入れます。
+動作確認の手順 ([../qa/self-check.md](../qa/self-check.md)) で、手順 5 の受入条件を確かめ、エビデンスを置いて、`## 動作確認 (<sha7>)` を書きます。手順 9 で渡す本文に入れます。この動作確認が、受入条件を確かめる最後の QA です。別の Claude が確かめ直すことはありません。
 
 直せない条件があれば、次のコメントで止まります。
 
@@ -229,7 +229,7 @@ PR は新しく作りません。PR の本文を、プラグインの `skills/se
 
 最後の行は `Closes #<Issue 番号>` です。
 
-GitHub の MCP の `update_pull_request` で、1 回の呼び出しで `body` (書いた本文) と `draft: false` を渡します。通ったら、手順 10 へ進みます。「レビュー可能」になると、レビューと `autopilot QA` (別の Claude が、別の環境で確かめ直す) が動きます。
+GitHub の MCP の `update_pull_request` で、1 回の呼び出しで `body` (書いた本文) と `draft: false` を渡します。通ったら、手順 10 へ進みます。「レビュー可能」になると、レビューが動きます。
 
 断られたら (ツールが使えない・拒否された)、手順 12 のコメントで止まります。
 
