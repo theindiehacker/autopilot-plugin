@@ -98,7 +98,7 @@ PC を使うのは、この 1 回だけです。setup が、リポジトリを�
 
 | ドキュメント | 中身 |
 |---|---|
-| [autopilot](docs/autopilot.md) | 流れ・ラベル・止まる条件と再開・setup の後にすること・デプロイ |
+| [autopilot](docs/autopilot.md) | 流れ・ラベル・止まる条件と再開・setup の後にすること・Project・デプロイ |
 | [setup の手順](docs/setup.md) | `/autopilot:setup` の 8 つの手順と、その順番の理由 |
 | [自動で動くもの](docs/automation.md) | 起動時の処理・検査・技術スタックの方針・Claude に渡す指示・一緒に入るプラグイン |
 | [ネットワークアクセスを制限付きにする](docs/network.md) | 通信先を絞りたいときの、Web の環境の設定 |
