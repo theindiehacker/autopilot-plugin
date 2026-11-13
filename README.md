@@ -41,24 +41,9 @@
 
 **3. ネットワークアクセスを設定する**
 
-手順 2 の画面の「ネットワークアクセス」(②) を押して、次のように設定します。
+手順 2 の画面の「ネットワークアクセス」(②) を押して、「フル」を選びます。「<」を押して、前の画面に戻ります。
 
-- ① 「制限付き」を選びます。
-- ② 「許可されたドメイン」に、次の内容をコピーして貼り付けます。
-
-  ```
-  semgrep.dev
-  pkg-containers.githubusercontent.com
-  dl.google.com
-  dl-cdn.alpinelinux.org
-  ui.shadcn.com
-  cdn.playwright.dev
-  ```
-
-- ③ 「[パッケージマネージャー](https://code.claude.com/docs/en/cloud-environments#default-allowed-domains)を許可」にチェックを入れます。
-- ④ 「<」を押して、前の画面に戻ります。
-
-<img src="docs/images/cloud-3-network-access.png" width="420" alt="ネットワークアクセスの画面。「制限付き」を①、「許可されたドメイン」を②、「パッケージマネージャーを許可」を③、戻るボタンを④として赤枠で示している">
+通信先を絞りたいときは、[制限付きにする手順](docs/network.md)を見てください。
 
 **4. セットアップスクリプトを設定する**
 
@@ -161,4 +146,5 @@ Claude Code を開いていたら、起動し直します。
 | [autopilot](docs/autopilot.md) | 流れ・ラベル・止まる条件と再開・setup の後にすること・デプロイ |
 | [setup の手順](docs/setup.md) | `/autopilot:setup` の 8 つの手順と、その順番の理由 |
 | [自動で動くもの](docs/automation.md) | 起動時の処理・検査・技術スタックの方針・Claude に渡す指示・一緒に入るプラグイン |
+| [ネットワークアクセスを制限付きにする](docs/network.md) | 通信先を絞りたいときの、Web の環境の設定 |
 | [前のプラグインから移る](docs/migration.md) | cloud・frontend・python・security からの移り方 |
