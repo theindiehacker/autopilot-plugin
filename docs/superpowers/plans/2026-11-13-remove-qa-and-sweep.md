@@ -44,5 +44,5 @@
 - [ ] **Step 3: スキルを直す。** develop と fix から、QA のジョブ・QA の結果のコメント・QA の失敗の通知・App のボットのコメント・起こすコメント (`wake`) への言及を消す。fix の「同じ head で 2 回 Draft に戻された」ときは `needs-human` で止める (R56)。self-check.md の「そのあと、GitHub Actions の autopilot QA が…」の段落を消し、動作確認が最後の QA であることを書く。evidence.md から QA の GitHub Actions の話 (`$RUNNER_TEMP` など) を消す
 - [ ] **Step 4: setup を直す。** autopilot.md: 手順 3 (ワークフローを 2 つ書く) を消す。手順 6 から GitHub App (6-A・6-B・権限の照らし合わせ)・シークレットを消す (Claude のレビューのワークフローを置くときの認証の案内は残す)。手順 8 のルールセットの例から `autopilot QA` を消す (CI のチェックだけ。CI が必須にできないときは、必須のチェックは無しで、そのことを PR の本文に書く)。「入れ済みのリポジトリを新しい形に移す」に、`autopilot.yml`・`autopilot-qa.yml` を消す・ルールセットから `autopilot QA` を外す・App とシークレットを消す、を足す。番号を詰め、中の参照も直す。survey・interview・SKILL.md の言及も直す。`templates/autopilot.yml` から `stale_hours` と `autopilot QA` を消す (R58)。CODEOWNERS は R57
 - [ ] **Step 5: README を直す。** 流れの表・ラベル・止まる条件・人がすること・setup の後にすること・注意から、QA のジョブ・見回り・GitHub App・シークレットを消す
-- [ ] **Step 6: 確かめる。** Step 1 の grep。`claude plugin validate .` (あれば)。`git grep -nI -e fastship -e ads-mcp HEAD` が空
+- [ ] **Step 6: 確かめる。** Step 1 の grep。`claude plugin validate .` (あれば)。試験のリポジトリの名前で `git grep -nI` して 0 件
 - [ ] **Step 7: Commit** (場所ごとに分けてよい。例 `docs: 設計書から QA と見回りを消す`・`skills: …`・`automation: 見回りのコードを消す`)
