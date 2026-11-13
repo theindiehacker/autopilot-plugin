@@ -8,6 +8,8 @@
   <a href="renovate.json"><img src="https://img.shields.io/badge/Renovate-308BE3?style=for-the-badge&logo=renovate&logoColor=white" alt="Renovate"></a>
 </p>
 
+https://github.com/user-attachments/assets/2838eb14-b70d-4379-8531-86a3627ae8ae
+
 ## 📱 あなたがするのは、これだけ
 
 どれも、スマホの GitHub でできます。
