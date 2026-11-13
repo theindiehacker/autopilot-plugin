@@ -7,4 +7,4 @@ while [ "$d" != / ]; do
   [ ! -e "$d/.git" ] || break
   d=$(dirname -- "$d")
 done
-exec bunx @biomejs/biome@2.6.4 "$@"
+exec bunx @biomejs/biome@2.6.5 "$@"

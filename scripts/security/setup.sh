@@ -5,7 +5,7 @@ set -uo pipefail
 # 🛡️ Web ではセキュリティツール(Semgrep, Gitleaks, Trivy)をインストール。ローカルでは入れず、無ければ伝えるだけにする
 if [ "${CLAUDE_CODE_REMOTE:-}" = "true" ]; then
   if ! semgrep --version > /dev/null 2>&1; then
-    timeout 180 env UV_TOOL_BIN_DIR=/usr/local/bin uv tool install semgrep==1.183.0 >&2 &
+    timeout 180 env UV_TOOL_BIN_DIR=/usr/local/bin uv tool install semgrep==1.184.0 >&2 &
   fi
   if ! gitleaks --version > /dev/null 2>&1; then
     curl -sSfL --connect-timeout 10 --max-time 120 \
