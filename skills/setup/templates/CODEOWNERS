@@ -1,0 +1,33 @@
+# .github/CODEOWNERS (setup が、聞き取った答えで書く)
+# ここに書いたパスを変える PR は、そのパスの持ち主の承認 (Approve) が無いとマージできない。
+# ルールセットで「コードオーナーのレビューを必須」(require_code_owner_review) にすると効く。
+# {{...}} は setup が置き換える。当てはまらない行は、行ごと消す (セキュリティの設定・除外のファイルの行を除く)。
+# 持ち主は GitHub のユーザー名 (@user) か team (@org/team)。例: /backend/migration/versions/ @org/team
+
+# autopilot を動かすファイル (ワークフロー・設定・この CODEOWNERS・Claude の設定・git の hook の設定)。
+# AI の PR が、人の承認なしに、自分の検査や権限を変えられないようにする。
+# git の hook の設定は、リポジトリに無いものの行を消す (分からなければ残す)
+/.github/ {{OWNER}}
+/.claude/ {{OWNER}}
+/.mcp.json {{OWNER}}
+/lefthook* {{OWNER}}
+/.lefthook* {{OWNER}}
+/.config/lefthook* {{OWNER}}
+/.pre-commit-config.yaml {{OWNER}}
+/.husky/ {{OWNER}}
+
+# 検査を定めるファイル (タスクランナーのファイルと、セキュリティの検査の設定・除外のファイル)。
+# CI・git の hook・Claude の hook・動作確認が呼ぶ style:check・security:check・dev:up と、検査が読む除外を、
+# AI の PR が、人の承認なしに変えられないようにする。
+# 設定・除外のファイルの行は、リポジトリに無くても残す (AI の PR が、そのファイルを新しく作って、検査を弱めないように)
+{{TASK_FILE}} {{OWNER}}
+/.gitleaks.toml {{OWNER}}
+/.gitleaksignore {{OWNER}}
+/.semgrepignore {{OWNER}}
+/trivy.yaml {{OWNER}}
+/.trivyignore {{OWNER}}
+/.trivyignore.yaml {{OWNER}}
+
+# 取り消せない変更 (マイグレーション・Terraform)
+{{MIGRATION_PATH}} {{OWNER}}
+{{TERRAFORM_PATH}} {{OWNER}}

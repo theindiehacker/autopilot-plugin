@@ -1,0 +1,3 @@
+# Gitleaks の試験に使う、本物ではない偽の AWS キー。今の skills/setup/checks.md では鍵を分けて書いており、検出されない。
+# 履歴 (push 済みの共有のブランチ) は書き換えないため、この commit の 1 件だけを除く。
+e035040beda55092d5bd18bef9ce0752caf560e1:skills/setup/checks.md:aws-access-token:63

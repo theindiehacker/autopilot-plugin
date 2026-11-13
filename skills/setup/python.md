@@ -25,6 +25,7 @@ CLAUDE_PROJECT_DIR="$PWD" bash "${CLAUDE_PLUGIN_ROOT}/scripts/python/setup.sh"
 
 ## 2. 移行する
 聞いた順に、1 項目ずつ行ってください。各項目の後で、`uv sync --locked` とテスト (あれば) が通ることを確かめてください。
+`mise.toml` が uv の版を固定しているときは、`uv.lock` をその版の uv で書くよう、uv を `mise exec -- uv …` で動かしてください (新しい版の uv は、`uv.lock` の `revision` を上げることがあります)。
 
 ### uv
 1. poetry・pipenv・pip-tools・pip (`requirements.txt`) は `uvx migrate-to-uv` で移す。古い lock ファイルの版を引き継いで `uv.lock` を作り、古い lock ファイル・設定を消します
@@ -46,12 +47,12 @@ CLAUDE_PROJECT_DIR="$PWD" bash "${CLAUDE_PLUGIN_ROOT}/scripts/python/setup.sh"
 4. `uv run ty check` で残った問題を直す
 
 ### deptry
-`deptry src` (src レイアウトでなければ `deptry .`) で検査し、足りない依存は `uv add`、使っていない依存は `uv remove` で直してください。誤検知だけ `[tool.deptry]` で除外します (commit の前に precommit.sh がこれを動かします)。
+`deptry src` (src レイアウトでなければ `deptry .`) で検査し、足りない依存は `uv add`、使っていない依存は `uv remove` で直してください。誤検知だけ `[tool.deptry]` で除外します (commit の前に、lefthook がこれを動かします)。
 
 ### import-linter
 1. パッケージの層 (例: `presentation → application → domain`) と依存の向きを、ユーザーに確かめる
 2. `pyproject.toml` の `[tool.importlinter]` に `root_package` を書き、`[[tool.importlinter.contracts]]` に `type = "layers"` の契約を書く
-3. `lint-imports` で確かめる (commit の前に precommit.sh がこれを動かします)
+3. `lint-imports` で確かめる (commit の前に、lefthook がこれを動かします)
 
 ### pytest
 1. `uv add --dev pytest` で入れる

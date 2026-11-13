@@ -1,8 +1,8 @@
 {
   "name": "autopilot",
   "displayName": "autopilot@indiehacker",
-  "version": "1.0.0",
-  "description": "Claude Code on the Web のセッションの準備、技術スタック (bun・Biome・uv・Ruff・ty) の統一、hooks による自動の検査 (lint・型検査・シークレット検出・脆弱性スキャン) を行うプラグイン",
+  "version": "2.0.0",
+  "description": "Claude Code on the Web のセッションの準備、技術スタック (bun・Biome・uv・Ruff・ty) の統一、/autopilot:setup が行う、Issue からマージまでの自動の流れ (autopilot) と、自動の検査 (lint・型検査・シークレット検出・脆弱性スキャン。作業の終わり・commit 前・push 前) のリポジトリへの導入 (lefthook と .claude/settings.json) を行うプラグイン",
   "repository": "https://github.com/theindiehacker/autopilot-plugin",
   "dependencies": [
     "security-guidance@claude-plugins-official",

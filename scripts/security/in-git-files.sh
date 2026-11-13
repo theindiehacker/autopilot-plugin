@@ -19,4 +19,19 @@ copy() {
 TMP=$(mktemp -d) && trap 'rm -rf "$TMP"' EXIT && copy "$TMP" && cd "$TMP" ||
   echo '⚠️ git に入るファイルを一時フォルダに写せなかったので、フォルダ全体を検査します' >&2
 
+# mise の shim は、一時フォルダの mise.toml を「信頼できない」として拒む。
+# 信頼を足すのは、元のフォルダの mise の設定がすべて信頼済みのときだけ (mise trust --show の行がすべて ": trusted" で終わり、1 行以上あるとき)。
+# 常に足すと、ユーザーが信頼していない mise.toml の [env]・exec などが、写した先で動いてしまう。
+# 確かめるのは、元のフォルダ (ルート) と親フォルダの設定だけ。$TMP を信頼すると、その下のサブフォルダの mise.toml も、確かめないまま信頼される。
+# 呼び出し元 (skills/setup/security.md) はルートで検査を動かすだけなので、サブフォルダの設定は読まれない
+# mise が無いときは何も足さない。足すのは一時フォルダだけで、元の設定の信頼は変えない
+if [ "$PWD" = "${TMP:-}" ] && command -v mise > /dev/null 2>&1; then
+  trust=$(cd "$CLAUDE_PROJECT_DIR" && mise trust --show 2> /dev/null)
+  if [ -n "$trust" ] && ! grep -qv ': trusted$' <<< "$trust"; then
+    export MISE_TRUSTED_CONFIG_PATHS="$TMP${MISE_TRUSTED_CONFIG_PATHS:+:$MISE_TRUSTED_CONFIG_PATHS}"
+  elif [ -n "$trust" ]; then
+    echo '⚠️ 元の mise.toml が信頼されていないので、一時フォルダも信頼しません。mise trust で信頼できます' >&2
+  fi
+fi
+
 "$@" 1>&2
