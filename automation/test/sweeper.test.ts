@@ -21,7 +21,6 @@ function issue(over: Partial<SweepItem> = {}): SweepItem {
     readyLabeledAt: ago(0),
     readyRetries: 0,
     wakes: [],
-    hasPr: false,
     updatedAt: ago(0),
     conflicting: false,
     ...over,
@@ -33,8 +32,8 @@ const pr = (over: Partial<SweepItem> = {}): SweepItem =>
     kind: "pr",
     number: 9,
     labels: [],
-    hasPr: true,
     headSha: "h1",
+    issueNumber: 7,
     wakes: [],
     ...over,
   });
@@ -45,17 +44,21 @@ test("ready のまま 30 分を超えて起動しなければ付け直す", () =
   ]);
 });
 
-test("付け直しても起動しなければ needs-human", () => {
-  const actions = planSweep(
-    [issue({ readyLabeledAt: ago(31), readyRetries: 1 })],
-    now,
-    config,
-  );
-  expect(actions).toHaveLength(1);
-  const a = actions[0];
-  expect(a?.type).toBe("needsHuman");
-  expect(a?.number).toBe(7);
-  expect(a?.type === "needsHuman" && a.reason).toContain("起動しませんでした");
+test("付け直しても起動しなければ needs-human。何をすればよいかも書く", () => {
+  expect(
+    planSweep(
+      [issue({ readyLabeledAt: ago(31), readyRetries: 1 })],
+      now,
+      config,
+    ),
+  ).toEqual([
+    {
+      type: "needsHuman",
+      number: 7,
+      reason:
+        "autopilot:ready を付け直しましたが、30 分たっても起動しませんでした。\n直してから、needs-human を外して autopilot:ready を付け直してください。",
+    },
+  ]);
 });
 
 test("30 分以内なら何もしない", () => {
@@ -74,21 +77,17 @@ test("起動済み (startedAt あり) なら付け直さない", () => {
   ).toEqual([]);
 });
 
-test("開始から 3 時間たっても PR が無ければ needs-human", () => {
-  const stale = planSweep(
-    [issue({ startedAt: ago(240), readyLabeledAt: ago(300) })],
-    now,
-    config,
-  );
-  expect(stale).toHaveLength(1);
-  expect(stale[0]?.type).toBe("needsHuman");
-  expect(planSweep([issue({ startedAt: ago(120) })], now, config)).toEqual([]);
-});
-
-test("PR があれば Issue は needs-human にしない", () => {
+test("開始した Issue は、時間がたっても needs-human にしない", () => {
   expect(
     planSweep(
-      [issue({ startedAt: ago(240), hasPr: true, updatedAt: ago(240) })],
+      [
+        issue({
+          startedAt: ago(240),
+          readyLabeledAt: ago(300),
+          readyRetries: 1,
+          updatedAt: ago(240),
+        }),
+      ],
       now,
       config,
     ),
@@ -121,13 +120,6 @@ test("ready ラベルが無い Issue は何もしない", () => {
   expect(
     planSweep([issue({ labels: [], readyLabeledAt: ago(60) })], now, config),
   ).toEqual([]);
-});
-
-test("Issue の stale は設定の staleHours に従う", () => {
-  const c = { ...config, limits: { ...config.limits, staleHours: 1 } };
-  const a = planSweep([issue({ startedAt: ago(61) })], now, c);
-  expect(a).toHaveLength(1);
-  expect(a[0]?.type).toBe("needsHuman");
 });
 
 test("ちょうど readyRetryMinutes なら何もしない", () => {
@@ -175,7 +167,8 @@ test("起こしてから stale_hours たっても直らなければ needs-human"
     {
       type: "needsHuman",
       number: 9,
-      reason: "起こしても、3 時間直りませんでした (コンフリクト)",
+      reason:
+        "起こしても、3 時間直りませんでした (コンフリクト)\n直してから、Issue #7 の needs-human を外して autopilot:ready を付け直してください。",
     },
   ]);
   expect(
@@ -193,7 +186,8 @@ test("起こしてから stale_hours たっても直らなければ needs-human"
     {
       type: "needsHuman",
       number: 9,
-      reason: "起こしても、3 時間直りませんでした (動きがありません)",
+      reason:
+        "起こしても、3 時間直りませんでした (動きがありません)\n直してから、Issue #7 の needs-human を外して autopilot:ready を付け直してください。",
     },
   ]);
 });
@@ -249,4 +243,21 @@ test("困りごとの無い PR は、印があっても何もしない", () => {
       config,
     ),
   ).toEqual([]);
+});
+
+test("ブランチ名から Issue の番号が読めない PR は、番号を書かずに知らせる", () => {
+  const a = planSweep(
+    [
+      pr({
+        issueNumber: undefined,
+        conflicting: true,
+        wakes: [{ at: ago(181), headSha: "h1" }],
+      }),
+    ],
+    now,
+    config,
+  );
+  expect(a[0]?.type === "needsHuman" && a[0].reason).toBe(
+    "起こしても、3 時間直りませんでした (コンフリクト)\n直してから、Issue の needs-human を外して autopilot:ready を付け直してください。",
+  );
 });

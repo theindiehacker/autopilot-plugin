@@ -1,4 +1,4 @@
-import type { Issue, Pull } from "../github";
+import type { Issue, IssueEvent, Pull } from "../github";
 import { planSweep, type SweepItem } from "../sweeper";
 import { headMarker, LABELS, MARKERS } from "../types";
 import { type Ctx, isAutopilotPull, needsHuman, sameLogin } from "./context";
@@ -9,19 +9,27 @@ async function issueItem(
   pulls: Pull[],
 ): Promise<SweepItem> {
   const events = await ctx.gh.listIssueEvents(issue.number);
-  const ready = events.filter(
-    (e) => e.event === "labeled" && e.label?.name === LABELS.ready,
+  const isReady = (e: IssueEvent) =>
+    e.event === "labeled" && e.label?.name === LABELS.ready;
+  // 付け直しの回数は、needs-human が最後に外された後から数える (人が外して付け直すと、数え直す)
+  const released = events.findLastIndex(
+    (e) => e.event === "unlabeled" && e.label?.name === LABELS.needsHuman,
   );
+  const readyAfterRelease = events.slice(released + 1).filter(isReady);
   // ラベルの event が無ければ (古い Issue など) 作成時刻を使う
-  const readyLabeledAt = ready.at(-1)?.created_at ?? issue.created_at;
-  // 開発は、開発の Draft PR を作って始まる。ラベルより前の PR は、前の試みのもの
-  const developing = pulls.filter(
-    (p) =>
-      p.head.ref.startsWith(`autopilot/${issue.number}-`) &&
-      Date.parse(p.created_at) >= Date.parse(readyLabeledAt),
-  );
-  const startedAt = developing
-    .map((p) => p.created_at)
+  const readyLabeledAt =
+    events.filter(isReady).at(-1)?.created_at ?? issue.created_at;
+  const labeledMs = Date.parse(readyLabeledAt);
+  // 開発は、開発の Draft PR を作るか、前の試みの PR を使い続けて push して始まる。
+  // ラベルより前に作られ、その後に動きの無い PR は、前の試みのもの
+  const startedAt = pulls
+    .filter(
+      (p) =>
+        p.head.ref.startsWith(`autopilot/${issue.number}-`) &&
+        (Date.parse(p.created_at) >= labeledMs ||
+          Date.parse(p.updated_at) >= labeledMs),
+    )
+    .map((p) => p.updated_at)
     .sort((a, b) => Date.parse(a) - Date.parse(b))
     .at(-1);
   return {
@@ -31,11 +39,8 @@ async function issueItem(
     url: issue.html_url,
     labels: issue.labels.map((l) => l.name),
     readyLabeledAt,
-    readyRetries: Math.max(0, ready.length - 1),
+    readyRetries: Math.max(0, readyAfterRelease.length - 1),
     ...(startedAt ? { startedAt } : {}),
-    hasPr: pulls.some((p) =>
-      p.head.ref.startsWith(`autopilot/${issue.number}-`),
-    ),
     updatedAt: issue.updated_at,
     conflicting: false,
     wakes: [],
@@ -50,6 +55,7 @@ async function pullItem(ctx: Ctx, pull: Pull): Promise<SweepItem> {
     const headSha = c.body.match(/<!-- autopilot:head (\S+) -->/)?.[1];
     return headSha ? [{ at: c.created_at, headSha }] : [];
   });
+  const issueNumber = pull.head.ref.match(/^autopilot\/(\d+)-/)?.[1];
   return {
     kind: "pr",
     number: pull.number,
@@ -57,10 +63,10 @@ async function pullItem(ctx: Ctx, pull: Pull): Promise<SweepItem> {
     url: pull.html_url,
     labels: pull.labels.map((l) => l.name),
     readyRetries: 0,
-    hasPr: true,
     updatedAt: pull.updated_at,
     conflicting: full.mergeable_state === "dirty",
     headSha: full.head.sha,
+    ...(issueNumber ? { issueNumber: Number(issueNumber) } : {}),
     wakes,
   };
 }

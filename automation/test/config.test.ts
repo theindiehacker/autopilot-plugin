@@ -67,6 +67,27 @@ test("問題をまとめて返す", () => {
   ).toBe(2);
 });
 
-test("review.reviewer が無いと ConfigError", () => {
-  expect(issuesOf("limits: {}").join("\n")).toContain("review.reviewer");
+test("review.reviewer が無ければ claude[bot] にする", () => {
+  expect(parseConfig("limits: {}").review.reviewer).toBe("claude[bot]");
+});
+
+test("見回りの使わない qa・review・required_checks の不備では落ちない", () => {
+  const c = parseConfig(`
+qa: "x"
+review: {reviewer: 1, trigger: sometimes, command: 2}
+required_checks: [{paths: 1}, 3, "", {name: ok}]
+limits: {max_fix_rounds: 2}
+`);
+  expect(c.limits.maxFixRounds).toBe(2);
+  expect(c.qa).toEqual({});
+  expect(c.review).toEqual({ reviewer: "claude[bot]", trigger: "none" });
+  expect(c.requiredChecks).toEqual([{ name: "ok" }]);
+  expect(parseConfig(`${base}required_checks: "x"`).requiredChecks).toEqual([]);
+});
+
+test("limits の不備では落ちる", () => {
+  expect(issuesOf("limits: {stale_hours: 0}").join("\n")).toContain(
+    "limits.stale_hours",
+  );
+  expect(issuesOf("limits: 1").join("\n")).toContain("limits");
 });

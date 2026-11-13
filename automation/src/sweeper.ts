@@ -8,15 +8,16 @@ export interface SweepItem {
   labels: string[];
   /** autopilot:ready が最後に付いた時刻 */
   readyLabeledAt?: string;
-  /** autopilot:ready が付いた回数 − 1 (呼び出し側が数える) */
+  /** needs-human が最後に外された後に、autopilot:ready が付いた回数 − 1 (呼び出し側が数える) */
   readyRetries: number;
-  /** 開発の Draft PR ができた時刻 */
+  /** 開発が始まったと分かる時刻 (ラベルより後に作られたか更新された、開発の PR の updated_at) */
   startedAt?: string;
-  hasPr: boolean;
   updatedAt: string;
   conflicting: boolean;
   /** PR の今の head (PR だけ) */
   headSha?: string;
+  /** ブランチ名 autopilot/<n>- の Issue の番号 (PR だけ。読めなければ無し) */
+  issueNumber?: number;
   /** App のボットが書いた、起こす印 (PR だけ) */
   wakes: { at: string; headSha: string }[];
 }
@@ -28,6 +29,10 @@ export type SweepAction =
 
 const elapsedMs = (from: string, now: Date) =>
   now.getTime() - new Date(from).getTime();
+
+/** needs-human のコメントで、理由の次の行に書く、人がすること。where は「Issue #<n> の 」など */
+const nextStep = (where = "") =>
+  `直してから、${where}${LABELS.needsHuman} を外して ${LABELS.ready} を付け直してください。`;
 
 function planItem(
   item: SweepItem,
@@ -50,18 +55,7 @@ function planItem(
       return {
         type: "needsHuman",
         number: item.number,
-        reason: `${LABELS.ready} を付け直しましたが、${readyRetryMinutes} 分たっても起動しませんでした。`,
-      };
-    }
-    if (
-      item.startedAt !== undefined &&
-      !item.hasPr &&
-      elapsedMs(item.startedAt, now) > staleMs
-    ) {
-      return {
-        type: "needsHuman",
-        number: item.number,
-        reason: `開始から ${staleHours} 時間以上、PR ができていません。`,
+        reason: `${LABELS.ready} を付け直しましたが、${readyRetryMinutes} 分たっても起動しませんでした。\n${nextStep()}`,
       };
     }
     return undefined;
@@ -86,10 +80,14 @@ function planItem(
     };
   }
   if (elapsedMs(lastWake, now) > staleMs) {
+    const where =
+      item.issueNumber === undefined
+        ? "Issue の "
+        : `Issue #${item.issueNumber} の `;
     return {
       type: "needsHuman",
       number: item.number,
-      reason: `起こしても、${staleHours} 時間直りませんでした (${item.conflicting ? "コンフリクト" : "動きがありません"})`,
+      reason: `起こしても、${staleHours} 時間直りませんでした (${item.conflicting ? "コンフリクト" : "動きがありません"})\n${nextStep(where)}`,
     };
   }
   return undefined;

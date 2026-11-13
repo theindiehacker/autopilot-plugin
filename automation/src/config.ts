@@ -27,38 +27,41 @@ export function parseConfig(yamlText: string): AutopilotConfig {
 
   const issues: string[] = [];
 
+  // 見回りが使うのは limits だけ。qa・review・required_checks は、QA や開発のルーティンが
+  // 読むもので、不備があっても見回りを止めない。読めるものだけを読み、ほかは既定の値にする
+  const obj = (v: unknown): Obj => (isObj(v) ? v : {});
+  const text = (v: unknown): string | undefined =>
+    typeof v === "string" && v !== "" ? v : undefined;
+
+  const qa = obj(raw.qa);
+  const qaStart = text(qa.start);
+  const qaUrl = text(qa.url);
+
+  const rv = obj(raw.review);
+  const reviewer = text(rv.reviewer) ?? "claude[bot]";
+  const trigger = TRIGGERS.find((t) => t === rv.trigger) ?? "none";
+  const command = text(rv.command);
+
+  const rc = raw.required_checks;
+  const requiredChecks = (Array.isArray(rc) ? rc : []).flatMap(
+    (item): RequiredCheck[] => {
+      if (typeof item === "string") return item ? [{ name: item }] : [];
+      if (!isObj(item)) return [];
+      const name = text(item.name);
+      if (!name) return [];
+      const { paths } = item;
+      return Array.isArray(paths) && paths.every((x) => typeof x === "string")
+        ? [{ name, paths }]
+        : [{ name }];
+    },
+  );
+
   const section = (key: string): Obj => {
     const v = raw[key];
     if (v === undefined || v === null) return {};
     if (isObj(v)) return v;
     issues.push(`${key} はオブジェクトにしてください`);
     return {};
-  };
-  const str = (
-    o: Obj,
-    path: string,
-    key: string,
-    required = false,
-  ): string | undefined => {
-    const v = o[key];
-    if (v === undefined || v === null) {
-      if (required) issues.push(`${path} が必要です`);
-      return undefined;
-    }
-    if (typeof v !== "string" || v === "") {
-      issues.push(`${path} は文字列にしてください`);
-      return undefined;
-    }
-    return v;
-  };
-  const strList = (o: Obj, path: string, key: string): string[] => {
-    const v = o[key];
-    if (v === undefined || v === null) return [];
-    if (!Array.isArray(v) || v.some((x) => typeof x !== "string")) {
-      issues.push(`${path} は文字列の配列にしてください`);
-      return [];
-    }
-    return v as string[];
   };
   const num = (o: Obj, path: string, key: string, def: number): number => {
     const v = o[key];
@@ -69,47 +72,8 @@ export function parseConfig(yamlText: string): AutopilotConfig {
     }
     return v;
   };
-  const qa = section("qa");
-  const qaStart = str(qa, "qa.start", "start");
-  const qaUrl = str(qa, "qa.url", "url");
 
-  // review
-  const rv = section("review");
-  const reviewer = str(rv, "review.reviewer", "reviewer", true) ?? "";
-  const trigger = rv.trigger ?? "none";
-  if (!TRIGGERS.includes(trigger as (typeof TRIGGERS)[number])) {
-    issues.push(
-      `review.trigger は ${TRIGGERS.join(" / ")} のどれかにしてください`,
-    );
-  }
-  const command = str(rv, "review.command", "command");
-
-  // required_checks
-  const requiredChecks: RequiredCheck[] = [];
-  const rc = raw.required_checks;
-  if (rc !== undefined && rc !== null) {
-    if (!Array.isArray(rc)) {
-      issues.push("required_checks は配列にしてください");
-    } else {
-      rc.forEach((item, i) => {
-        const path = `required_checks[${i}]`;
-        if (typeof item === "string" && item !== "") {
-          requiredChecks.push({ name: item });
-        } else if (isObj(item)) {
-          const name = str(item, `${path}.name`, "name", true);
-          const paths =
-            item.paths === undefined
-              ? undefined
-              : strList(item, `${path}.paths`, "paths");
-          if (name) requiredChecks.push(paths ? { name, paths } : { name });
-        } else {
-          issues.push(`${path} は文字列か { name, paths } にしてください`);
-        }
-      });
-    }
-  }
-
-  // limits
+  // limits (見回りが使う。不備があれば止める)
   const lm = section("limits");
   const limits = {
     maxFixRounds: num(lm, "limits.max_fix_rounds", "max_fix_rounds", 3),
@@ -131,7 +95,7 @@ export function parseConfig(yamlText: string): AutopilotConfig {
     },
     review: {
       reviewer,
-      trigger: trigger as AutopilotConfig["review"]["trigger"],
+      trigger,
       ...(command ? { command } : {}),
     },
     requiredChecks,

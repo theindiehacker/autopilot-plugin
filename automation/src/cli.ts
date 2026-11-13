@@ -6,7 +6,8 @@ const COMMANDS: Record<string, (ctx: Ctx) => Promise<void>> = {
   sweep,
 };
 
-// AUTOPILOT_APP_SLUG が無いと、App の印を数えられず、対応が終わらなくなる
+// AUTOPILOT_APP_SLUG が無いと、App のボットが書いた起こす印を数えられない。
+// 毎時起こし続けて、needs-human にならず、人に回らなくなる
 const REQUIRED_ENV = [
   "GITHUB_TOKEN",
   "GITHUB_REPOSITORY",
