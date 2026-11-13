@@ -110,8 +110,6 @@ Claude Code を開いていたら、起動し直します。
 
 </details>
 
-前のプラグイン (cloud・frontend・python・security) を入れている人は、[移り方](docs/migration.md)を見てください。
-
 ### 2. PC の Claude Code で `/autopilot:setup` を実行する
 
 プラグインを入れただけでは、リポジトリに検査も autopilot も入りません。setup が、リポジトリを調べて、聞いて、提案し、同意を得てから整えて、PR を作ります。PR をマージすると、続けてルールセットとルーティンを作ります。
@@ -147,4 +145,3 @@ Claude Code を開いていたら、起動し直します。
 | [setup の手順](docs/setup.md) | `/autopilot:setup` の 8 つの手順と、その順番の理由 |
 | [自動で動くもの](docs/automation.md) | 起動時の処理・検査・技術スタックの方針・Claude に渡す指示・一緒に入るプラグイン |
 | [ネットワークアクセスを制限付きにする](docs/network.md) | 通信先を絞りたいときの、Web の環境の設定 |
-| [前のプラグインから移る](docs/migration.md) | cloud・frontend・python・security からの移り方 |
