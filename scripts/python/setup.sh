@@ -23,8 +23,8 @@ fi
 # 🧰 ruff・ty を版を固定して入れる。リポジトリの uv の設定を読まないよう、ホームで実行する
 (
   cd "$HOME" || exit 0
-  uv tool install ruff==0.17.3 >&2
-  uv tool install ty==0.0.95 >&2
+  uv tool install ruff==0.17.4 >&2
+  uv tool install ty==0.0.98 >&2
 )
 
 for t in uv ruff ty; do
