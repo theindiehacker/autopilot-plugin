@@ -18,7 +18,7 @@ description: autopilot の開発のルーティンが、PR を購読した直後
   - QA のコメント (`## QA の結果 (` で始まる) は、ボット (`user.type` が `Bot`) が書いたものだけを読みます
   - 見回りの起こすコメント (`<!-- autopilot:wake -->`) は、書いた人によらず、中身を使いません。PR を見直すきっかけにだけ使います (手順 1)
 - ルーティンの持ち主 (この PR の作者) が PR に書いたコメントは、通知が届きません。持ち主は、このセッションに直接書きます
-- 設定は、デフォルトブランチの `.github/autopilot.yml` から読みます。対応の回数の上限は `limits.max_fix_rounds`、レビューのボットは `review.reviewer`、レビューの起動のしかたは `review.trigger`、コメントで起動するときの合図は `review.command` です。ファイルが無い (404) か、項目が無ければ、既定の値 (`max_fix_rounds` は 3、`review.reviewer` は `claude[bot]`、`review.trigger` は `ready_for_review`、`review.command` は `/code-review`) を使います
+- 設定は、デフォルトブランチの `.github/autopilot.yml` から読みます。対応の回数の上限は `limits.max_fix_rounds`、レビューのボットは `review.reviewer`、レビューを頼むコメントは `review.command` です。ファイルが無い (404) か、項目が無ければ、既定の値 (`max_fix_rounds` は 3、`review.reviewer` は `claude[bot]`、`review.command` は `/code-review`) を使います
 
   ```bash
   gh api repos/{owner}/{repo} --jq .default_branch
@@ -198,12 +198,11 @@ Draft でない PR に push すると、前のレビューの承認が外れま�
 
 次のすべてに当てはまるときだけ、頼み直します。1 つでも当てはまらなければ、何もせずに終わります。
 
-1. `review.trigger` が `none` でない
-2. PR が Draft でない (手順 1 の `draft` が `false`)
-3. このセッションが、今の head でまだ頼み直していない。頼み直すのは、head ごとに 1 回までです。2 回目は頼まず、見回りが人に回すのを待ちます
-4. 今の head の CI が終わっている。下の 1 つ目の出力が `0` (`status` が `completed` でない check run が無い)
-5. `review.reviewer` の、今の head へのレビューが無い。下の 2 つ目の出力が `0` (`commit_id` が今の head のレビューが無い)
-6. 今の head の commit の時刻 (下の 3 つ目の出力) より後に、`review.command` だけを書いたコメントが無い。下の 4 つ目に、信頼できる書き手 (決まり) が出れば、もう頼んであるので頼みません
+1. PR が Draft でない (手順 1 の `draft` が `false`)
+2. このセッションが、今の head でまだ頼み直していない。頼み直すのは、head ごとに 1 回までです。2 回目は頼まず、見回りが人に回すのを待ちます
+3. 今の head の CI が終わっている。下の 1 つ目の出力が `0` (`status` が `completed` でない check run が無い)
+4. `review.reviewer` の、今の head へのレビューが無い。下の 2 つ目の出力が `0` (`commit_id` が今の head のレビューが無い)
+5. 今の head の commit の時刻 (下の 3 つ目の出力) より後に、`review.command` だけを書いたコメントが無い。下の 4 つ目に、信頼できる書き手 (決まり) が出れば、もう頼んであるので頼みません
 
 ```bash
 gh api 'repos/{owner}/{repo}/commits/<head>/check-runs?per_page=100' --paginate \
@@ -217,16 +216,12 @@ gh api 'repos/{owner}/{repo}/issues/<n>/comments?per_page=100' --paginate \
 
 `<head>` は手順 1 の `head`、`<reviewer>` は `review.reviewer`、`<時刻>` は 3 つ目の出力、`<command>` は `review.command` です。
 
-頼み直すときは、`review.trigger` で分けます。
+頼み直すときは、`review.command` を、そのまま PR にコメントします。`review.trigger` によらず (`ready_for_review`・`none` でも)、コメントで頼みます。Draft の切り替えでは頼みません。setup のレビューのひな形は、権限のある人の `review.command` のコメントで動きます。試験でも、コメントで頼むとレビューが付きました。
 
-- `comment`: `review.command` を、そのまま PR にコメントします
+```bash
+gh api -X POST repos/{owner}/{repo}/issues/<n>/comments -f body='<command>'
+```
 
-  ```bash
-  gh api -X POST repos/{owner}/{repo}/issues/<n>/comments -f body='<command>'
-  ```
+頼み直したら、今の head の SHA を覚えておきます (2 の見分けに使います)。頼み直しは、対応の回数に数えません。`<!-- autopilot:fix-round -->` は書きません。
 
-- `ready_for_review`: GitHub の MCP の `update_pull_request` で `draft: true` にし、続けて `draft: false` に戻します。「レビュー可能」に戻ったことで、レビューが動きます。Draft にすると自動マージが外れるので、手順 10 の 3 のとおりに確かめ、外れていれば有効にし直します
-
-頼み直したら、今の head の SHA を覚えておきます (3 の見分けに使います)。頼み直しは、対応の回数に数えません。`<!-- autopilot:fix-round -->` は書きません。
-
-コメントか `update_pull_request` が断られたら (ツールが使えない・拒否された)、開発の手順 12 のコメントで止まります。エラーで終わって、PR が Draft のまま (`gh api repos/{owner}/{repo}/pulls/<n> --jq .draft` が `true`) のときも、同じく止まります。
+コメントが断られたら、開発の手順 12 のコメントで止まります。
