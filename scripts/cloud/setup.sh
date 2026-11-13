@@ -27,6 +27,21 @@ if [ -f mise.toml ]; then
     echo "⚠️ mise のツールを入れられませんでした。ユーザーに伝えてください"
 fi
 
+# 🪝 git の hook (commit 前・push 前の検査) を入れる。hook の中身はリポジトリの設定にある
+if [ -f lefthook.yml ] || [ -f lefthook.yaml ] || [ -f .lefthook.yml ]; then
+  # PATH → node_modules → bunx の順に探す
+  if command -v lefthook > /dev/null 2>&1; then LH=lefthook
+  elif [ -x node_modules/.bin/lefthook ]; then LH=node_modules/.bin/lefthook
+  elif command -v bun > /dev/null 2>&1; then LH="bunx lefthook"
+  else LH=""; fi
+  { [ -n "$LH" ] && $LH install > /dev/null 2>&1; } || echo "⚠️ lefthook install を行えませんでした。commit・push の検査が動きません。ユーザーに伝えてください" >&2
+elif [ -f .pre-commit-config.yaml ]; then
+  if command -v pre-commit > /dev/null 2>&1; then PC=pre-commit
+  elif command -v uv > /dev/null 2>&1; then PC="uvx pre-commit"
+  else PC=""; fi
+  { [ -n "$PC" ] && $PC install > /dev/null 2>&1; } || echo "⚠️ pre-commit install を行えませんでした。commit・push の検査が動きません。ユーザーに伝えてください" >&2
+fi
+
 # 🐳 compose のサービスを起動する。ビルドが入れている途中のツールを読まないよう、最後に行う
 COMPOSE=""
 for f in compose.yaml compose.yml docker-compose.yaml docker-compose.yml; do
@@ -52,6 +67,6 @@ fi
 
 for _ in $(seq 30); do docker info > /dev/null 2>&1 && break; sleep 1; done
 timeout -k 10 300 docker compose up --build -d --wait --wait-timeout 290 >&2 ||
-  echo "${COMPOSE} のサービスを起動できませんでした (時間切れを含む)。docker compose up --build -d --wait を実行し、エラーを確かめてください。リポジトリ側の問題なら、/autopilot:onboard で直せるとユーザーに伝えてください。頼まれるまで直さないでください。"
+  echo "${COMPOSE} のサービスを起動できませんでした (時間切れを含む)。docker compose up --build -d --wait を実行し、エラーを確かめてください。リポジトリ側の問題なら、/autopilot:setup で直せるとユーザーに伝えてください。頼まれるまで直さないでください。"
 
 exit 0

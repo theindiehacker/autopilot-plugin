@@ -1,0 +1,11 @@
+pre-commit:
+  jobs:
+    - name: style:check
+      run: command -v {{RUNNER}} >/dev/null || { echo "{{RUNNER}} が無いので飛ばします" >&2; exit 0; }; {{STYLE_CHECK}}
+    - name: gitleaks
+      run: command -v gitleaks >/dev/null || { echo "gitleaks が無いので飛ばします" >&2; exit 0; }; gitleaks git --staged --redact --verbose --ignore-gitleaks-allow
+
+pre-push:
+  jobs:
+    - name: security:check
+      run: command -v {{RUNNER}} >/dev/null || { echo "{{RUNNER}} が無いので飛ばします" >&2; exit 0; }; {{SECURITY_CHECK}}
