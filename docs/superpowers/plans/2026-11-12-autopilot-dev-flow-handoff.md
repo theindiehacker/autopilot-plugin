@@ -186,9 +186,8 @@ Web のセッションで気をつけること:
 - 済み: 試験 1 のリポジトリの Issue #195・PR #194・ラベル `autopilot:spike` を片付けた
 - 済み (2026-11-13): 標準の仕組みの確かめのセッションをアーカイブし、その PR を閉じた
 - 済み (2026-11-13): 試験 1 のリポジトリのシークレット `AUTOPILOT_SLACK_WEBHOOK_URL` を、ユーザーが消した
-- 済み (2026-11-13): ブランチ `autopilot-spike-std-1` と、試験用のルーティン「autopilot 試験 A」「autopilot 試験 B」「autopilot 試験 C」を、ユーザーが消した
+- 済み (2026-11-13): 試験 1 のリポジトリのブランチ `autopilot-spike-*` (`autopilot-spike-std-1` を含む) と、試験用のルーティン「autopilot 試験 A」「autopilot 試験 B」「autopilot 試験 C」を、ユーザーが消した
 - 済み (2026-11-13): 試験 1 で誤って止まった PR は、ラベルの付け直しで再開させ、自動でマージされた
-- ユーザーに頼んだ (済んだかを確かめる): ブランチ `autopilot-spike-*` (Web のセッションからは消せない)
 
 ## 承認の試験
 
