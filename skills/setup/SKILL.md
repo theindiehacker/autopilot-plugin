@@ -1,6 +1,6 @@
 ---
 name: setup
-description: リポジトリを、Claude Code on the Web で開発・テストできるように整える。フロントエンド (bun・Biome・Playwright・shadcn/ui・Tailwind CSS) と Python (uv・ruff・ty・deptry・import-linter・pytest) の技術スタックへの移行、Web で docker compose を起動するための compose ファイルと Dockerfile の修正、作業の終わり・commit 前・push 前の検査をリポジトリに入れること、その検査 (Gitleaks・Semgrep・Trivy) を通すための既存のシークレット・脆弱性の修正を、ユーザーに確かめながら行う。さらに、リポジトリを調べて聞き取りをし、Issue からマージまでの自動の流れ (autopilot: ラベル・設定・ワークフロー・GitHub App・GitHub の Slack アプリ・ルールセット・ルーティン) を入れる。最後に PR を作る。使い方 → /autopilot:setup
+description: リポジトリを、Claude Code on the Web で開発・テストできるように整える。フロントエンド (bun・Biome・Playwright・shadcn/ui・Tailwind CSS) と Python (uv・ruff・ty・deptry・import-linter・pytest) の技術スタックへの移行、Web で docker compose を起動するための compose ファイルと Dockerfile の修正、作業の終わり・commit 前・push 前の検査をリポジトリに入れること、その検査 (Gitleaks・Semgrep・Trivy) を通すための既存のシークレット・脆弱性の修正を、ユーザーに確かめながら行う。さらに、リポジトリを調べて聞き取りをし、Issue からマージまでの自動の流れ (autopilot: ラベル・設定・CODEOWNERS・無ければ Claude のレビューと CI・GitHub の Slack アプリ・ルールセット・ルーティン) を入れる。最後に PR を作る。使い方 → /autopilot:setup
 ---
 
 # 手順
@@ -21,11 +21,11 @@ description: リポジトリを、Claude Code on the Web で開発・テスト�
 - 技術スタックの移行を先に行います。5 の確かめで動かす `docker compose up --build` が、移行した後の lock ファイルでビルドするためです
 - 検査を入れるのは、5 の後、7 の前です。7 で、入れた検査と同じコマンドを動かして、既存の指摘を直すためです
 - セキュリティは、autopilot の前に行います。移行で変わった依存も、最後の検査で見るためです
-- 手順の途中では commit しません。1〜7 と autopilot.md の 1〜6 の変更は、autopilot.md の 7 で 1 つの PR にまとめて commit します
-- autopilot.md の 8・9 (ルールセット・ルーティン) は、この PR がマージされた後に行います。ワークフローがデフォルトブランチに入るまで、必須のチェックが報告されないためです
+- 手順の途中では commit しません。1〜7 と autopilot.md の 1〜5 の変更は、autopilot.md の 6 で 1 つの PR にまとめて commit します
+- autopilot.md の 7・8 (ルールセット・ルーティン) は、この PR がマージされた後に行います。ルールセットを先に作ると、この PR も必須のレビューを待つことになり、ルーティンは、デフォルトブランチの `.github/autopilot.yml` を読むためです
 
 ## PR を作る
-autopilot.md の 7 まで終わったら、PR を作るかユーザーに聞いてください。作ると答えたら、変更を commit して PR を 1 つ作ります。本文には次を書きます。
+autopilot.md の 6 まで終わったら、PR を作るかユーザーに聞いてください。作ると答えたら、変更を commit して PR を 1 つ作ります。本文には次を書きます。
 
 - 手順ごとに、直した項目
 - 除外した指摘と、その理由・期限

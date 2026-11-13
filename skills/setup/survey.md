@@ -17,7 +17,7 @@
 | Renovate | `ls renovate.json .github/renovate.json .renovaterc* 2>/dev/null` | あるか |
 | `.claude/` | `ls .claude; cat .claude/settings.json` | 既存の設定。hooks・permissions |
 | Issue のテンプレート | `ls .github/ISSUE_TEMPLATE; grep -rn 'autopilot:ready' .github` | `autopilot:ready` を自動で付けていないか |
-| シークレット | `gh secret list` | `AUTOPILOT_APP_ID` などが既にあるか |
+| シークレット | `gh secret list` | Claude のレビューの認証 (`CLAUDE_CODE_OAUTH_TOKEN`・`ANTHROPIC_API_KEY`) が既にあるか。前の形の autopilot のシークレットがあれば、autopilot.md の「入れ済みのリポジトリを新しい形に移す」で消す |
 
 権限が足りずに `gh api` が失敗した項目は、「調べられなかった」と表に書き、interview.md でユーザーに聞きます。推測で埋めません。
 

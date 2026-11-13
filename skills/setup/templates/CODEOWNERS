@@ -19,7 +19,7 @@
 # 検査を定めるファイル (タスクランナーのファイルと、セキュリティの検査の設定・除外のファイル)。
 # CI・git の hook・Claude の hook・動作確認が呼ぶ style:check・security:check・dev:up と、検査が読む除外を、
 # AI の PR が、人の承認なしに変えられないようにする。
-# 設定・除外のファイルは、リポジトリに無いものの行を消す
+# 設定・除外のファイルの行は、リポジトリに無くても残す (AI の PR が、そのファイルを新しく作って、検査を弱めないように)
 {{TASK_FILE}} {{OWNER}}
 /.gitleaks.toml {{OWNER}}
 /.gitleaksignore {{OWNER}}

@@ -9,10 +9,9 @@ review:
   trigger: ready_for_review  # ready_for_review / comment / none
   # command: "/code-review"  # trigger が comment のとき
 
+# ルールセットの必須のチェックの記録 (autopilot のコードは読まない)。必須にするチェックが無ければ、項目ごと消す
 required_checks:
   - "{{CI_CHECK}}"   # CI のジョブ名。1 つずつ書く。paths: で飛ぶものは書かない
-  - "autopilot QA"
 
 limits:
   max_fix_rounds: 3   # 開発のルーティンが読む (PR の指摘・CI の失敗を直す回数の上限)
-  stale_hours: 3
