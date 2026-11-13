@@ -21,7 +21,7 @@ PC の Claude Code のセッションから、Claude Code on the Web のセッ�
 
 - 技術スタックを方針にそろえる (backend の型検査を pyright から ty に)
 - `dev:up` を後ろで起動する形にする
-- 既存のプラグイン (fastship-plugin) を外し、autopilot-plugin を入れる
+- リポジトリが使っていた別のプラグインを外し、autopilot-plugin を入れる
 - CI は集約のジョブ `ci-ok` で必須にする (CI を `ci.yml` から呼ぶ形)
 - CODEOWNERS は入れない。そのため、Terraform・マイグレーションを変える PR も、承認と CI だけでマージされ、マージで本番に反映される
 - Terraform の apply をマージで動かす形は、変えない (手動か別のリポジトリにする案は勧めただけ)
