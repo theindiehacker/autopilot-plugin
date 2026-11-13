@@ -10,9 +10,9 @@
 /.github/ {{OWNER}}
 /.claude/ {{OWNER}}
 /.mcp.json {{OWNER}}
-/lefthook.yml {{OWNER}}
-/.lefthook.yml {{OWNER}}
-/lefthook.yaml {{OWNER}}
+/lefthook* {{OWNER}}
+/.lefthook* {{OWNER}}
+/.config/lefthook* {{OWNER}}
 /.pre-commit-config.yaml {{OWNER}}
 /.husky/ {{OWNER}}
 

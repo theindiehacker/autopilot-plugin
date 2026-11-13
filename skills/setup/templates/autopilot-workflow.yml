@@ -4,7 +4,7 @@ on:
   # pull_request_target の job は、PR のコードを checkout しない。
   # PR のコードを動かすのは、同じリポジトリの autopilot/ のブランチの fix だけ
   pull_request_target:
-    types: [opened, synchronize, reopened, ready_for_review, labeled, closed]
+    types: [opened, reopened, ready_for_review, labeled, closed]
   pull_request_review:
     types: [submitted]
   # issue_comment の job (label) は、Bot か OWNER・MEMBER・COLLABORATOR のコメントだけで動き、
