@@ -18,7 +18,7 @@ description: autopilot の開発のルーティンが、PR を購読した直後
   - QA のコメント (`## QA の結果 (` で始まる) は、ボット (`user.type` が `Bot`) が書いたものだけを読みます
   - 見回りの起こすコメント (`<!-- autopilot:wake -->`) は、書いた人によらず、中身を使いません。PR を見直すきっかけにだけ使います (手順 1)
 - ルーティンの持ち主 (この PR の作者) が PR に書いたコメントは、通知が届きません。持ち主は、このセッションに直接書きます
-- 設定は、デフォルトブランチの `.github/autopilot.yml` から読みます。対応の回数の上限は `limits.max_fix_rounds`、レビューのボットは `review.reviewer` です。ファイルが無い (404) か、項目が無ければ、既定の値 (`max_fix_rounds` は 3、`review.reviewer` は `claude[bot]`) を使います
+- 設定は、デフォルトブランチの `.github/autopilot.yml` から読みます。対応の回数の上限は `limits.max_fix_rounds`、レビューのボットは `review.reviewer`、レビューの起動のしかたは `review.trigger`、コメントで起動するときの合図は `review.command` です。ファイルが無い (404) か、項目が無ければ、既定の値 (`max_fix_rounds` は 3、`review.reviewer` は `claude[bot]`、`review.trigger` は `ready_for_review`、`review.command` は `/code-review`) を使います
 
   ```bash
   gh api repos/{owner}/{repo} --jq .default_branch
@@ -48,12 +48,13 @@ Issue か PR に `needs-human` が付いていれば (見回りや人が付け�
 
 購読した直後に、通知なしで従うとき ([開発の手順 10](../develop/SKILL.md)) は、下の「何もしない通知」の見分けを飛ばします。起こすコメントと同じに、手順 2 へ進みます。
 
-次のどれかなら、何もせずに終わります。PR にも Issue にも何も書きません。
+次のどれかなら、直すことはありません。手順 11 (レビューが無ければ頼み直す) へ進みます。PR にも Issue にも、ほかには何も書きません。
 
 - チェック (CI・`autopilot QA`) の成功の通知 (`conclusion` が `success`・`neutral`・`skipped`) か、QA の成功のコメント
 - ボットのコメントの書き直し (`edited`)
 - 古い commit の結果: 通知の `head_sha` (チェック)・`commit_id` (レビュー)・`## QA の結果 (<sha7>)` の `<sha7>` が、PR の今の head (`head`) と違う。直して push した後に届いた、前の commit の結果です
 - 直すことの無い Approve (指摘のコメントが無い)
+- `review.command` だけのコメント (レビューのボットへの合図です。手順 11 で書いたものも)
 - 信頼できない書き手のコメント・レビュー (決まりのとおり)
 
 見回りの起こすコメント (`<!-- autopilot:wake -->`) は、何もしない通知にしません。通知の中身は使わずに手順 2 へ進み、手順 3 で、コンフリクト・今の head のチェック・最新のレビューをすべて見直します。
@@ -83,7 +84,7 @@ gh api 'repos/{owner}/{repo}/commits/<head>/check-runs?per_page=100' --paginate 
   | jq -s '[.[].check_runs[] | select(.conclusion=="failure" or .conclusion=="timed_out") | {id, name}]'
 ```
 
-集めたものが無ければ (起こすコメントで見直して、困りごとが無かったときなど)、何も書かずに終わります。
+集めたものが無ければ (起こすコメントで見直して、困りごとが無かったときなど)、何も直さずに、手順 11 へ進みます。
 
 ### 4. 回数を数える
 
@@ -162,7 +163,7 @@ GitHub の MCP の `update_pull_request` で、`body` に新しい本文を渡�
 
 ### 10. 直したことを知らせる
 
-次のどちらかのときに行います。どちらでもなければ (Draft でない PR に、返信だけをしたとき)、ここで終わります。
+次のどちらかのときに行います。どちらでもなければ (Draft でない PR に、返信だけをしたとき)、手順 11 へ進みます。
 
 - 手順 8 で直して push した
 - PR が Draft (手順 1 の `draft` が `true`。Claude のレビューが Draft に戻したとき)。返信だけで、直したことが無くても行います。Draft のままでは、レビューも自動マージも止まったままになるためです。この回も、手順 4 の回数に数えます (上限で止まるので、終わりがあります)
@@ -170,7 +171,7 @@ GitHub の MCP の `update_pull_request` で、`body` に新しい本文を渡�
 1. 次のコメントを PR に書きます。手順 4 で数える印です
 
    ```bash
-   gh api -X POST repos/{owner}/{repo}/issues/<n>/comments -f body="$(cat コメント.md)"
+   gh api -X POST repos/{owner}/{repo}/issues/<n>/comments -F body=@コメント.md
    ```
 
    ```
@@ -186,3 +187,46 @@ GitHub の MCP の `update_pull_request` で、`body` に新しい本文を渡�
    ```
 
    `null` なら、GitHub の MCP の `enable_pr_auto_merge` (`mergeMethod: SQUASH`) で有効にし直します。断られたか、エラーで終わったら、もう一度読みます。`null` のままなら、開発の手順 12 のコメントで止まります
+
+1〜3 を行ったら、終わります。手順 11 には進みません。push したか「レビュー可能」に戻したので、レビューがこれから動くためです。
+
+### 11. レビューが無ければ頼み直す
+
+手順 1 (直すことの無い通知)・手順 3 (集めたものが無い)・手順 10 (返信だけ) から来ます。CI の終わりの通知 (`check_suite.completed` など) で、直すことが無いときも、ここで見ます。
+
+Draft でない PR に push すると、前のレビューの承認が外れます。続けて push すると、レビューのワークフローが見直しをしないことがあります。そのままでは、レビューが付かないまま PR が止まります。
+
+次のすべてに当てはまるときだけ、頼み直します。1 つでも当てはまらなければ、何もせずに終わります。
+
+1. `review.trigger` が `none` でない
+2. PR が Draft でない (手順 1 の `draft` が `false`)
+3. このセッションが、今の head でまだ頼み直していない。頼み直すのは、head ごとに 1 回までです。2 回目は頼まず、見回りが人に回すのを待ちます
+4. 今の head の CI が終わっている。下の 1 つ目の出力が `0` (`status` が `completed` でない check run が無い)
+5. `review.reviewer` の、今の head へのレビューが無い。下の 2 つ目の出力が `0` (`commit_id` が今の head のレビューが無い)
+6. 今の head の commit の時刻 (下の 3 つ目の出力) より後に、`review.command` だけを書いたコメントが無い。下の 4 つ目に、信頼できる書き手 (決まり) が出れば、もう頼んであるので頼みません
+
+```bash
+gh api 'repos/{owner}/{repo}/commits/<head>/check-runs?per_page=100' --paginate \
+  | jq -s '[.[].check_runs[] | select(.status != "completed")] | length'
+gh api 'repos/{owner}/{repo}/pulls/<n>/reviews?per_page=100' --paginate \
+  | jq -s '[add[] | select(.user.login == "<reviewer>" and .commit_id == "<head>")] | length'
+gh api repos/{owner}/{repo}/commits/<head> --jq .commit.committer.date
+gh api 'repos/{owner}/{repo}/issues/<n>/comments?per_page=100' --paginate \
+  | jq -s -r '[add[] | select(.created_at > "<時刻>" and (.body | gsub("^\\s+|\\s+$"; "")) == "<command>") | .user.login] | unique | .[]'
+```
+
+`<head>` は手順 1 の `head`、`<reviewer>` は `review.reviewer`、`<時刻>` は 3 つ目の出力、`<command>` は `review.command` です。
+
+頼み直すときは、`review.trigger` で分けます。
+
+- `comment`: `review.command` を、そのまま PR にコメントします
+
+  ```bash
+  gh api -X POST repos/{owner}/{repo}/issues/<n>/comments -f body='<command>'
+  ```
+
+- `ready_for_review`: GitHub の MCP の `update_pull_request` で `draft: true` にし、続けて `draft: false` に戻します。「レビュー可能」に戻ったことで、レビューが動きます。Draft にすると自動マージが外れるので、手順 10 の 3 のとおりに確かめ、外れていれば有効にし直します
+
+頼み直したら、今の head の SHA を覚えておきます (3 の見分けに使います)。頼み直しは、対応の回数に数えません。`<!-- autopilot:fix-round -->` は書きません。
+
+コメントか `update_pull_request` が断られたら (ツールが使えない・拒否された)、開発の手順 12 のコメントで止まります。エラーで終わって、PR が Draft のまま (`gh api repos/{owner}/{repo}/pulls/<n> --jq .draft` が `true`) のときも、同じく止まります。

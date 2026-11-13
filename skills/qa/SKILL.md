@@ -49,7 +49,7 @@ gh api repos/{owner}/{repo}/pulls/<n> --jq '{body, sha: .head.sha}'
 ### 4. 結果のコメントを書く
 
 ```bash
-gh api -X POST repos/{owner}/{repo}/issues/<n>/comments -f body="$(cat 結果.md)"
+gh api -X POST repos/{owner}/{repo}/issues/<n>/comments -F body=@結果.md
 ```
 
 先頭の行は次のとおりです。

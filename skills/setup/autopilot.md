@@ -142,16 +142,18 @@ org では、シークレットを org のシークレット (`--visibility sele
 ### 6-C. 通知を、GitHub の Slack アプリの購読にする
 Slack への通知は、GitHub の Slack アプリの購読で届けます (Webhook も、Slack の App を作ることも要りません)。次を頼みます。
 
-1. Slack のワークスペースに GitHub のアプリを入れてもらいます (もう入っていれば、入れ直しません)。GitHub のアカウントとのつなぎも、Slack の画面の案内どおりに済ませてもらいます
-2. 通知先のチャンネル (interview の「Slack の通知先」) で、次を打ってもらいます
-3. デプロイがあれば、デプロイのワークフローの失敗を知らせる購読も案内します (名前は、survey.md で見たデプロイのワークフローの `name:`)
+1. Slack のワークスペースに GitHub のアプリを入れてもらいます (もう入っていれば、入れ直しません)
+2. Slack で `/github signin` を打ち、GitHub のアカウントとつないでもらいます
+3. GitHub の側に、Slack のアプリ (https://github.com/apps/slack) を入れてもらいます。組織のリポジトリなら、「Install on another account」から組織を選びます。入れるリポジトリに、このリポジトリを選びます (もう入っていれば、このリポジトリを足します)。入れていないと、購読のコマンドに「`I couldn't find <owner>/<repo>`」と返ります
+4. 通知先のチャンネル (interview の「Slack の通知先」) で、次を打ってもらいます
+5. デプロイがあれば、デプロイのワークフローの失敗を知らせる購読も案内します (名前は、survey.md で見たデプロイのワークフローの `name:`)
 
 ```text
 /github subscribe <owner>/<repo> issues pulls comments +label:"needs-human"
 /github subscribe <owner>/<repo> workflows:{name:"<デプロイのワークフローの名前>"}
 ```
 
-コマンドの細かな形は、Slack で `/github help` を見て合わせてもらいます。ラベルの絞り込みの書き方は、まだ確かめていません。
+コマンドの細かな形は、Slack で `/github help` を見て合わせてもらいます。ラベルで絞る 1 つ目の購読で、止まった知らせと質問のコメントが届くことは、確かめ済みです。
 
 ### 権限の照らし合わせ
 | App の権限 | 値 | 使うところ |
