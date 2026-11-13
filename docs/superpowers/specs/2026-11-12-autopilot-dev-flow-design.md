@@ -188,16 +188,32 @@ GitHub の標準の仕組みで決める。setup が、リポジトリのルー�
 - 通知には、PR・デプロイのログ・Issue へのリンクと、何が起きたかを 2〜3 行で書く
 - 人の承認の依頼 (CODEOWNERS のパスを変える PR) だけは、Slack ではなく、GitHub のレビューの依頼で持ち主に届く。GitHub の Slack 連携を入れれば、Slack にも出せる
 
-### 4.12 検査の hook (lint・型検査・シークレット・脆弱性)
+### 4.12 検査と起動のタスク (lint・型検査・シークレット・脆弱性・アプリの起動)
 
 プラグインの検査の hook (編集後・commit 前・push 前) はやめ、`/autopilot:setup` が各リポジトリに入れる (ユーザーが決定)。起動時の hook (Web の環境の準備) はプラグインに残す。
 
-| いつ | どこに入れるか | 中身 |
-|---|---|---|
-| 編集後 | リポジトリの `.claude/settings.json` の hooks | 編集したファイルの整形と lint (Biome・Ruff) |
-| commit 前 | リポジトリの lefthook (`pre-commit`) | 型検査・deptry・import-linter・Gitleaks |
-| push 前 | リポジトリの lefthook (`pre-push`) | Semgrep・Trivy |
+検査と起動は、リポジトリのタスクランナーの 4 つのタスクにそろえる。人 (lefthook)・CI・Claude の hook・動作確認・QA は、どれもこのタスクを呼ぶ (ユーザーが決定)。検査の条件を 1 か所に書き、どこで動かしても同じ結果にするため。
 
+| タスク | 中身 |
+|---|---|
+| `style:check` | スタイルの検査 (lint・整形・型・依存)。直さない |
+| `style:fix` | スタイルの自動修正 |
+| `security:check` | セキュリティの検査 (Gitleaks・Semgrep・Trivy fs など) |
+| `dev:up` | アプリの全部を後ろで起動し、準備ができるまで待って終わる (MCP サーバーがあれば、その応答も確かめる)。ログは `dev:logs`、止めるのは `dev:down` |
+
+- タスクランナーは、リポジトリにあるもの (Taskfile・Makefile・`package.json` の scripts) を使い、そのランナーに同じ名前のタスクを作る。Make のターゲットには `:` をそのまま書けないので、`style-check` のようにする。タスクランナーが無ければ Taskfile を足す
+- hook・lefthook・CI・`qa.start` からは、そのタスクのコマンド (例: `task style:check`) を呼ぶ
+
+| 時点 | 動かすもの | どこに書くか |
+|---|---|---|
+| 編集のたび (PostToolUse) | 動かさない (`style:fix` が、使う前に足した import を消すため) | |
+| Claude が作業を終えるとき (Stop) | `style:fix` → `style:check`。通らなければ exit 2 で Claude に直させる。上限は 30 分 (1800 秒) | リポジトリの `.claude/settings.json` の hooks |
+| commit 前 | `style:check` と、Gitleaks の `--staged` (commit に入る差分だけ) | リポジトリの lefthook (`pre-commit`) |
+| push 前 | `security:check` | リポジトリの lefthook (`pre-push`) |
+| CI | `style:check`・`security:check` (例: `task style:check`。5 の `required_checks` の例と同じ)。組織の共通ワークフローでセキュリティの検査をしているリポジトリでは、`security:check` は動かさない | リポジトリの CI のワークフロー |
+| 動作確認・QA | `dev:up` (`qa.start` を `task dev:up` などにする)。人・Claude の動作確認・QA が同じ方法で起動する | `.github/autopilot.yml` の `qa.start` |
+
+- Stop の hook は、`stop_hook_active` が true (止めた後の 2 回目) のときは動かさない。止め続けて回り続けないため。2 回目に残った問題は、commit 前の検査と CI が見る。変えたファイルが無い (`git status --porcelain` が空) ときも動かさない
 - lefthook は git の hook なので、Claude だけでなく、人がターミナルで commit・push したときにも動く
 - Web の環境では、起動時の hook が `lefthook install` を行う
 - すでに lefthook や pre-commit を使っているリポジトリでは、足りない検査だけを足す

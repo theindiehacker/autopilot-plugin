@@ -20,7 +20,7 @@ gh api repos/{owner}/{repo}/pulls/<n> --jq .head.sha
 
 ### 1. アプリを起動する
 
-`.github/autopilot.yml` の `qa.start` を動かします。アプリを background で起動して、すぐ終わるコマンドです。URL は `qa.url` です。
+`.github/autopilot.yml` の `qa.start` を動かします。アプリを background で起動して、すぐ終わるコマンドです。URL は `qa.url` です。止めるときは、同じタスクランナーの `dev:down` (例: `task dev:down`) を動かします。
 
 クラウドのセッション (開発のルーティン) では、SessionStart の hook が Docker とプロキシの CA を用意しています。
 

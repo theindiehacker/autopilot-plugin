@@ -4,7 +4,7 @@ survey.md の結果をもとに、次の項目を聞きます。調べて分か�
 | 項目 | 聞くこと (例) | 答えの行き先 |
 |---|---|---|
 | 技術スタックを移行するか | npm → bun、ESLint → Biome、mypy → ty。下の「移行の提案」 | 手順 3・4 を行うか |
-| タスクランナー・git hook | Taskfile・Makefile・mise、lefthook・pre-commit | checks.md |
+| タスクランナー・git hook | Taskfile・Makefile・mise、lefthook・pre-commit。4 つのタスク (`style:check`・`style:fix`・`security:check`・`dev:up`) を、人 (lefthook)・CI・Claude の hook・動作確認・QA の基準にすること。無いタスクは足す | checks.md |
 | 必須にするチェック | lint・ユニットテスト・E2E のジョブ名。CI で動いていないテストがあれば、動かすか | `required_checks` |
 | Claude のレビュー | 既存のものを使うか。起動のしかた (自動・コメント)。判定を出す bot の名前 | `review`・`{{REVIEWER_BOTS}}` |
 | アプリの起動 | Web の環境で起動できるか。起動のコマンドと URL。アプリが出す MCP サーバー (あれば URL)。GPU・クラウドの認証情報が要るときの QA のしかた | `qa.start`・`qa.url`・QA のワークフローの `mcp-servers` |

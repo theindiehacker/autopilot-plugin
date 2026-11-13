@@ -26,12 +26,8 @@ gh label create needs-human --force --color D93F0B --description "止まった�
 デプロイがあるときは、interview の「人の承認が要るパス」のうち、ロールバックで戻せないもの (マイグレーションなど) を、`deploy.irreversible_paths` に glob で書きます (例: `backend/migration/versions/**`)。このパスを変えた PR は、デプロイの確認に失敗しても、自動で戻しません。
 
 ### `qa.start`
-`qa.start` は、アプリを **background で起動して、すぐ終わる**コマンドにします。起動したまま終わらないコマンド (`bun run dev` だけなど) だと、ワークフローの step が終わらず、QA が進みません。
+`qa.start` は、`dev:up` のコマンド (checks.md で作る。例: `task dev:up`) にします。人・Claude の動作確認・QA が、同じ方法でアプリを起動するためです。`dev:up` の中身 (後ろで起動して、準備ができるまで待つ・MCP サーバーの応答を確かめる) は、checks.md の「`dev:up`」にあります。
 
-- compose で起動できるなら、`docker compose up -d --wait <サービス>` (サービスが healthy になるまで待って戻る)
-- dev サーバーなら、`nohup <コマンド> > /tmp/app.log 2>&1 &` で background にし、準備ができるまで待つ (例: `npx wait-on http://localhost:3000`、または `curl --retry 30 --retry-connrefused --retry-delay 2 -fsS http://localhost:3000 >/dev/null`)
-- 値は、Taskfile・compose から取る。E2E の起動 (`task dev:e2e` など) があれば、その中身を踏襲する。例: `docker compose up --build -d --wait api && cd frontend && bun install --frozen-lockfile && (nohup bun run dev > /tmp/frontend.log 2>&1 &) && curl --retry 30 --retry-connrefused --retry-delay 2 -fsS http://localhost:3000 >/dev/null`
-- アプリが MCP サーバーを出していれば、それも起動し、応答を確かめる (QA が MCP のツールの条件を確かめられるように。登録は手順 3 の `{{QA_MCP_SERVERS}}`)
 - ツール (bun・uv・task など) は、ワークフローのひな形が `qa.start` の前に入れます (手順 3)。`qa.start` で `npm install -g bun` のように入れ直さない
 
 ### CI の必須のチェック
@@ -71,7 +67,7 @@ QA を別のファイルにするのは、別のイベントで起きた実行�
 | `{{AUTOPILOT_REF}}` | プラグインのリリースの**コミットの SHA (40 文字)** と、続けて ` # v<version>`。ブランチ名・タグ名は入れない (動く中身が、後から変わってしまうため)。`<version>` は `.claude-plugin/plugin.json` の version。例: `uses: theindiehacker/autopilot-plugin/actions/claude@0123abcd… # v1.2.3` |
 | `{{CI_WORKFLOWS}}` | CI のワークフロー名と `autopilot-qa` の YAML の配列。例: `["ci", "autopilot-qa"]` |
 | `{{QA_START}}` | `qa.start` と同じコマンド |
-| `{{QA_MCP_SERVERS}}` | アプリが MCP サーバーを出していれば (survey の compose・README・CI)、`{"<名前>":{"type":"http","url":"<URL>"}}`。無ければ `{}`。そのサービスも `qa.start` で起動し、`qa.start` の最後で応答を確かめる (例: `tools/list` を curl で送る。CI に同じ確かめがあれば、それを踏襲する)。QA のワークフローと、`autopilot.yml` の `fix` の job (直した後の動作確認) の 2 か所に同じ値を入れる |
+| `{{QA_MCP_SERVERS}}` | アプリが MCP サーバーを出していれば (survey の compose・README・CI)、`{"<名前>":{"type":"http","url":"<URL>"}}`。無ければ `{}`。そのサービスは `dev:up` (`qa.start`) が起動し、応答を確かめる (checks.md の「`dev:up`」)。QA のワークフローと、`autopilot.yml` の `fix` の job (直した後の動作確認) の 2 か所に同じ値を入れる |
 | `{{REVIEWER_BOTS}}` | Claude のレビューの bot。既定は `claude` |
 | `{{REVIEWER}}` | `.github/autopilot.yml` の `review.reviewer` と同じ値。例 `claude[bot]` |
 
