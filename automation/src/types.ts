@@ -25,4 +25,7 @@ export const LABELS = {
 
 export const MARKERS = {
   needsHuman: "<!-- autopilot:needs-human -->",
+  wake: "<!-- autopilot:wake -->",
 } as const;
+
+export const headMarker = (sha: string) => `<!-- autopilot:head ${sha} -->`;

@@ -15,12 +15,16 @@ export interface SweepItem {
   hasPr: boolean;
   updatedAt: string;
   conflicting: boolean;
+  /** PR の今の head (PR だけ) */
+  headSha?: string;
+  /** App のボットが書いた、起こす印 (PR だけ) */
+  wakes: { at: string; headSha: string }[];
 }
 
 export type SweepAction =
   | { type: "relabelReady"; number: number }
   | { type: "needsHuman"; number: number; reason: string }
-  | { type: "dispatchFix"; number: number };
+  | { type: "wake"; number: number; headSha: string; reason: string };
 
 const elapsedMs = (from: string, now: Date) =>
   now.getTime() - new Date(from).getTime();
@@ -63,12 +67,29 @@ function planItem(
     return undefined;
   }
 
-  if (item.conflicting) return { type: "dispatchFix", number: item.number };
-  if (elapsedMs(item.updatedAt, now) > staleMs) {
+  const stale = elapsedMs(item.updatedAt, now) > staleMs;
+  if (!item.conflicting && !stale) return undefined;
+  const headSha = item.headSha ?? "";
+  const lastWake = item.wakes
+    .filter((w) => w.headSha === headSha)
+    .map((w) => w.at)
+    .sort((a, b) => Date.parse(a) - Date.parse(b))
+    .at(-1);
+  if (lastWake === undefined) {
+    return {
+      type: "wake",
+      number: item.number,
+      headSha,
+      reason: item.conflicting
+        ? "コンフリクトがあります (デフォルトブランチを取り込んでください)"
+        : `${staleHours} 時間動きがありません`,
+    };
+  }
+  if (elapsedMs(lastWake, now) > staleMs) {
     return {
       type: "needsHuman",
       number: item.number,
-      reason: `${staleHours} 時間以上動きがありません。`,
+      reason: `起こしても、${staleHours} 時間直りませんでした (${item.conflicting ? "コンフリクト" : "動きがありません"})`,
     };
   }
   return undefined;

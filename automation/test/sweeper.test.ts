@@ -20,6 +20,7 @@ function issue(over: Partial<SweepItem> = {}): SweepItem {
     labels: [LABELS.ready],
     readyLabeledAt: ago(0),
     readyRetries: 0,
+    wakes: [],
     hasPr: false,
     updatedAt: ago(0),
     conflicting: false,
@@ -28,7 +29,15 @@ function issue(over: Partial<SweepItem> = {}): SweepItem {
 }
 
 const pr = (over: Partial<SweepItem> = {}): SweepItem =>
-  issue({ kind: "pr", number: 9, labels: [], hasPr: true, ...over });
+  issue({
+    kind: "pr",
+    number: 9,
+    labels: [],
+    hasPr: true,
+    headSha: "h1",
+    wakes: [],
+    ...over,
+  });
 
 test("ready のまま 30 分を超えて起動しなければ付け直す", () => {
   expect(planSweep([issue({ readyLabeledAt: ago(31) })], now, config)).toEqual([
@@ -86,19 +95,6 @@ test("PR があれば Issue は needs-human にしない", () => {
   ).toEqual([]);
 });
 
-test("コンフリクトした PR は dispatchFix", () => {
-  expect(planSweep([pr({ conflicting: true })], now, config)).toEqual([
-    { type: "dispatchFix", number: 9 },
-  ]);
-});
-
-test("PR は 3 時間動きが無ければ needs-human", () => {
-  const stale = planSweep([pr({ updatedAt: ago(240) })], now, config);
-  expect(stale).toHaveLength(1);
-  expect(stale[0]?.type).toBe("needsHuman");
-  expect(planSweep([pr({ updatedAt: ago(120) })], now, config)).toEqual([]);
-});
-
 test("needs-human が付いていれば何もしない", () => {
   const items = [
     issue({
@@ -127,12 +123,6 @@ test("ready ラベルが無い Issue は何もしない", () => {
   ).toEqual([]);
 });
 
-test("コンフリクトして古い PR は dispatchFix", () => {
-  expect(
-    planSweep([pr({ conflicting: true, updatedAt: ago(600) })], now, config),
-  ).toEqual([{ type: "dispatchFix", number: 9 }]);
-});
-
 test("Issue の stale は設定の staleHours に従う", () => {
   const c = { ...config, limits: { ...config.limits, staleHours: 1 } };
   const a = planSweep([issue({ startedAt: ago(61) })], now, c);
@@ -144,4 +134,119 @@ test("ちょうど readyRetryMinutes なら何もしない", () => {
   expect(planSweep([issue({ readyLabeledAt: ago(30) })], now, config)).toEqual(
     [],
   );
+});
+
+test("コンフリクトの PR は、今の head への印が無ければ起こす", () => {
+  expect(planSweep([pr({ conflicting: true })], now, config)).toEqual([
+    {
+      type: "wake",
+      number: 9,
+      headSha: "h1",
+      reason: "コンフリクトがあります (デフォルトブランチを取り込んでください)",
+    },
+  ]);
+});
+
+test("動きの無い PR は、今の head への印が無ければ起こす", () => {
+  expect(planSweep([pr({ updatedAt: ago(240) })], now, config)).toEqual([
+    {
+      type: "wake",
+      number: 9,
+      headSha: "h1",
+      reason: "3 時間動きがありません",
+    },
+  ]);
+});
+
+test("起こしてから stale_hours たっても直らなければ needs-human", () => {
+  expect(
+    planSweep(
+      [
+        pr({
+          conflicting: true,
+          updatedAt: ago(100),
+          wakes: [{ at: ago(181), headSha: "h1" }],
+        }),
+      ],
+      now,
+      config,
+    ),
+  ).toEqual([
+    {
+      type: "needsHuman",
+      number: 9,
+      reason: "起こしても、3 時間直りませんでした (コンフリクト)",
+    },
+  ]);
+  expect(
+    planSweep(
+      [
+        pr({
+          updatedAt: ago(240),
+          wakes: [{ at: ago(181), headSha: "h1" }],
+        }),
+      ],
+      now,
+      config,
+    ),
+  ).toEqual([
+    {
+      type: "needsHuman",
+      number: 9,
+      reason: "起こしても、3 時間直りませんでした (動きがありません)",
+    },
+  ]);
+});
+
+test("起こしてから stale_hours たっていなければ何もしない", () => {
+  expect(
+    planSweep(
+      [
+        pr({
+          conflicting: true,
+          wakes: [{ at: ago(60), headSha: "h1" }],
+        }),
+      ],
+      now,
+      config,
+    ),
+  ).toEqual([]);
+});
+
+test("新しい head では、前の head の印を数えない", () => {
+  const a = planSweep(
+    [pr({ conflicting: true, wakes: [{ at: ago(600), headSha: "h0" }] })],
+    now,
+    config,
+  );
+  expect(a).toHaveLength(1);
+  expect(a[0]?.type).toBe("wake");
+});
+
+test("いちばん新しい印から数える", () => {
+  expect(
+    planSweep(
+      [
+        pr({
+          conflicting: true,
+          wakes: [
+            { at: ago(600), headSha: "h1" },
+            { at: ago(60), headSha: "h1" },
+          ],
+        }),
+      ],
+      now,
+      config,
+    ),
+  ).toEqual([]);
+});
+
+test("困りごとの無い PR は、印があっても何もしない", () => {
+  expect(
+    planSweep(
+      [pr({ updatedAt: ago(10), wakes: [{ at: ago(600), headSha: "h1" }] })],
+      now,
+      config,
+    ),
+  ).toEqual([]);
 });

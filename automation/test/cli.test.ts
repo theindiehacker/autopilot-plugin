@@ -29,14 +29,14 @@ interface IssueData {
   created_at?: string;
   labels?: string[];
   events?: { event: string; created_at: string; label: { name: string } }[];
-  comments?: { body: string; login: string }[];
+  comments?: { body: string; login: string; created_at?: string }[];
   updated_at?: string;
 }
 
 interface World {
   pulls: PullData[];
   issues: IssueData[];
-  dispatches: { workflow: string; inputs: unknown }[];
+  dispatches: unknown[];
   urls: string[];
   removed: string[];
   /** ref ごとの設定 ("*" はどの ref でも) */
@@ -137,6 +137,16 @@ function fakeFetch(w: World): typeof fetch {
       return Response.json(
         w.issues.find((i) => i.number === issueNo)?.events ?? [],
       );
+    if (issueNo !== undefined && path.endsWith("/comments") && method === "GET")
+      return Response.json(
+        (w.issues.find((i) => i.number === issueNo)?.comments ?? []).map(
+          (c) => ({
+            body: c.body,
+            created_at: c.created_at ?? "2026-11-12T00:00:00Z",
+            user: { login: c.login },
+          }),
+        ),
+      );
     if (
       issueNo !== undefined &&
       path.endsWith("/comments") &&
@@ -165,10 +175,7 @@ function fakeFetch(w: World): typeof fetch {
       return new Response("{}");
     }
     if (path.includes("/dispatches")) {
-      w.dispatches.push({
-        workflow: decodeURIComponent(path.split("/")[3] ?? ""),
-        inputs: body.inputs,
-      });
+      w.dispatches.push(body);
       return new Response(null, { status: 204 });
     }
     return new Response(`unexpected ${method} ${path}`, { status: 500 });
@@ -277,21 +284,76 @@ test("sweep の readyRetries は autopilot:ready の labeled の数 − 1", asyn
   ).toHaveLength(2);
 });
 
-test("sweep は衝突した autopilot の PR の対応を起動する", async () => {
+test("sweep は、衝突した autopilot の PR に印のコメントを書いて起こす。workflow_dispatch は呼ばない", async () => {
   const w = newWorld();
   w.pulls.push(
     { number: 8, mergeable_state: "dirty" },
     { number: 9, ref: "feature/y", mergeable_state: "dirty" },
   );
-  await run(
-    w,
-    "sweep",
-    "schedule",
-    {},
-    { GITHUB_WORKFLOW_REF: "o/r/.github/workflows/auto.yml@refs/heads/main" },
-  );
-  expect(w.dispatches).toEqual([{ workflow: "auto.yml", inputs: { pr: "8" } }]);
+  await run(w, "sweep", "schedule", {});
+  expect(commentsOf(w, 8)).toEqual([
+    {
+      login: "app[bot]",
+      body: "<!-- autopilot:wake -->\n<!-- autopilot:head sha8 -->\nautopilot の見回り: コンフリクトがあります (デフォルトブランチを取り込んでください)。開発のセッションは、この PR を見直して、直すことがあれば直してください。",
+    },
+  ]);
+  expect(w.issues.some((i) => i.number === 9)).toBe(false);
+  expect(w.dispatches).toEqual([]);
+  expect(w.urls.some((u) => u.includes("/dispatches"))).toBe(false);
 });
+
+test("sweep は、App のボット以外の印を数えない", async () => {
+  const w = newWorld();
+  w.pulls.push({ number: 8, mergeable_state: "dirty" });
+  w.issues.push({
+    number: 8,
+    comments: [
+      {
+        login: "someone",
+        body: "<!-- autopilot:wake -->\n<!-- autopilot:head sha8 -->\nx",
+        created_at: "2026-11-01T00:00:00Z",
+      },
+    ],
+  });
+  await run(w, "sweep", "schedule", {});
+  const c = commentsOf(w, 8);
+  expect(c).toHaveLength(2);
+  expect(c[1]?.login).toBe("app[bot]");
+  expect(w.issues[0]?.labels).toBeUndefined();
+});
+
+test("sweep は、起こして stale_hours たっても直らない PR を needs-human にする", async () => {
+  const w = newWorld();
+  w.pulls.push({ number: 8, mergeable_state: "dirty" });
+  w.issues.push({
+    number: 8,
+    comments: [
+      {
+        login: "app[bot]",
+        body: "<!-- autopilot:wake -->\n<!-- autopilot:head sha8 -->\nx",
+        created_at: "2026-11-12T08:00:00Z",
+      },
+    ],
+  });
+  await run(w, "sweep", "schedule", {});
+  expect(w.issues[0]?.labels).toEqual(["needs-human"]);
+  expect(commentsOf(w, 8).at(-1)?.body).toContain(
+    "起こしても、3 時間直りませんでした (コンフリクト)",
+  );
+});
+
+test("sweep は、開始の印のコメントだけがある Issue を、開始とみなさない (付け直す)", async () => {
+  const w = newWorld();
+  w.issues.push({
+    number: 16,
+    labels: ["autopilot:ready"],
+    events: READY_EVENTS,
+    comments: [{ login: "app[bot]", body: "<!-- autopilot:started -->" }],
+  });
+  await run(w, "sweep", "schedule", {});
+  expect(w.removed).toEqual(["/issues/16/labels/autopilot%3Aready"]);
+});
+
 test("不明なコマンドは 2 を返す", async () => {
   const orig = console.error;
   console.error = () => {};

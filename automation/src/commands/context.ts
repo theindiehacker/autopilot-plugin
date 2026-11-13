@@ -25,11 +25,10 @@ export interface Ctx {
   setOutput(key: string, value: string): void;
   now(): Date;
   sleep(ms: number): Promise<void>;
-  /** 同じ workflow のファイル名 (workflow_dispatch の宛先) */
-  workflowFile: string;
 }
 
-const sameLogin = (a: string, b: string) => a.toLowerCase() === b.toLowerCase();
+export const sameLogin = (a: string, b: string) =>
+  a.toLowerCase() === b.toLowerCase();
 
 export function isAutopilotPull(pull: Pull, repo: string): boolean {
   return (
@@ -75,9 +74,6 @@ function buildCtx(
   },
 ): Ctx {
   const { event, defaultBranch, config } = parts;
-  const workflowRef = env.GITHUB_WORKFLOW_REF?.match(
-    /\.github\/workflows\/([^@]+)@/,
-  );
   return {
     gh,
     config,
@@ -88,7 +84,6 @@ function buildCtx(
     botLogin: `${env.AUTOPILOT_APP_SLUG ?? ""}[bot]`,
     serverUrl: env.GITHUB_SERVER_URL ?? "https://github.com",
     runUrl: runUrlOf(env),
-    workflowFile: workflowRef?.[1] ?? "autopilot.yml",
     setOutput: (key, value) => {
       if (env.GITHUB_OUTPUT)
         appendFileSync(env.GITHUB_OUTPUT, `${key}=${value}\n`);

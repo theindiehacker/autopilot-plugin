@@ -1,7 +1,7 @@
 import type { Issue, Pull } from "../github";
 import { planSweep, type SweepItem } from "../sweeper";
-import { LABELS } from "../types";
-import { type Ctx, isAutopilotPull, needsHuman } from "./context";
+import { headMarker, LABELS, MARKERS } from "../types";
+import { type Ctx, isAutopilotPull, needsHuman, sameLogin } from "./context";
 
 async function issueItem(
   ctx: Ctx,
@@ -38,11 +38,18 @@ async function issueItem(
     ),
     updatedAt: issue.updated_at,
     conflicting: false,
+    wakes: [],
   };
 }
 
 async function pullItem(ctx: Ctx, pull: Pull): Promise<SweepItem> {
   const full = await ctx.gh.getPull(pull.number); // 一覧には mergeable_state が無い
+  const wakes = (await ctx.gh.listComments(pull.number)).flatMap((c) => {
+    if (!sameLogin(c.user?.login ?? "", ctx.botLogin)) return [];
+    if (!c.body.includes(MARKERS.wake)) return [];
+    const headSha = c.body.match(/<!-- autopilot:head (\S+) -->/)?.[1];
+    return headSha ? [{ at: c.created_at, headSha }] : [];
+  });
   return {
     kind: "pr",
     number: pull.number,
@@ -53,6 +60,8 @@ async function pullItem(ctx: Ctx, pull: Pull): Promise<SweepItem> {
     hasPr: true,
     updatedAt: pull.updated_at,
     conflicting: full.mergeable_state === "dirty",
+    headSha: full.head.sha,
+    wakes,
   };
 }
 
@@ -72,9 +81,10 @@ export async function sweep(ctx: Ctx): Promise<void> {
     } else if (a.type === "needsHuman") {
       await needsHuman(ctx, a.number, a.reason);
     } else {
-      await ctx.gh.dispatchWorkflow(ctx.workflowFile, ctx.defaultBranch, {
-        pr: String(a.number),
-      });
+      await ctx.gh.createComment(
+        a.number,
+        `${MARKERS.wake}\n${headMarker(a.headSha)}\nautopilot の見回り: ${a.reason}。開発のセッションは、この PR を見直して、直すことがあれば直してください。`,
+      );
     }
   }
 }

@@ -38,6 +38,12 @@ export interface IssueEvent {
   label?: { name: string };
 }
 
+interface IssueComment {
+  body: string;
+  created_at: string;
+  user: { login: string } | null;
+}
+
 export interface GitHubClient {
   getRepo(): Promise<RepoInfo>;
   getPull(n: number): Promise<Pull>;
@@ -46,11 +52,7 @@ export interface GitHubClient {
   addLabels(n: number, labels: string[]): Promise<void>;
   removeLabel(n: number, label: string): Promise<void>;
   createComment(n: number, body: string): Promise<void>;
-  dispatchWorkflow(
-    workflow: string,
-    ref: string,
-    inputs: Record<string, string>,
-  ): Promise<void>;
+  listComments(n: number): Promise<IssueComment[]>;
   listOpenIssuesByLabel(label: string): Promise<Issue[]>;
   listOpenPulls(): Promise<Pull[]>;
 }
@@ -156,13 +158,7 @@ export function createGitHubClient(opts: {
     createComment: async (n, body) => {
       await call("POST", `${repoPath}/issues/${n}/comments`, { body });
     },
-    dispatchWorkflow: async (workflow, ref, inputs) => {
-      await call(
-        "POST",
-        `${repoPath}/actions/workflows/${encodeURIComponent(workflow)}/dispatches`,
-        { ref, inputs },
-      );
-    },
+    listComments: (n) => paginate(`${repoPath}/issues/${n}/comments`),
     listOpenIssuesByLabel: (label) =>
       openIssues(`?state=open&labels=${encodeURIComponent(label)}`),
     listOpenPulls: () => paginate(`${repoPath}/pulls?state=open`),
