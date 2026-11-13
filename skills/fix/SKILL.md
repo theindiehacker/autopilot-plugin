@@ -1,11 +1,11 @@
 ---
 name: fix
-description: autopilot の開発のルーティンが、購読した PR の通知 (レビュー・CI や QA の失敗・コメント・見回りの起こすコメント) を 1 つ受けるたびに、指摘と失敗を確かめ、採否を決めて直すか返信する。人が直接使うものではない
+description: autopilot の開発のルーティンが、PR を購読した直後と、購読した PR の通知 (レビュー・CI や QA の失敗・コメント・見回りの起こすコメント) を 1 つ受けるたびに、指摘と失敗を確かめ、採否を決めて直すか返信する。人が直接使うものではない
 ---
 
 # 対応
 
-開発のルーティンのセッションが、購読した PR の通知を 1 つ受けるたびに、この手順を読み直して従います ([開発の手順 11](../develop/SKILL.md))。PR の指摘と失敗を集め、採否を決めて、直すか返信します。
+開発のルーティンのセッションが、購読した PR の通知を 1 つ受けるたびに、この手順を読み直して従います ([開発の手順 11](../develop/SKILL.md))。購読した直後にも、通知を待たずに 1 回従います ([開発の手順 10](../develop/SKILL.md))。PR の指摘と失敗を集め、採否を決めて、直すか返信します。
 
 ## 決まり
 
@@ -37,11 +37,16 @@ description: autopilot の開発のルーティンが、購読した PR の通�
 PR と Issue を読みます。
 
 ```bash
-gh api repos/{owner}/{repo}/pulls/<n> --jq '{head: .head.sha, ref: .head.ref, author: .user.login, draft, mergeable_state, labels: [.labels[].name]}'
+gh api repos/{owner}/{repo}/pulls/<n> --jq '{head: .head.sha, ref: .head.ref, author: .user.login, draft, mergeable_state, auto_merge: (.auto_merge != null), labels: [.labels[].name]}'
 gh api repos/{owner}/{repo}/issues/<Issue の番号> --jq '[.labels[].name]'
 ```
 
-Issue か PR に `needs-human` が付いていれば (見回りや人が付けたときも)、`unsubscribe_pr_activity` で購読をやめて終わります。PR にも Issue にも何も書きません。人の判断を待ちます。続けるときは、人が Issue に `autopilot:ready` を付け直し、新しい開発のセッションが購読し直します。
+Issue か PR に `needs-human` が付いていれば (見回りや人が付けたときも)、次を行って終わります。PR にも Issue にも何も書きません。人の判断を待ちます。続けるときは、人が Issue に `autopilot:ready` を付け直し、新しい開発のセッションが購読し直します。
+
+1. 上の `auto_merge` が `true` なら (自動マージが有効)、GitHub の MCP の `disable_pr_auto_merge` で止めます。止まった PR が、ひとりでにマージされないためです。断られても先へ進みます
+2. `unsubscribe_pr_activity` で購読をやめます
+
+購読した直後に、通知なしで従うとき ([開発の手順 10](../develop/SKILL.md)) は、下の「何もしない通知」の見分けを飛ばします。起こすコメントと同じに、手順 2 へ進みます。
 
 次のどれかなら、何もせずに終わります。PR にも Issue にも何も書きません。
 
@@ -157,7 +162,10 @@ GitHub の MCP の `update_pull_request` で、`body` に新しい本文を渡�
 
 ### 10. 直したことを知らせる
 
-手順 8 で直して push したときだけ、次を行います。返信だけで、直したことが無ければ、ここで終わります。
+次のどちらかのときに行います。どちらでもなければ (Draft でない PR に、返信だけをしたとき)、ここで終わります。
+
+- 手順 8 で直して push した
+- PR が Draft (手順 1 の `draft` が `true`。Claude のレビューが Draft に戻したとき)。返信だけで、直したことが無くても行います。Draft のままでは、レビューも自動マージも止まったままになるためです。この回も、手順 4 の回数に数えます (上限で止まるので、終わりがあります)
 
 1. 次のコメントを PR に書きます。手順 4 で数える印です
 
@@ -167,10 +175,10 @@ GitHub の MCP の `update_pull_request` で、`body` に新しい本文を渡�
 
    ```
    <!-- autopilot:fix-round -->
-   {直したことを 1 行}
+   {直したこと (返信だけなら、返信したこと) を 1 行}
    ```
 
-2. PR が Draft なら (手順 1 の `draft` が `true`。Claude のレビューが Draft に戻したとき)、GitHub の MCP の `update_pull_request` で `draft: false` にします
+2. PR が Draft なら、GitHub の MCP の `update_pull_request` で `draft: false` にします
 3. 自動マージが外れていないか確かめます (Draft に戻すと外れます)
 
    ```bash
