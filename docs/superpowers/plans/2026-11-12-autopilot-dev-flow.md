@@ -37,7 +37,7 @@
 - 同梱のプラグイン (superpowers・playwright など) にあるスキルは、呼ぶだけにして作り直さない
 - 人への依頼と報告は、すべて Slack に送る (設計書 4.11 の 5 つ)
 - 公開リポジトリなので、他社のリポジトリの名前や中身を、commit するファイル・Issue・PR に書かない
-- 他社のリポジトリでは push・Issue・PR をしない (ads-mcp だけ例外)。試すリポジトリの一覧はメモリ `autopilot-test-repos`
+- 他社のリポジトリでは push・Issue・PR をしない (試験 3 のリポジトリだけ例外)。試すリポジトリの一覧はメモリ `autopilot-test-repos`
 - 外部の action は commit の SHA で固定し、行末に `# vX.Y.Z` を書く
 - 文書は日本語で、具体的に (ツール名・コマンド・条件を書く)。commit メッセージは `<範囲>: <日本語の要約>` の形で、最後に `Co-Authored-By: Claude Opus 5.5 <noreply@anthropic.com>`
 - push はユーザーの許可を得てから行う
@@ -91,11 +91,11 @@ skills/setup/                   onboard を改名。SKILL.md・frontend.md・pyt
 **Files:**
 - Modify: `docs/superpowers/specs/2026-11-12-autopilot-dev-flow-design.md` (9 章に「結果」を足す)
 
-- [ ] **Step 1: ユーザーに頼む (GitHub App)。** theindiehacker の org に、試験用の GitHub App を作って app.fastship.jp に入れてもらう。権限: Contents・Pull requests・Issues・Commit statuses・Actions は Read and write、Checks・Metadata は Read、org の Members は Read。App ID と秘密鍵を、app.fastship.jp のシークレット `AUTOPILOT_APP_ID`・`AUTOPILOT_APP_PRIVATE_KEY` に入れてもらう
-- [ ] **Step 2: 確かめ 6 (ルーティンを作れるか)。** この PC の RemoteTrigger で、app.fastship.jp を対象に、Issue に `autopilot:spike` が付いたら起動するルーティンを作る (`create` のあと `create_webhook_trigger`)。プロンプトは「受け取った Issue の番号を、`gh api` でその Issue にコメントする」。結果: ルーティンの URL が返り、`get` で GitHub トリガーが見える。うまくいった `body` の形を記録する
+- [ ] **Step 1: ユーザーに頼む (GitHub App)。** theindiehacker の org に、試験用の GitHub App を作って試験 1 のリポジトリに入れてもらう。権限: Contents・Pull requests・Issues・Commit statuses・Actions は Read and write、Checks・Metadata は Read、org の Members は Read。App ID と秘密鍵を、試験 1 のリポジトリのシークレット `AUTOPILOT_APP_ID`・`AUTOPILOT_APP_PRIVATE_KEY` に入れてもらう
+- [ ] **Step 2: 確かめ 6 (ルーティンを作れるか)。** この PC の RemoteTrigger で、試験 1 のリポジトリを対象に、Issue に `autopilot:spike` が付いたら起動するルーティンを作る (`create` のあと `create_webhook_trigger`)。プロンプトは「受け取った Issue の番号を、`gh api` でその Issue にコメントする」。結果: ルーティンの URL が返り、`get` で GitHub トリガーが見える。うまくいった `body` の形を記録する
 - [ ] **Step 3: 確かめ 3・4 (PR のラベルのトリガー、REST の操作)。** PR に `autopilot:spike` が付いたら起動する 2 つ目のルーティンを作る。プロンプトで、次を `gh api` で行わせ、結果を PR にコメントさせる: PR の番号を受け取れたか、ラベルの追加と削除、コミットのステータス `autopilot/spike` の作成、Draft PR の作成 (`POST /repos/{owner}/{repo}/pulls` に `draft=true`)。試験用の PR に手でラベルを付けて起動する
-- [ ] **Step 4: 確かめ 2 (App のトークンで付けたラベルで起動するか)。** app.fastship.jp にブランチ `autopilot-spike` を作り、そのブランチへの push で動くワークフローを置く。ワークフローは `actions/create-github-app-token` で App のトークンを作り、試験用の Issue に `autopilot:spike` を付ける。結果: RemoteTrigger の `list_runs` で、1 つ目のルーティンが起動している
-- [ ] **Step 5: 確かめ 1 (claude[bot] の Approve が数えられるか)。** app.fastship.jp に、README の小さな変更の PR を作る。既存の claude-code-review が Approve したあと、PC の `gh api graphql` で `reviewDecision` を読む。結果: `APPROVED` なら数えられる。`REVIEW_REQUIRED` なら数えられない
+- [ ] **Step 4: 確かめ 2 (App のトークンで付けたラベルで起動するか)。** 試験 1 のリポジトリにブランチ `autopilot-spike` を作り、そのブランチへの push で動くワークフローを置く。ワークフローは `actions/create-github-app-token` で App のトークンを作り、試験用の Issue に `autopilot:spike` を付ける。結果: RemoteTrigger の `list_runs` で、1 つ目のルーティンが起動している
+- [ ] **Step 5: 確かめ 1 (claude[bot] の Approve が数えられるか)。** 試験 1 のリポジトリに、README の小さな変更の PR を作る。既存の claude-code-review が Approve したあと、PC の `gh api graphql` で `reviewDecision` を読む。結果: `APPROVED` なら数えられる。`REVIEW_REQUIRED` なら数えられない
 - [ ] **Step 6: 確かめ 5 (Draft の切り替え)。** 参考として、Step 3 のルーティンで、Web のセッションから Draft を「レビュー可能」にできるかも試す (GitHub の MCP の `update_pull_request` で `draft: false`)。結果に関わらず、切り替えは GitHub Actions が行う (計画で決めたこと)
 - [ ] **Step 7: 結果を設計書の 9 章に書く。** 確かめた日付と、だめだったときの次の手を書く
   - 1 がだめ → setup が「ルールセットの承認数を 0 にし、関門が Claude の Approve を確かめる」を提案する
@@ -601,7 +601,7 @@ SKILL.md の手順の表を次にする (既存の 4 つは中身を変えない
 - [ ] **Step 3: 検査する。** `claude plugin validate .` → エラー無し
 - [ ] **Step 4: commit** — `git commit -m "skills: setup に、聞き取りと autopilot を入れる手順を足す"`
 
-### Task 15: 試験 1 — デプロイの無いテンプレートのリポジトリ (app.fastship.jp)
+### Task 15: 試験 1 — デプロイの無いテンプレートのリポジトリ
 
 **Files:**
 - Modify: autopilot-plugin の、試験で見つかった不具合の場所 (直すたびに、まず失敗するテストを足す)
@@ -609,22 +609,22 @@ SKILL.md の手順の表を次にする (既存の 4 つは中身を変えない
 - [ ] **Step 1: ブランチを push する (ユーザーの許可を得てから)。** `git push -u origin feat/40-autopilot-dev-flow`
 - [ ] **Step 2: ユーザーに頼む。** Web の環境のセットアップスクリプトを `claude plugin marketplace add 'theindiehacker/autopilot-plugin#feat/40-autopilot-dev-flow'` にした試験用の環境を作る
 - [ ] **Step 3: ルーティンからの git push と PR の作成を確かめる (設計書 9.1 の未確認の行)。** 新しい環境で、試験用のルーティンに、既存のコミットを新しいブランチに push して PR を作らせる。だめなら、ユーザーに伝えて設計を見直す
-- [ ] **Step 4: app.fastship.jp で `/autopilot:setup` を動かす。** 版は `{{AUTOPILOT_REF}}` を `feat/40-autopilot-dev-flow` にする。setup の PR をユーザーにマージしてもらう
+- [ ] **Step 4: 試験 1 のリポジトリで `/autopilot:setup` を動かす。** 版は `{{AUTOPILOT_REF}}` を `feat/40-autopilot-dev-flow` にする。setup の PR をユーザーにマージしてもらう
 - [ ] **Step 5: 小さな Issue を作り、`autopilot:ready` を付ける。** 例: 「トップページのフッターに著作権の年を表示する」
 - [ ] **Step 6: 人が触らずにマージまで進むのを確かめる。** 見るもの: 開始のコメント・受入条件・失敗から成功に変わったテスト・PR・Claude のレビュー・`autopilot QA` の成否とエビデンス (スクリーンショットが PR のコメントに表示される)・`autopilot/irreversible` の success・自動マージ・Slack の `done`
 - [ ] **Step 7: 止まる条件を確かめる。** わざと直せない Issue (例: 存在しない外部 API を呼ぶ) で `needs-human` が付き、Slack に届くこと。`autopilot:ready` を付けずに作った Issue で起動しないこと
 - [ ] **Step 8: 見つかった不具合を直して commit する**
 
-### Task 16: 試験 2 — マージで本番へデプロイするリポジトリ (registry.fastship.jp)
+### Task 16: 試験 2 — マージで本番へデプロイするリポジトリ
 
 - [ ] **Step 1: setup を動かす。** デプロイは `on_merge`、確認はヘルスチェックの URL、取り消せない変更は Terraform の plan。ロールバックが無いので、setup の提案 (Cloud Run のトラフィックを前のリビジョンに戻すワークフロー) を受けるかをユーザーに聞く
 - [ ] **Step 2: 小さな Issue で、本番へのデプロイと確認まで進むのを確かめる。** Slack に `done` が届く
 - [ ] **Step 3: Terraform で削除が出る PR が、承認者の Approve を待つのを確かめる。** Slack に承認の依頼が届き、Approve の後にマージされる。試験の後、削除した資源を戻す方法をユーザーと決めてから行う
 - [ ] **Step 4: 見つかった不具合を直して commit する**
 
-### Task 17: 試験 3 — 手動で起動してデプロイするリポジトリ (ads-mcp)
+### Task 17: 試験 3 — 手動で起動してデプロイするリポジトリ
 
-- [ ] **Step 1: ユーザーに頼む。** ads-mcp の org に GitHub App を作って入れ、シークレットと Slack の Webhook を登録する
+- [ ] **Step 1: ユーザーに頼む。** 試験 3 のリポジトリの org に GitHub App を作って入れ、シークレットと Slack の Webhook を登録する
 - [ ] **Step 2: setup を動かす。** デプロイは `dispatch`、環境の順番と、本番の確認の入力 (`deploy/${environment}` など) を聞いて書く。マイグレーションのパスを取り消せない変更にする。Claude のレビューはコメントで起動するもの (`review.trigger: comment`)
 - [ ] **Step 3: 小さな Issue で、環境の順に本番までデプロイされるのを確かめる**
 - [ ] **Step 4: マイグレーションを含む Issue で、承認者の Approve を待つのを確かめる**
@@ -632,7 +632,7 @@ SKILL.md の手順の表を次にする (既存の 4 つは中身を変えない
 
 ### Task 18: 試験 4 — デプロイを別のリポジトリで行うリポジトリと、他社の 3 つのリポジトリ
 
-- [ ] **Step 1: fastship.jp で setup を動かす。** デプロイは `none`。小さな Issue でマージまで進むのを確かめる
+- [ ] **Step 1: 試験 4 のリポジトリで setup を動かす。** デプロイは `none`。小さな Issue でマージまで進むのを確かめる
 - [ ] **Step 2: 他社の 3 つのリポジトリで、手元で setup を動かす。** 聞き取りと提案が、それぞれの構成 (技術スタック・タスクランナー・GPU・クラウドの認証情報・デフォルトブランチ・デプロイの無さ) に合っているかを確かめる。push・Issue・PR はしない。作った変更は捨てる (`git stash` ではなく、作業前のブランチに戻して消す。消す前にユーザーに確かめる)
 - [ ] **Step 3: 合っていなかった点を、setup の手順に一般的な形で直して commit する。** 他社の名前や中身は書かない
 

@@ -10,7 +10,7 @@
 
 **Spec:** `docs/superpowers/specs/2026-11-12-autopilot-dev-flow-design.md` (Task 1 で書き直す)。確かめの結果は、引き継ぎ `docs/superpowers/plans/2026-11-12-autopilot-dev-flow-handoff.md` の「次にすること 0」と、Task 1 で設計書 9.1 に足す行
 
-## ユーザーが決めたこと (2026-11-13、試験の PR theindiehacker/app.fastship.jp#213 の結果を見て)
+## ユーザーが決めたこと (2026-11-13、試験の PR の結果を見て)
 
 | | 決めたこと |
 |---|---|
