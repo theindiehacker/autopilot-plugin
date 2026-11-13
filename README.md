@@ -8,7 +8,7 @@
   <a href="renovate.json"><img src="https://img.shields.io/badge/Renovate-308BE3?style=for-the-badge&logo=renovate&logoColor=white" alt="Renovate"></a>
 </p>
 
-<p align="center"><b>`autopilot:ready` を付けた Issue から、人が触らずに PR のマージまで進める流れを、`/autopilot:setup` でリポジトリに入れるプラグインです。Claude Code on the Web のセッションの準備、技術スタックの統一、自動の検査 (lint・型検査・シークレット検出・脆弱性スキャン) の導入も行います。</b></p>
+<p align="center"><b><code>autopilot:ready</code> を付けた Issue から、人が触らずに PR のマージまで進める流れを、<code>/autopilot:setup</code> でリポジトリに入れるプラグインです。Claude Code on the Web のセッションの準備、技術スタックの統一、自動の検査 (lint・型検査・シークレット検出・脆弱性スキャン) の導入も行います。</b></p>
 
 ## ✨ 入れるとどう変わる？
 
@@ -54,7 +54,7 @@
 - Issue があいまいで受入条件が書けないなど、ルーティンが進めない (質問と案を書く)
 - 見回りで、付け直しても始まらない Issue か、起こしても直らない PR が見つかった
 
-`needs-human` の付いた Issue・PR では、ルーティンも見回りも動きません。再開するには、答えを Issue にコメントし、Issue の `needs-human` を外して `autopilot:ready` を付け直します。
+`needs-human` の付いた Issue・PR では、ルーティンも見回りも動きません。再開するには、答えを Issue にコメントし (読まれるのは、権限が triage 以上の人のコメントだけです)、Issue の `needs-human` を外します。続けて、Issue の `autopilot:ready` を一度外してから、付け直します。`autopilot:ready` を付けたままでは、ルーティンは起動しません。
 
 ### 人がすること
 
@@ -71,6 +71,7 @@
 | こと | 中身 |
 |---|---|
 | GitHub App | 組織で 1 つ。manifest で作る (組織にもうあれば、新しく作らない)。**autopilot を使うリポジトリにだけ**入れる。権限は、Contents・Pull requests・Issues が Read and write、Checks・Metadata が Read |
+| Claude の GitHub App | https://github.com/apps/claude をリポジトリに入れる。Claude のレビューが、PR にレビューを書くために要る。既存の Claude のレビューを使うときも、入っているかを確かめる |
 | シークレット | `AUTOPILOT_APP_ID`・`AUTOPILOT_APP_PRIVATE_KEY`・`CLAUDE_CODE_OAUTH_TOKEN` か `ANTHROPIC_API_KEY` |
 | GitHub の Slack アプリ | Slack で `/github signin` を打つ。GitHub の側に Slack のアプリを入れてリポジトリを選ぶ。通知先のチャンネルで `/github subscribe …` を打つ |
 | Web の環境 | 下の「入れ方」の手順 |
@@ -79,7 +80,7 @@ PR がマージされたら、setup が続きを行います。ワークフロ�
 
 | こと | 中身 |
 |---|---|
-| ルールセット | 必須のチェック (CI のジョブと `autopilot QA`)・必須のレビュー 1 件・push で古い Approve を取り消す・コードオーナーのレビューを必須にする。自動マージを許可する |
+| ルールセット | 必須のチェック (CI のジョブと `autopilot QA`)・必須のレビュー 1 件・push で古い Approve を取り消す・コードオーナーのレビューを必須にする。自動マージを許可する。ワークフローの既定の権限を読み取りだけにし、Actions が PR を Approve することを禁じる |
 | ルーティン | プロンプトは `/autopilot:develop`、トリガーは `issues.labeled`。ルーティンは、ログインしている claude.ai のアカウントのものになる |
 
 ## ⚙️ 自動で動くもの
@@ -94,7 +95,7 @@ PR がマージされたら、setup が続きを行います。ワークフロ�
 | 起動時 | `uv sync --locked` | `uv.lock` がある |
 | 起動時 | Gitleaks・Semgrep・Trivy を導入 | Web のみ。ローカルは無ければ警告だけ |
 | 起動時 | 下の「技術スタックの方針」を Claude に伝える | フロントエンドは `package.json`、Python は `pyproject.toml`・`requirements*.txt`・`setup.py` がある |
-| 起動時・再開時・要約の後 | 下の「Claude に渡す指示」を渡す | Web のみ |
+| 起動時・再開時・`/clear` の後・要約の後 | 下の「Claude に渡す指示」を渡す | PC でも Web でも。下書きの 2 つは Web のみ |
 
 - **検査:** 作業の終わり・commit 前・push 前の検査は、プラグインの hook ではありません。`/autopilot:setup` が、リポジトリに入れます。編集のたびには動かしません (`style:fix` が、使う前に足した import を消すため)。
 
@@ -126,7 +127,18 @@ PR がマージされたら、setup が続きを行います。ワークフロ�
 - 依存の過不足は deptry、import の向きは import-linter で検査する
 - 機能を足す・変えるときは、pytest でテストを書く
 
-### 📝 Claude に渡す指示 (Web のみ)
+### 📝 Claude に渡す指示
+
+起動時・再開時・`/clear` の後・要約の後に、次の指示を Claude に渡します (`scripts/cloud/instructions.sh`)。
+
+**PC でも Web でも**
+
+- 作業の途中の進み具合は、メッセージに書かない。書くのは、ユーザーに聞くことがあるときと、作業を終えたときだけにする
+- ユーザーは、任せている間は画面を見ていない。途中のメッセージは読まれず、文脈を使うだけになる
+- 聞くときは、前のやり取りを読まなくても分かるように、前提・選べる案・おすすめを書く
+- 終えたときは、したこと・確かめたこと・ユーザーがすることを短くまとめる
+
+**Web のみ**
 
 - 自分の作った PR を `claude[bot]` のレビューが下書きに戻したときは、指摘を直す (または返信する) push をして CI が通ったら、ユーザーに聞かずに「レビュー可能」に戻してよい
 - ほかの人が下書きに戻した PR は戻さない
@@ -241,7 +253,7 @@ claude plugin install autopilot@indiehacker
 Claude Code を開いていたら、起動し直します。
 
 > [!NOTE]
-> - Web 用の処理 (`dockerd`・`mise install`・`docker compose up`・Claude に渡す指示) は、PC では動きません。
+> - Web 用の処理 (`dockerd`・`mise install`・`docker compose up`・Claude に渡す指示のうち下書きの 2 つ) は、PC では動きません。
 > - lefthook の検査には、Semgrep・Gitleaks・Trivy が要ります。Mac では `brew install semgrep gitleaks trivy` で入れられます。
 
 </details>
@@ -271,7 +283,7 @@ claude plugin install autopilot@indiehacker
 
 ## 🔧 入れたら setup を実行する
 
-既存のリポジトリは、プラグインを入れただけでは、push 前の検査で止まったり、Claude Code on the Web で起動に失敗したりします。PC の Claude Code で `/autopilot:setup` を実行すると、リポジトリを調べて環境を整え、autopilot を入れて、PR を作ります (クラウドのセッションでは、ルーティンを作れません)。
+プラグインを入れただけでは、既存のリポジトリに、検査も autopilot も入りません。Claude Code on the Web では、起動時の `docker compose up` などが失敗することもあります。PC の Claude Code で `/autopilot:setup` を実行すると、リポジトリを調べて環境を整え、autopilot を入れて、PR を作ります (クラウドのセッションでは、ルーティンを作れません)。
 
 次の 8 つを、この順に行います。調べて、聞いて、提案してから変えます。ユーザーが提案に同意するまで、リポジトリは変えません。
 
@@ -284,7 +296,7 @@ claude plugin install autopilot@indiehacker
 | 5 | Web で Docker を起動できるようにする | 毎回 | compose ファイルを用意し、Dockerfile の通信する `RUN` でプロキシの CA を読む。`.env` が無くても起動できるようにし、Mac 専用の設定や終了するサービスを直す。遮断されたドメインは、環境の「許可されたドメイン」への追加を頼む |
 | 6 | 検査を入れる | 毎回 | タスクランナーに `style:check`・`style:fix`・`security:check`・`dev:up` を作る (あるものは消さず、足りないものだけ足す)。`lefthook.yml` (commit 前・push 前) と `.claude/settings.json` の `Stop` の hook (作業の終わり) から、そのタスクを呼ぶ。すでに lefthook や pre-commit があれば、足りない検査だけを足す。`lefthook install` を動かし、シークレットを入れた commit が止まることを確かめる |
 | 7 | 既存のシークレット・脆弱性を直す | 毎回 | Gitleaks・Semgrep・Trivy の指摘を直す。誤検出などでユーザーが選んだものだけ、理由を書いて除外する |
-| 8 | autopilot を入れる | 毎回 | ラベル 2 つ (`autopilot:ready`・`needs-human`)・`.github/autopilot.yml`・ワークフロー 2 つ (見回りと QA)・`.github/CODEOWNERS` を入れる。Claude のレビューと CI が無ければ用意する。GitHub App・シークレット・Slack の購読・Web の環境は、ユーザーに頼む |
+| 8 | autopilot を入れる | 毎回 | ラベル 2 つ (`autopilot:ready`・`needs-human`)・`.github/autopilot.yml`・ワークフロー 2 つ (見回りと QA)・`.github/CODEOWNERS` を入れる。Claude のレビューと CI が無ければ用意する。GitHub App (autopilot 用と Claude)・シークレット・Slack の購読・Web の環境は、ユーザーに頼む |
 
 技術スタックの移行を先に行うのは、5 で動かす `docker compose up --build` が、移行した後の lock ファイルでビルドするためです。検査を入れるのは、7 で、入れた検査と同じコマンドを動かして、既存の指摘を直すためです。セキュリティを autopilot の前に行うのは、移行で変わった依存も検査するためです。
 

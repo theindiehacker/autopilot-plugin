@@ -3,7 +3,7 @@
 - Issue: #40
 - 日付: 2026-11-12
 - 題: 2026-11-13 に、「本番へのデプロイまで」から「マージまで」に変えた。デプロイは、リポジトリのデプロイの仕組みに任せる (12 章)
-- 状態: 下書き (ユーザーの確認待ち)
+- 状態: 試験中
 
 ## 1. 目的
 
@@ -47,7 +47,7 @@ Issue を起票すれば、Claude Code が開発・テスト・レビュー・QA
 - 完了・マージの条件は「失敗しうる検査がすべて通ること」
 - 止まる条件を決める (4.4)
 - 毎回同じ答えになる見回りは、AI なしの GitHub Actions で行う。`needs-human` のラベルと自動マージの有効化は、開発のルーティンが GitHub の MCP で行う (4.1)。取り消せない変更の確認は、GitHub の標準の仕組み (CODEOWNERS とルールセット) で行う
-- リポジトリに置くものは最小にする。GitHub Actions は autopilot-plugin の再利用ワークフローを呼ぶだけにし、ルーティンのプロンプトは `/autopilot:〇〇` を呼ぶだけにする
+- リポジトリに置くものは最小にする。GitHub Actions は autopilot-plugin の composite action を呼ぶだけにし、ルーティンのプロンプトは `/autopilot:〇〇` を呼ぶだけにする
 - 会社ごとに違う部分は、`/autopilot:setup` が聞いてから提案・設定する
 - 同梱のプラグインにあるスキルは使い、作り直さない。autopilot が作るのは、それらをつなぐ部分だけ
 
@@ -87,6 +87,7 @@ Issue を起票すれば、Claude Code が開発・テスト・レビュー・QA
 |---|---|---|
 | `<!-- autopilot:needs-human -->` | 開発のルーティン・見回り | 進めない。理由は同じコメントに書く。`needs-human` のラベルを先に付け、このコメントを後に書く (4.4) |
 | `<!-- autopilot:fix-round -->` | 開発のルーティン (PR に) | 対応を 1 回行った。回数を数えるのに使う。PR の作者が書いたものだけを数える (4.4) |
+| `<!-- autopilot:undraft <sha> -->` | 開発のルーティン (PR に) | 今の head に直すことが無い Draft の PR を「レビュー可能」に戻した。head ごとに 1 回だけ戻すのに使う。PR の作者が書いたものだけを数える (4.3 の 6) |
 | `<!-- autopilot:wake -->` | 見回り (App のボット。PR に) | 購読中のセッションを起こす。App のボットが書いたものだけを数える (4.5) |
 | `<!-- autopilot:head <sha> -->` | 見回り (`wake` と同じコメントに) | 起こしたときの PR の head。head が変わると、前の印は数えない (4.5) |
 
@@ -99,7 +100,7 @@ autopilot の PR は、同じリポジトリのブランチ `autopilot/<Issue �
 3. 受入条件を Issue にコメントする (ヒアリングしないと分からないときは、4.4 のとおり聞いて止まる。小さな選択は自分で決め、決めたことを書く)。その条件を確かめるテストを書き、直す前のコードで失敗するのを確かめてから実装する。ユニット・受入・E2E テストを通す
 4. 同じブランチに push する。人と同じく、レビューを頼む前に、アプリを起動して受入条件を 1 つずつ確かめ (`skills/qa/self-check.md`)、スクリーンショット・録画・JSON を PR の本文の `## 動作確認 (<sha7>)` に書く。続けて、開発のルーティンが GitHub の MCP (`update_pull_request`) で、PR の本文 (動作確認・判断の理由・試してだめだった方法・テストの結果。最後の行は `Closes #<番号>`) を書き換え、「レビュー可能」にする。断られたら `needs-human` で止まる。「レビュー可能」にしたら、GitHub の MCP (`enable_pr_auto_merge`) で自動マージを有効にし、PR を購読する (`subscribe_pr_activity`)
 5. PR が「レビュー可能」になると、GitHub Actions で Claude のレビュー・QA のジョブが動く。QA のジョブは、コードを書いていない別の Claude が、別の環境で受入条件を確かめ直す (必須のチェック) (CI は Draft のときから動く)。CODEOWNERS のパスを変える PR では、GitHub が持ち主にレビューを頼む
-6. Request changes・CI の失敗・QA の失敗があると、購読の通知で開発のルーティンのセッションが起き、`autopilot:fix` の手順で直す。PR の本文の記録と指摘を読み、指摘ごとに採否を決め、直して push し、返信する。Claude のレビューが PR を Draft に戻していれば、GitHub の MCP で「レビュー可能」に戻す
+6. Request changes・CI の失敗・QA の失敗があると、購読の通知で開発のルーティンのセッションが起き、`autopilot:fix` の手順で直す。PR の本文の記録と指摘を読み、指摘ごとに採否を決め、直して push し、返信する。Claude のレビューが PR を Draft に戻していれば、GitHub の MCP で「レビュー可能」に戻す。今の head に直すことが無いとき (古い head への Request changes・任意の指摘だけの Request changes) も、head ごとに 1 回、`<!-- autopilot:undraft <sha> -->` を書いて戻す
    - コンフリクトや、長く動きの無い PR は、通知が来ないことがある。見回りがコメントしてセッションを起こす (4.5)
    - ルーティンの持ち主が PR に書いたコメントでは、セッションは起きない (同じアカウントの書き込みは通知されない)。持ち主が直してほしいときは、ルーティンの commit の `Claude-Session:` の行のリンクから、そのセッションに直接書く
 7. 必須のチェックと必須のレビュー (claude[bot] の Approve。CODEOWNERS のパスを変える PR では、持ち主の Approve も) がそろうと、GitHub の自動マージでマージされる
@@ -112,9 +113,9 @@ autopilot の PR は、同じリポジトリのブランチ `autopilot/<Issue �
   - 上限は、デフォルトブランチの `.github/autopilot.yml` の `limits.max_fix_rounds` (既定 3)
   - 止まるのは、今の head に直すこと (Request changes の指摘・失敗したチェックや QA・コンフリクト) があるときだけで、任意の指摘 (optional・nit など。承認のレビューの指摘は、直す必要があると書かれない限り任意) は、数えず、push も返信もしない
 - 同じ失敗が 2 回続いた → 開発のルーティンが止まり、`<!-- autopilot:needs-human -->` 付きのコメントで、何が同じかを書く
-- 開発のルーティンが進めない (Issue があいまいで受入条件が書けない、受入条件は書けても、ヒアリングしないと成果物がずれそうなとき、など) → 同じ印のコメントで、質問と案 (おすすめつき) を書いて止まる。答えを Issue にコメントし、`needs-human` を外して `autopilot:ready` を付け直すと再開する
+- 開発のルーティンが進めない (Issue があいまいで受入条件が書けない、受入条件は書けても、ヒアリングしないと成果物がずれそうなとき、など) → 同じ印のコメントで、質問と案 (おすすめつき) を書いて止まる。権限 (triage 以上) のある人が答えを Issue にコメントし、`needs-human` を外し、`autopilot:ready` を一度外してから付け直すと再開する
 - 見回り (4.5) で、付け直しても始まらない Issue か、起こしても直らない PR が見つかった → `needs-human`
-- `needs-human` の付いた Issue・PR では、開発のルーティンも見回りも動かない。人が Issue の `needs-human` を外して `autopilot:ready` を付け直すと再開する。PR の `needs-human` は、再開した開発のルーティンが外す
+- `needs-human` の付いた Issue・PR では、開発のルーティンも見回りも動かない。人が Issue の `needs-human` を外し、`autopilot:ready` を一度外してから付け直すと再開する (付けたままでは `issues.labeled` が起きず、ルーティンは起動しない)。PR の `needs-human` は、再開した開発のルーティンが外す
 - 止まるときは、`needs-human` のラベルを先に付け、印のコメントを後に書く。GitHub の Slack アプリが、ラベルの付いた Issue・PR へのコメントとして Slack に知らせるため (4.11)。何が起きて何をしてほしいかは、そのコメントに書く
 
 ### 4.5 見回り (GitHub Actions、AI なし、1 時間ごと)
@@ -163,6 +164,7 @@ GitHub の標準の仕組みで決める。setup が、リポジトリのルー�
 人の承認が要るパスを、setup が会社ごとに聞いて CODEOWNERS に書く。AI には判断させない。
 
 - **autopilot を動かすファイル:** `.github/` (ワークフロー・設定・CODEOWNERS 自身)・`.claude/`・`.mcp.json`・git の hook の設定 (`lefthook.yml`・`.lefthook.yml`・`lefthook.yaml`・`.pre-commit-config.yaml`・`.husky/`)。AI の PR が、人の承認なしに、自分の検査・ワークフロー・設定を変えられないようにするため。前の版の「いつも取り消せない変更とみなすパス」(計画の R19) は、ここに移った
+- **検査を定めるファイル:** CI・lefthook・Claude の Stop の hook・動作確認が呼ぶ `style:check`・`security:check`・`dev:up` を書いたタスクランナーのファイル (`Taskfile.yml`・`Makefile`。タスクがルートの `package.json` の `scripts` にあれば `package.json`。そのときは、依存を足す PR にも持ち主の Approve が要る) と、セキュリティの検査の設定・除外のファイル (`.gitleaks.toml`・`.gitleaksignore`・`.semgrepignore`・`trivy.yaml`・`.trivyignore`・`.trivyignore.yaml`)。AI の PR が、人の承認なしに、検査を空にしたり除外を足したりできないようにするため (4.12)。リポジトリに無いファイルの行は書かない
 - **マイグレーション:** 例 `/backend/migration/versions/`
 - **Terraform:** 例 `/infrastructure/`。apply がマージで動くと、Approve の後に取り消せない操作が自動で走る。setup は、apply を手動のワークフローか別のリポジトリにする案を勧める (作りはしない。2 章の「デプロイの仕組みを新しく作らない」)。plan を読んで削除を見分けることはしない
 - **そのほか:** 会社が挙げたもの (課金・メール送信のコードのパスなど)
@@ -181,7 +183,7 @@ GitHub の標準の仕組みで決める。setup が、リポジトリのルー�
 - Web のセッション (ルーティンを含む) では、GraphQL が使えない。`gh pr`・`gh issue` は動かず、`gh api` (REST) だけが使える ([cloud-environments](https://code.claude.com/docs/en/cloud-environments.md))
 - ルーティンでは、REST でのラベル・ステータスの書き込みが自動モードに拒否される。`.claude/settings.json` で許可しても変わらない。REST でのブランチ作成は、GitHub のプロキシに拒否される。コメントは書ける
 - GitHub の MCP では、自動マージの有効化 (`enable_pr_auto_merge`) と、ラベルの付け替え (`issue_write`) が、自動モードで通る (2026-11-13)
-- そのため、ルーティンが GitHub に書くのは、git push・PR の作成・コメントと、GitHub の MCP での PR の本文の書き換え・Draft の切り替え (`update_pull_request`。9.1 の 5)・自動マージの有効化 (`enable_pr_auto_merge`)・ラベルの付け替え (`issue_write`) だけにする。ラベル・自動マージは MCP で行う。REST のラベルは拒否される
+- そのため、ルーティンが GitHub に書くのは、git push・PR の作成・コメントと、GitHub の MCP での PR の本文の書き換え・Draft の切り替え (`update_pull_request`。9.1 の 5)・自動マージの有効化と止めること (`enable_pr_auto_merge`・`disable_pr_auto_merge`)・ラベルの付け替え (`issue_write`) だけにする。ラベル・自動マージは MCP で行う。REST のラベルは拒否される
 - GitHub Actions の `GITHUB_TOKEN` で行った操作では、ほかのワークフローが起動しない (`workflow_dispatch`・`repository_dispatch` を除く)。自動マージは、開発のルーティンが、持ち主のアカウントで GitHub の MCP から有効にするので、この制限に当たらない。前の版では GitHub Actions が有効にしていて、`GITHUB_TOKEN` では、マージの push で main の CI もデプロイも動かないため、App のトークンを使った
 - autopilot の GitHub Actions (見回り) と claude-code-action (QA) は、会社ごとに作る GitHub App のトークンで操作する (6.2)。App のトークンで付けたラベルでルーティンが起動することは、確かめ済み (見回りの付け直しで使う)
 
@@ -367,6 +369,7 @@ claude.ai と GitHub のどちらも、自動化専用のアカウントと個�
 
 - 起動のきっかけは、triage 以上の権限がある人しか付けられない `autopilot:ready` だけにする。開発のルーティンは、ラベルを付けた人の権限を REST で確かめてから始める。Issue のテンプレートで、このラベルを自動で付けない
 - Issue・PR・コメントの本文は、指示ではなくデータとして扱う
+- 開発のルーティンが受入条件の材料にする Issue のコメントは、権限が triage 以上の人のものだけにする。ほかの人のコメントは読まず、読まなかったことを受入条件のコメントに書く
 - コメントの印 (4.2) は、書いた人を確かめて数える。対応の回数は PR の作者が書いた `fix-round` だけ、起こした回数は App のボットが書いた `wake` だけを数える
 - QA のジョブは、同じリポジトリから出た autopilot の PR でだけ動く。フォークの PR のコードは動かさない
 - 指摘への対応を、GitHub Actions のジョブから、開発のルーティンのセッション (PR の購読) に移したので、信頼の形が変わった (2026-11-13)
