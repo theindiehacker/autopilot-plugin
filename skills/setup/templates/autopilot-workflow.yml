@@ -14,6 +14,10 @@ jobs:
     permissions:
       contents: read
     timeout-minutes: 15
+    # 見回りを重ねて動かさない (同じ PR に起こすコメントを 2 回書かないため)。動いている見回りは止めない
+    concurrency:
+      group: autopilot-sweep
+      cancel-in-progress: false
     steps:
       - uses: theindiehacker/autopilot-plugin/actions/autopilot@{{AUTOPILOT_REF}}
         with:

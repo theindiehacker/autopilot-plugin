@@ -1,5 +1,5 @@
 # autopilot を入れる
-Issue から本番までの自動の流れを、リポジトリに入れます。survey.md の結果と interview.md の答えを使います。次の 9 の手順を、この順に行います。
+Issue からマージまでの自動の流れを、リポジトリに入れます。survey.md の結果と interview.md の答えを使います。次の 9 の手順を、この順に行います。前の形の autopilot が入っているリポジトリでは、最後の「入れ済みのリポジトリを新しい形に移す」に従います。
 
 ## 1. ラベルを 2 つ作る
 手順 1 は、PR を作る前に、リモートのリポジトリを変えます (ラベルは、PR をマージしなくても残ります)。SKILL.md の「同意するまでリポジトリは変えない」の例外なので、提案 (interview.md) の一覧に入れ、同意の後に行います。
@@ -156,9 +156,12 @@ Slack への通知は、GitHub の Slack アプリの購読で届けます (Webh
 ### 権限の照らし合わせ
 | App の権限 | 値 | 使うところ |
 |---|---|---|
-| Contents・Pull requests・Issues | Read and write | ラベル・コメント・自動マージ・push |
-| Checks | Read | 必須のチェックの結果 |
+| Contents | Read and write | QA のエビデンスの push。見回りと QA が、設定とコードを読む |
+| Pull requests・Issues | Read and write | 見回りと QA のコメント。見回りのラベル (`autopilot:ready` の付け直しと `needs-human`) |
+| Checks | Read | 今は使いません (見回りも QA も、トークンに求めていません) |
 | Metadata | Read | 常に付く |
+
+自動マージの有効化と、指摘を直す push は、開発のルーティンが、ルーティンの持ち主の GitHub の権限で行います (App の権限は使いません)。
 
 画面で作るとき (6-B の 3 で開けないとき) は、作成の画面を、個人のアカウントなら `https://github.com/settings/apps/new`、org なら `https://github.com/organizations/<org>/settings/apps/new` として、manifest の権限を、画面で同じにしてもらいます。
 
@@ -250,3 +253,22 @@ RemoteTrigger で、次の 2 つを順に呼びます。
 絞り込み (ラベル名など) は効かないので付けません。ルーティンが最初にラベルを確かめます。
 
 作れなかったとき (ログインが違う・RemoteTrigger が使えない) は、claude.ai/code の画面で作る手順を示して、ユーザーに頼みます。
+
+## 入れ済みのリポジトリを新しい形に移す
+`.github/workflows/autopilot.yml` に `automerge`・`label`・`fix`・`ready`・`deploy` の job があれば、前の形の autopilot が入っています。次の順に、新しい形に移します。
+
+1. 開いている autopilot の PR (ブランチが `autopilot/` で始まる) が無いときに行います。あれば、マージか close されるのを待つか、その Issue と PR に `needs-human` を付けて止めます。止めた PR は、移した後に、Issue の `needs-human` を外して `autopilot:ready` を付け直すと、同じ PR で続きから進みます
+2. 新しいワークフローと設定を入れる PR を作り、マージしてもらいます。手順 2 (`.github/autopilot.yml`) と手順 3 (ワークフロー) のひな形から書き直し、手順 7 のとおり PR にします。下の「消すもの」のうち、リポジトリのファイルも、同じ PR で消します
+3. ルーティンの Web の環境の写しを、作り直してもらいます (環境の設定のスクリプトのコメントを 1 行変えると、作り直されます)。ルーティンが、新しいプラグインの開発と対応の手順を読むためです。ルーティンは作り直しません
+
+| 消すもの | 消し方 |
+|---|---|
+| シークレット `AUTOPILOT_SLACK_WEBHOOK_URL` | `gh secret delete AUTOPILOT_SLACK_WEBHOOK_URL` (org のシークレットなら `--org <org>` を付ける) |
+| `.github/workflows/rollback.yml` | 2 の PR で消す |
+| 変数 `AUTOPILOT_BAD_REVISIONS` | `gh variable delete AUTOPILOT_BAD_REVISIONS` |
+| Slack の App (前の setup が manifest で作ったもの) | Slack の App の設定の画面で消してもらう。通知は、6-C の購読にする |
+| zizmor の除外 | 2 の PR で、`.github/zizmor.yml` の `autopilot.yml:<行>` の除外を消す (手順 3) |
+
+- GitHub App の権限は、Actions と Variables を外してかまいません (上の「権限の照らし合わせ」)。外したら、導入先で権限の更新を承認してもらいます
+- org で共有しているもの (シークレット・Slack の App・GitHub App の権限) は、その org の前の形のリポジトリを、すべて移し終えてから消します。前の形のワークフローが、まだ使っているためです
+- Renovate (survey.md で確認) は、前の形のリポジトリで、`autopilot-plugin` の SHA だけを新しい版に上げることがあります。そのままマージすると、前の形のワークフローが消したコマンド (`automerge` など) を呼んで、job が落ちます。その PR はマージせず、この節の順に、ひな形ごと入れ直します
