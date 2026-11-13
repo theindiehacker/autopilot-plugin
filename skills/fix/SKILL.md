@@ -192,7 +192,7 @@ GitHub の MCP の `update_pull_request` で、`body` に新しい本文を渡�
 
 ### 11. レビューが無ければ頼み直す
 
-手順 1 (直すことの無い通知)・手順 3 (集めたものが無い)・手順 10 (返信だけ) から来ます。CI の終わりの通知 (`check_suite.completed` など) で、直すことが無いときも、ここで見ます。
+直すことが無いまま終わる通知は、すべてここに来ます。手順 1 の何もしない通知 (古い commit の結果・信頼できない書き手のコメントなども)、手順 3 で集めたものが無いとき、手順 10 で返信だけをしたときです。CI の終わりの通知 (`check_suite.completed` など) で、直すことが無いときも、ここで見ます。
 
 Draft でない PR に push すると、前のレビューの承認が外れます。続けて push すると、レビューのワークフローが見直しをしないことがあります。そのままでは、レビューが付かないまま PR が止まります。
 
@@ -200,13 +200,13 @@ Draft でない PR に push すると、前のレビューの承認が外れま�
 
 1. PR が Draft でない (手順 1 の `draft` が `false`)
 2. このセッションが、今の head でまだ頼み直していない。頼み直すのは、head ごとに 1 回までです。2 回目は頼まず、見回りが人に回すのを待ちます
-3. 今の head の CI が終わっている。下の 1 つ目の出力が `0` (`status` が `completed` でない check run が無い)
+3. 今の head の CI が終わっている。下の 1 つ目の出力で、`all` が 1 以上で、`running` が `0` (check run が 1 つ以上あり、すべての `status` が `completed`)。`all` が `0` なら、まだ check run がありません (CI もレビューも、これから始まります)。今は頼まず、次の通知で見直します
 4. `review.reviewer` の、今の head へのレビューが無い。下の 2 つ目の出力が `0` (`commit_id` が今の head のレビューが無い)
-5. 今の head の commit の時刻 (下の 3 つ目の出力) より後に、`review.command` だけを書いたコメントが無い。下の 4 つ目に、信頼できる書き手 (決まり) が出れば、もう頼んであるので頼みません
+5. 今の head の commit の時刻 (下の 3 つ目の出力) より後に、`review.command` だけを書いたコメントが無い。下の 4 つ目に、信頼できる書き手 (決まり) が出れば、もう頼んであるので頼みません。信頼できない書き手のコメントは数えません (あっても頼みます)
 
 ```bash
 gh api 'repos/{owner}/{repo}/commits/<head>/check-runs?per_page=100' --paginate \
-  | jq -s '[.[].check_runs[] | select(.status != "completed")] | length'
+  | jq -s -c '[.[].check_runs[]] | {all: length, running: map(select(.status != "completed")) | length}'
 gh api 'repos/{owner}/{repo}/pulls/<n>/reviews?per_page=100' --paginate \
   | jq -s '[add[] | select(.user.login == "<reviewer>" and .commit_id == "<head>")] | length'
 gh api repos/{owner}/{repo}/commits/<head> --jq .commit.committer.date
