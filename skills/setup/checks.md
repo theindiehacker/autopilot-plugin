@@ -170,7 +170,7 @@ tasks:
 ### Claude の Stop の hook
 [templates/claude-settings.json](templates/claude-settings.json) の `hooks` を、リポジトリの `.claude/settings.json` に足します。ファイルが無ければ、そのまま置きます。あれば、既存の設定は消さず、`hooks.Stop` の配列に足します。`{{RUNNER}}`・`{{STYLE_CHECK}}` は lefthook と同じ値に、`{{STYLE_FIX}}` は `style:fix` のコマンド (例: `task style:fix`) に置き換えます。前の setup が入れた編集後の hook (`hooks.PostToolUse` の、Ruff・Biome を動かす 1 行のもの) があれば、消します。QA のジョブでは、この hook は動きません (QA のワークフローが `AUTOPILOT_QA` を付ける。QA はコードを直さないため)。対応のジョブ (GitHub Actions) では動きます。そこでは git の hook を止めているので、push の前にスタイルを直す場所は、この hook だけです
 
-この hook は、Claude が作業を終えて止まるときに、`style:fix` → `style:check` を動かします。
+この hook は、Claude が作業を終えて止まるときに、`style:fix` → `style:check` を動かします。`style:fix` が失敗しても (直せない問題が残っても)、`style:check` は動かします。リポジトリ全体の問題を、まとめて Claude に伝えるためです。
 
 - 編集のたびには動かしません。`style:fix` は使っていない import を消すため、import を足してから使う編集の途中で動かすと、足した import が消えてしまうからです
 - 通らなければ、出力の最後の 80 行を Claude に渡し (exit 2)、直させます
