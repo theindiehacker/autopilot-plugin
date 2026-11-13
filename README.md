@@ -1,5 +1,5 @@
 <p align="center">
-  <img src="docs/images/readme/hero.svg" width="100%" alt="autopilot-plugin">
+  <img src="docs/images/readme/hero.svg" width="100%" alt="autopilot。スマホで Issue を書けば、マージまで進む。最初に PC で setup したら、あとは PC を開かなくていい。実装からマージまで、クラウドの Claude が進めます。右のスマホの画面では、Issue #42 に autopilot:ready のラベルが付き、Claude が作業を始めて PR #43 を作り、PR がマージされて Issue が閉じる。">
 </p>
 
 <p align="center">
@@ -8,85 +8,59 @@
   <a href="renovate.json"><img src="https://img.shields.io/badge/Renovate-308BE3?style=for-the-badge&logo=renovate&logoColor=white" alt="Renovate"></a>
 </p>
 
-<p align="center"><b>Issue に <code>autopilot:ready</code> を付けると、Claude が実装して PR を出し、レビューと CI が通ればマージまで進みます。<br>その仕組みを、<code>/autopilot:setup</code> でリポジトリに入れる Claude Code のプラグインです。</b></p>
+## 📱 あなたがするのは、これだけ
 
-## ✨ できること
+どれも、スマホの GitHub でできます。
+
+1. Issue を書いて、ラベル `autopilot:ready` を付ける
+2. 大事なファイルを変える PR だけ、Approve する
+3. 止まったら、Issue で答える (止まったことは、Slack に届けられます)
+
+## ☁️ そのあいだ、クラウドの Claude がすること
 
 <p align="center">
-  <img src="docs/images/readme/demo.svg" width="100%" alt="Issue からマージまでを 5 つの場面で見せるアニメーション。1. 人が Issue に autopilot:ready を付ける。2. ルーティンが Draft PR を作り、受入条件をコメントして、テストを書いてから実装する。3. アプリを起動して受入条件を確かめ、エビデンスを PR の本文に書く。4. Claude のレビューと CI が動き、指摘があれば直して push する。5. 必須のチェックとレビューがそろい、自動でマージされる。">
+  <img src="docs/images/readme/demo.svg" width="100%" alt="GitHub の PR の画面のイメージ。あなたがスマホからラベル autopilot:ready を付けると、Claude が受入条件を Issue にコメントし、テストを足してから実装し、受入条件 1 と 2 を動作確認する。claude[bot] が変更を求めると、Claude が直して push し、返信する。claude[bot] が Approve し、lint・test・security のチェックが通って、PR がマージされ、Issue #42 が閉じる。右には、あなたは PC を閉じたまま、ラベルを付けただけ、と出ている。">
 </p>
 
-- 🤖 **Issue からマージまで:** 受入条件・テスト・実装・動作確認・レビューへの対応を、Claude が進める
-- 🔍 **自動の検査:** 作業の終わり・commit 前・push 前に、lint・型・シークレット・脆弱性を検査する
-- ☁️ **Web の準備:** Claude Code on the Web の起動時に、依存と Docker を用意する
-- 📐 **技術スタックの統一:** bun・Biome・uv・Ruff・ty にそろえる
+<p align="center"><sub>※ 画面はイメージです</sub></p>
+
+受入条件を決め、テストを書いてから実装し、アプリを動かして確かめます。レビューの指摘を直し、必須のチェックとレビューがそろったら、自動でマージします。
+
+## 🛡️ 任せても壊れにくい
+
+- **テストが先:** 受入条件を Issue に書き、それを確かめるテストを書いてから実装します
+- **3 回の検査:** 作業の終わり・commit 前・push 前に、lint・型・シークレット・脆弱性を検査します
+- **そろうまでマージしない:** 必須のチェックとレビューを待ちます。大事なファイルを変える PR は、あなたの Approve が要ります
 
 ## 🚀 はじめかた
 
 ### 1. プラグインを入れる
 
-<details><summary><b>☁️ Claude Code on the Web</b></summary>
+<details><summary><b>☁️ Claude Code on the Web の環境を作る</b></summary>
 
-**1. 環境のメニューを開く**
+1. [claude.ai/code](https://claude.ai/code) を開き、入力欄の下の雲のマークを押してから、「新しい環境」を押します。
+2. 「名前」に、好きな名前を入れます。
+3. 「ネットワークアクセス」を押して「フル」を選び、「<」で戻ります。通信先を絞りたいときは、[制限付きにする手順](docs/network.md)を見てください。
+4. 「セットアップスクリプト」を押して次の内容を貼り付け、「<」で戻ります。
 
-[claude.ai/code](https://claude.ai/code) を開き、入力欄の下の雲のマーク (①) を押してから、「新しい環境」(②) を押します。
+   ```bash
+   claude plugin marketplace add anthropics/claude-plugins-official
+   claude plugin marketplace add theindiehacker/autopilot-plugin
+   claude plugin install autopilot@indiehacker
 
-<img src="docs/images/cloud-1-open-menu.png" width="356" alt="入力欄の下の雲のマークを①、メニューの「新しい環境」を②として赤枠で示した画面">
+   # 2026-11-11
+   ```
 
-**2. 環境の名前を入れる**
-
-「名前」(①) に、好きな名前を入れます。
-
-<img src="docs/images/cloud-2-new-environment.png" width="420" alt="新しい環境の画面。「名前」を①、「ネットワークアクセス」を②、「セットアップスクリプト」を③、「環境を追加」を④として赤枠で示している">
-
-**3. ネットワークアクセスを設定する**
-
-手順 2 の画面の「ネットワークアクセス」(②) を押して、「フル」を選びます。「<」を押して、前の画面に戻ります。
-
-通信先を絞りたいときは、[制限付きにする手順](docs/network.md)を見てください。
-
-**4. セットアップスクリプトを設定する**
-
-手順 2 の画面の「セットアップスクリプト」(③) を押して、次のように設定します。
-
-- ① 次の内容をコピーして貼り付けます。
-
-  ```bash
-  claude plugin marketplace add anthropics/claude-plugins-official
-  claude plugin marketplace add theindiehacker/autopilot-plugin
-  claude plugin install autopilot@indiehacker
-
-  # 2026-11-11
-  ```
-
-- ② 「<」を押して、前の画面に戻ります。
-
-<img src="docs/images/cloud-4-setup-script.png" width="420" alt="セットアップスクリプトの画面。入力欄を①、戻るボタンを②として赤枠で示している">
-
-**5. 環境を追加する**
-
-手順 2 の画面の「環境を追加」(④) を押します。新しいセッションで、この環境が使われます。
-
-**プラグインを更新したとき**
+5. 「環境を追加」を押します。新しいセッションで、この環境が使われます。
 
 > [!WARNING]
-> プラグインを更新したら、「セットアップスクリプト」の最後の行の日付を、更新した日に書き換えてください。書き換えないと、古いプラグインのまま動くことがあります。
-
-作った環境は、手順 1 のメニューで環境の行にマウスを乗せ、歯車のマーク (①) を押すと開けます。書き換えたら保存してください。
-
-<img src="docs/images/cloud-5-edit-environment.png" width="356" alt="メニューの環境の行にマウスを乗せると出る歯車のマークを①として赤枠で示した画面">
+> プラグインを更新したら、「セットアップスクリプト」の最後の行の日付を、更新した日に書き換えてください。書き換えないと、古いプラグインのまま動くことがあります。作った環境は、雲のマークのメニューで、環境の行の歯車のマークから開けます。
 
 </details>
 
-<details><summary><b>💻 PC の Claude Code</b></summary>
+<details><summary><b>💻 PC の Claude Code に入れる</b></summary>
 
-**1. ターミナルを開く**
-
-Mac では、`⌘` + `スペース` を押して「ターミナル」と入力し、`return` を押します。
-
-**2. コマンドを実行する**
-
-次のコマンドをコピーしてターミナルに貼り付け、`return` を押します。`marketplace add` が要るのは最初の 1 回だけです。
+ターミナルで次を実行し、Claude Code を開いていたら起動し直します。`marketplace add` が要るのは最初の 1 回だけです。
 
 ```bash
 claude plugin marketplace add anthropics/claude-plugins-official
@@ -94,14 +68,6 @@ claude plugin marketplace add theindiehacker/autopilot-plugin
 
 claude plugin install autopilot@indiehacker
 ```
-
-**3. 結果を確かめる**
-
-`✔ Successfully` が 3 つ出れば成功です。
-
-**4. Claude Code を起動し直す**
-
-Claude Code を開いていたら、起動し直します。
 
 > [!NOTE]
 > - Web 用の処理 (`dockerd`・`mise install`・`lefthook install`・`docker compose up`・Gitleaks などの導入・Claude に渡す指示のうち下書きの 2 つ) は、PC では動きません。
@@ -112,22 +78,13 @@ Claude Code を開いていたら、起動し直します。
 
 ### 2. PC の Claude Code で `/autopilot:setup` を実行する
 
-プラグインを入れただけでは、リポジトリに検査も autopilot も入りません。setup が、リポジトリを調べて、聞いて、提案し、同意を得てから整えて、PR を作ります。PR をマージすると、続けてルールセットとルーティンを作ります。
+PC を使うのは、この 1 回だけです。setup が、リポジトリを調べて、聞いて、提案し、同意を得てから整えて、PR を作ります。PR をマージすると、続けてルールセットとルーティンを作ります。
 
 クラウドのセッションでは動きません (GitHub の設定を変える API が拒否されるため)。中身は [setup の手順](docs/setup.md)を見てください。
 
-### 3. Issue に `autopilot:ready` を付ける
+### 3. スマホで、Issue にラベルを付ける
 
-権限のある人 (triage 以上) が付けると、Claude のルーティンが動き出し、マージまで進みます。進めないときは、`needs-human` を付けて止まります。
-
-## 🙋 人がすること
-
-| こと | いつ |
-|---|---|
-| CODEOWNERS のパスを変える PR を Approve する | GitHub のレビューの依頼が届いたとき |
-| `needs-human` の Issue に答えて、再開する | 止まったとき ([再開のしかた](docs/autopilot.md#止まる条件と再開のしかた)) |
-| Slack の通知を見る | GitHub の Slack アプリを購読したチャンネルに届く |
-| 起動しなかった Issue・止まった PR に気づく | 自動では拾わない。ラベルを付け直すか、セッションに直接書く |
+権限のある人 (triage 以上) が `autopilot:ready` を付けると、Claude のルーティンが動き出し、マージまで進みます。進めないときは、`needs-human` を付けて止まります ([再開のしかた](docs/autopilot.md#止まる条件と再開のしかた))。
 
 ## ⚠️ 注意
 

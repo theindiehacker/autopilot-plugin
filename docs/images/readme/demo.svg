@@ -1,173 +1,60 @@
-<svg xmlns="http://www.w3.org/2000/svg" width="1200" height="660" viewBox="0 0 1200 660">
+<svg xmlns="http://www.w3.org/2000/svg" width="1200" height="700" viewBox="0 0 1200 700">
 <style>
 .t{font-family:-apple-system,BlinkMacSystemFont,'Hiragino Sans','Hiragino Kaku Gothic ProN','Noto Sans CJK JP','Noto Sans JP','Yu Gothic',Meiryo,'Segoe UI',Helvetica,Arial,sans-serif}
-.m{font-family:ui-monospace,SFMono-Regular,'SF Mono',Menlo,Consolas,'Liberation Mono','Hiragino Sans','Hiragino Kaku Gothic ProN','Noto Sans CJK JP','Noto Sans JP','Yu Gothic',Meiryo,monospace}
-.static{display:none}
-@keyframes a1{0%{opacity:0}1.50%,18.50%{opacity:1}20.00%,100%{opacity:0}}.a1{animation:a1 30s ease-in-out infinite}
-@keyframes a2{0%,20.00%{opacity:0}21.50%,38.50%{opacity:1}40.00%,100%{opacity:0}}.a2{animation:a2 30s ease-in-out infinite}
-@keyframes a3{0%,40.00%{opacity:0}41.50%,58.50%{opacity:1}60.00%,100%{opacity:0}}.a3{animation:a3 30s ease-in-out infinite}
-@keyframes a4{0%,60.00%{opacity:0}61.50%,78.50%{opacity:1}80.00%,100%{opacity:0}}.a4{animation:a4 30s ease-in-out infinite}
-@keyframes a5{0%,80.00%{opacity:0}81.50%,98.50%{opacity:1}100%{opacity:0}}.a5{animation:a5 30s ease-in-out infinite}
-@keyframes a6{0%,18.50%{transform:scaleX(0)}21.50%,38.50%{transform:scaleX(0.2500)}41.50%,58.50%{transform:scaleX(0.5000)}61.50%,78.50%{transform:scaleX(0.7500)}81.50%,100.00%{transform:scaleX(1.0000)}}.a6{animation:a6 30s ease-in-out infinite}
-@keyframes a7{0%,18.50%{transform:translateX(0)}21.50%,38.50%{transform:translateX(225px)}41.50%,58.50%{transform:translateX(450px)}61.50%,78.50%{transform:translateX(675px)}81.50%,100.00%{transform:translateX(900px)}}.a7{animation:a7 30s ease-in-out infinite}
-@keyframes a8{0%,2.00%{opacity:0;transform:translateY(10px)}3.20%,100%{opacity:1;transform:translateY(0)}}.a8{animation:a8 30s ease-in-out infinite}
-@keyframes a9{0%,5.20%{opacity:0;transform:translateY(10px)}6.40%,100%{opacity:1;transform:translateY(0)}}.a9{animation:a9 30s ease-in-out infinite}
-@keyframes a10{0%,8.40%{opacity:0;transform:translateY(10px)}9.60%,100%{opacity:1;transform:translateY(0)}}.a10{animation:a10 30s ease-in-out infinite}
-@keyframes a11{0%,22.00%{opacity:0;transform:translateY(10px)}23.20%,100%{opacity:1;transform:translateY(0)}}.a11{animation:a11 30s ease-in-out infinite}
-@keyframes a12{0%,25.20%{opacity:0;transform:translateY(10px)}26.40%,100%{opacity:1;transform:translateY(0)}}.a12{animation:a12 30s ease-in-out infinite}
-@keyframes a13{0%,28.40%{opacity:0;transform:translateY(10px)}29.60%,100%{opacity:1;transform:translateY(0)}}.a13{animation:a13 30s ease-in-out infinite}
-@keyframes a14{0%,31.60%{opacity:0;transform:translateY(10px)}32.80%,100%{opacity:1;transform:translateY(0)}}.a14{animation:a14 30s ease-in-out infinite}
-@keyframes a15{0%,42.00%{opacity:0;transform:translateY(10px)}43.20%,100%{opacity:1;transform:translateY(0)}}.a15{animation:a15 30s ease-in-out infinite}
-@keyframes a16{0%,45.20%{opacity:0;transform:translateY(10px)}46.40%,100%{opacity:1;transform:translateY(0)}}.a16{animation:a16 30s ease-in-out infinite}
-@keyframes a17{0%,48.40%{opacity:0;transform:translateY(10px)}49.60%,100%{opacity:1;transform:translateY(0)}}.a17{animation:a17 30s ease-in-out infinite}
-@keyframes a18{0%,51.60%{opacity:0;transform:translateY(10px)}52.80%,100%{opacity:1;transform:translateY(0)}}.a18{animation:a18 30s ease-in-out infinite}
-@keyframes a19{0%,62.00%{opacity:0;transform:translateY(10px)}63.20%,100%{opacity:1;transform:translateY(0)}}.a19{animation:a19 30s ease-in-out infinite}
-@keyframes a20{0%,65.20%{opacity:0;transform:translateY(10px)}66.40%,100%{opacity:1;transform:translateY(0)}}.a20{animation:a20 30s ease-in-out infinite}
-@keyframes a21{0%,68.40%{opacity:0;transform:translateY(10px)}69.60%,100%{opacity:1;transform:translateY(0)}}.a21{animation:a21 30s ease-in-out infinite}
-@keyframes a22{0%,71.60%{opacity:0;transform:translateY(10px)}72.80%,100%{opacity:1;transform:translateY(0)}}.a22{animation:a22 30s ease-in-out infinite}
-@keyframes a23{0%,82.00%{opacity:0;transform:translateY(10px)}83.20%,100%{opacity:1;transform:translateY(0)}}.a23{animation:a23 30s ease-in-out infinite}
-@keyframes a24{0%,85.20%{opacity:0;transform:translateY(10px)}86.40%,100%{opacity:1;transform:translateY(0)}}.a24{animation:a24 30s ease-in-out infinite}
-@keyframes a25{0%,89.36%{opacity:0;transform:translateY(10px)}90.56%,100%{opacity:1;transform:translateY(0)}}.a25{animation:a25 30s ease-in-out infinite}
-@media (prefers-reduced-motion:reduce){*{animation:none!important}.anim{display:none}.static{display:inline}}
+.m{font-family:ui-monospace,SFMono-Regular,'SF Mono',Menlo,Consolas,'Liberation Mono','Hiragino Sans','Hiragino Kaku Gothic ProN','Noto Sans CJK JP','Noto Sans JP',monospace}
+@keyframes k1{0%,0.01%{opacity:0}1.50%,38.50%{opacity:1}40.00%,100%{opacity:0}}.k1{animation:k1 26s ease-in-out infinite}
+@keyframes k2{0%,40.00%{opacity:0}41.50%,77.50%{opacity:1}79.00%,100%{opacity:0}}.k2{animation:k2 26s ease-in-out infinite}
+@keyframes k3{0%,78.00%{opacity:0;transform:translateY(0px)}80.00%,96.00%{opacity:1;transform:translateY(0)}100%{opacity:0;transform:translateY(0)}}.k3{animation:k3 26s ease-in-out infinite}
+@keyframes k4{0%,4.00%{opacity:0;transform:translateY(8px)}6.00%,96.00%{opacity:1;transform:translateY(0)}100%{opacity:0;transform:translateY(0)}}.k4{animation:k4 26s ease-in-out infinite}
+@keyframes k5{0%,14.00%{opacity:0;transform:translateY(8px)}16.00%,96.00%{opacity:1;transform:translateY(0)}100%{opacity:0;transform:translateY(0)}}.k5{animation:k5 26s ease-in-out infinite}
+@keyframes k6{0%,24.00%{opacity:0;transform:translateY(8px)}26.00%,96.00%{opacity:1;transform:translateY(0)}100%{opacity:0;transform:translateY(0)}}.k6{animation:k6 26s ease-in-out infinite}
+@keyframes k7{0%,34.00%{opacity:0;transform:translateY(8px)}36.00%,96.00%{opacity:1;transform:translateY(0)}100%{opacity:0;transform:translateY(0)}}.k7{animation:k7 26s ease-in-out infinite}
+@keyframes k8{0%,46.00%{opacity:0;transform:translateY(8px)}48.00%,96.00%{opacity:1;transform:translateY(0)}100%{opacity:0;transform:translateY(0)}}.k8{animation:k8 26s ease-in-out infinite}
+@keyframes k9{0%,56.00%{opacity:0;transform:translateY(8px)}58.00%,96.00%{opacity:1;transform:translateY(0)}100%{opacity:0;transform:translateY(0)}}.k9{animation:k9 26s ease-in-out infinite}
+@keyframes k10{0%,66.00%{opacity:0;transform:translateY(8px)}68.00%,96.00%{opacity:1;transform:translateY(0)}100%{opacity:0;transform:translateY(0)}}.k10{animation:k10 26s ease-in-out infinite}
+@keyframes k11{0%,78.00%{opacity:0;transform:translateY(8px)}80.00%,96.00%{opacity:1;transform:translateY(0)}100%{opacity:0;transform:translateY(0)}}.k11{animation:k11 26s ease-in-out infinite}
+@keyframes k12{0%,0.01%{opacity:0}1.50%,68.50%{opacity:1}70.00%,100%{opacity:0}}.k12{animation:k12 26s ease-in-out infinite}
+@keyframes k13{0%,70.00%{opacity:0;transform:translateY(0px)}72.00%,96.00%{opacity:1;transform:translateY(0)}100%{opacity:0;transform:translateY(0)}}.k13{animation:k13 26s ease-in-out infinite}
+@keyframes k14{0%,0.01%{opacity:0}1.50%,68.50%{opacity:1}70.00%,100%{opacity:0}}.k14{animation:k14 26s ease-in-out infinite}
+@keyframes k15{0%,71.50%{opacity:0;transform:translateY(0px)}73.50%,96.00%{opacity:1;transform:translateY(0)}100%{opacity:0;transform:translateY(0)}}.k15{animation:k15 26s ease-in-out infinite}
+@keyframes k16{0%,0.01%{opacity:0}1.50%,68.50%{opacity:1}70.00%,100%{opacity:0}}.k16{animation:k16 26s ease-in-out infinite}
+@keyframes k17{0%,73.00%{opacity:0;transform:translateY(0px)}75.00%,96.00%{opacity:1;transform:translateY(0)}100%{opacity:0;transform:translateY(0)}}.k17{animation:k17 26s ease-in-out infinite}
+@media (prefers-reduced-motion:reduce){*{animation:none!important}}
 </style>
-<defs>
-<clipPath id="clip"><rect width="1200" height="660" rx="28"/></clipPath>
-<pattern id="dots" width="24" height="24" patternUnits="userSpaceOnUse"><circle cx="1" cy="1" r="1" fill="#FFFFFF" fill-opacity=".06"/></pattern>
-</defs>
+<defs><linearGradient id="night" x1="0" y1="0" x2="1" y2="1"><stop offset="0" stop-color="#0E1026"/><stop offset="1" stop-color="#1A1B42"/></linearGradient><clipPath id="clip"><rect width="1200" height="700" rx="28"/></clipPath></defs>
 <g clip-path="url(#clip)">
-<rect width="1200" height="660" fill="#07070D"/><rect width="1200" height="660" fill="url(#dots)"/>
-<g class="anim">
-<line x1="150" y1="50" x2="1050" y2="50" stroke="#FFFFFF" stroke-opacity=".15" stroke-width="4"/>
-<rect class="a6" style="transform-box:fill-box;transform-origin:left center" x="150" y="48" width="900" height="4" fill="#FFFFFF" fill-opacity=".6"/>
-<circle cx="150" cy="50" r="26" fill="#0E0E17" stroke="#FFFFFF" stroke-opacity=".25" stroke-width="2"/><text x="150" y="61" font-size="30" font-weight="700" fill="#A1A1AA" text-anchor="middle" class="t">1</text><text x="150" y="112" font-size="30" font-weight="700" fill="#71717A" text-anchor="middle" class="t">Issue</text>
-<circle cx="375" cy="50" r="26" fill="#0E0E17" stroke="#FFFFFF" stroke-opacity=".25" stroke-width="2"/><text x="375" y="61" font-size="30" font-weight="700" fill="#A1A1AA" text-anchor="middle" class="t">2</text><text x="375" y="112" font-size="30" font-weight="700" fill="#71717A" text-anchor="middle" class="t">実装</text>
-<circle cx="600" cy="50" r="26" fill="#0E0E17" stroke="#FFFFFF" stroke-opacity=".25" stroke-width="2"/><text x="600" y="61" font-size="30" font-weight="700" fill="#A1A1AA" text-anchor="middle" class="t">3</text><text x="600" y="112" font-size="30" font-weight="700" fill="#71717A" text-anchor="middle" class="t">動作確認</text>
-<circle cx="825" cy="50" r="26" fill="#0E0E17" stroke="#FFFFFF" stroke-opacity=".25" stroke-width="2"/><text x="825" y="61" font-size="30" font-weight="700" fill="#A1A1AA" text-anchor="middle" class="t">4</text><text x="825" y="112" font-size="30" font-weight="700" fill="#71717A" text-anchor="middle" class="t">レビュー</text>
-<circle cx="1050" cy="50" r="26" fill="#0E0E17" stroke="#FFFFFF" stroke-opacity=".25" stroke-width="2"/><text x="1050" y="61" font-size="30" font-weight="700" fill="#A1A1AA" text-anchor="middle" class="t">5</text><text x="1050" y="112" font-size="30" font-weight="700" fill="#71717A" text-anchor="middle" class="t">マージ</text>
-<g class="a7"><circle cx="150" cy="50" r="33" fill="none" stroke="#D97757" stroke-opacity=".9" stroke-width="3"/></g>
-<g class="a1"><circle cx="150" cy="50" r="26" fill="#D97757" fill-opacity=".18" stroke="#D97757" stroke-width="2"/><text x="150" y="61" font-size="30" font-weight="700" fill="#FAFAFA" text-anchor="middle" class="t">1</text><text x="150" y="112" font-size="30" font-weight="700" fill="#FAFAFA" text-anchor="middle" class="t">Issue</text></g>
-<g class="a2"><circle cx="375" cy="50" r="26" fill="#D97757" fill-opacity=".18" stroke="#D97757" stroke-width="2"/><text x="375" y="61" font-size="30" font-weight="700" fill="#FAFAFA" text-anchor="middle" class="t">2</text><text x="375" y="112" font-size="30" font-weight="700" fill="#FAFAFA" text-anchor="middle" class="t">実装</text></g>
-<g class="a3"><circle cx="600" cy="50" r="26" fill="#D97757" fill-opacity=".18" stroke="#D97757" stroke-width="2"/><text x="600" y="61" font-size="30" font-weight="700" fill="#FAFAFA" text-anchor="middle" class="t">3</text><text x="600" y="112" font-size="30" font-weight="700" fill="#FAFAFA" text-anchor="middle" class="t">動作確認</text></g>
-<g class="a4"><circle cx="825" cy="50" r="26" fill="#D97757" fill-opacity=".18" stroke="#D97757" stroke-width="2"/><text x="825" y="61" font-size="30" font-weight="700" fill="#FAFAFA" text-anchor="middle" class="t">4</text><text x="825" y="112" font-size="30" font-weight="700" fill="#FAFAFA" text-anchor="middle" class="t">レビュー</text></g>
-<g class="a5"><circle cx="1050" cy="50" r="26" fill="#D97757" fill-opacity=".18" stroke="#D97757" stroke-width="2"/><text x="1050" y="61" font-size="30" font-weight="700" fill="#FAFAFA" text-anchor="middle" class="t">5</text><text x="1050" y="112" font-size="30" font-weight="700" fill="#FAFAFA" text-anchor="middle" class="t">マージ</text></g>
-<g transform="translate(24 150)">
-<rect width="1152" height="486" rx="20" fill="#0E0E17"/><rect x=".5" y=".5" width="1151" height="485" rx="19.5" fill="none" stroke="#FFFFFF" stroke-opacity=".12"/><circle cx="30" cy="30" r="8" fill="#F87171" fill-opacity=".8"/><circle cx="56" cy="30" r="8" fill="#FBBF24" fill-opacity=".8"/><circle cx="82" cy="30" r="8" fill="#34D399" fill-opacity=".8"/><line x1="0" y1="60" x2="1152" y2="60" stroke="#FFFFFF" stroke-opacity=".08"/>
-<g class="a1">
-<text x="116" y="40" font-size="26" font-weight="700" fill="#A1A1AA" class="t">Issue #42 · パスワードを再設定できるようにする</text>
-<g class="a8">
-<rect x="36" y="96" width="156" height="40" rx="20" fill="#E4E4E7" fill-opacity=".12" stroke="#E4E4E7" stroke-opacity=".5"/><text x="114" y="124" font-size="22" font-weight="700" fill="#E4E4E7" text-anchor="middle" class="t">人</text>
-<text x="258" y="127" font-size="30" font-weight="500" class="t" xml:space="preserve"><tspan class="t" fill="#FAFAFA">Issue を書く</tspan></text>
-</g>
-<g class="a9">
-<rect x="16" y="174" width="1120" height="68" rx="12" fill="#34D399" fill-opacity=".10"/>
-<rect x="36" y="188" width="156" height="40" rx="20" fill="#E4E4E7" fill-opacity=".12" stroke="#E4E4E7" stroke-opacity=".5"/><text x="114" y="216" font-size="22" font-weight="700" fill="#E4E4E7" text-anchor="middle" class="t">人</text>
-<text x="226" y="220" font-size="30" font-weight="700" fill="#34D399" text-anchor="middle" class="m">+</text>
-<text x="258" y="219" font-size="30" font-weight="500" class="t" xml:space="preserve"><tspan class="t" fill="#FAFAFA">ラベル </tspan><tspan class="m" fill="#34D399">autopilot:ready</tspan><tspan class="t" fill="#FAFAFA"> を付ける</tspan></text>
-</g>
-<g class="a10">
-<rect x="36" y="280" width="156" height="40" rx="20" fill="#D97757" fill-opacity=".12" stroke="#D97757" stroke-opacity=".5"/><text x="114" y="308" font-size="22" font-weight="700" fill="#D97757" text-anchor="middle" class="t">Claude</text>
-<text x="226" y="312" font-size="30" font-weight="700" fill="#D97757" text-anchor="middle" class="m">▶</text>
-<text x="258" y="311" font-size="30" font-weight="500" class="t" xml:space="preserve"><tspan class="t" fill="#FAFAFA">起動して、ラベルと権限を確かめる</tspan></text>
-</g>
-</g>
-<g class="a2">
-<text x="116" y="40" font-size="26" font-weight="700" fill="#A1A1AA" class="t">PR #43 · Draft</text>
-<g class="a11">
-<rect x="36" y="96" width="156" height="40" rx="20" fill="#D97757" fill-opacity=".12" stroke="#D97757" stroke-opacity=".5"/><text x="114" y="124" font-size="22" font-weight="700" fill="#D97757" text-anchor="middle" class="t">Claude</text>
-<text x="258" y="127" font-size="30" font-weight="500" class="t" xml:space="preserve"><tspan class="t" fill="#FAFAFA">Draft PR を作る  </tspan><tspan class="m" fill="#A1A1AA">Closes #42</tspan></text>
-</g>
-<g class="a12">
-<rect x="36" y="188" width="156" height="40" rx="20" fill="#D97757" fill-opacity=".12" stroke="#D97757" stroke-opacity=".5"/><text x="114" y="216" font-size="22" font-weight="700" fill="#D97757" text-anchor="middle" class="t">Claude</text>
-<text x="258" y="219" font-size="30" font-weight="500" class="t" xml:space="preserve"><tspan class="t" fill="#FAFAFA">受入条件を Issue にコメントする</tspan></text>
-</g>
-<g class="a13">
-<rect x="16" y="266" width="1120" height="68" rx="12" fill="#F87171" fill-opacity=".10"/>
-<rect x="36" y="280" width="156" height="40" rx="20" fill="#D97757" fill-opacity=".12" stroke="#D97757" stroke-opacity=".5"/><text x="114" y="308" font-size="22" font-weight="700" fill="#D97757" text-anchor="middle" class="t">Claude</text>
-<text x="226" y="312" font-size="30" font-weight="700" fill="#F87171" text-anchor="middle" class="m">✗</text>
-<text x="258" y="311" font-size="30" font-weight="500" class="t" xml:space="preserve"><tspan class="t" fill="#FAFAFA">テストを書き、失敗するのを確かめる</tspan></text>
-</g>
-<g class="a14">
-<rect x="16" y="358" width="1120" height="68" rx="12" fill="#34D399" fill-opacity=".10"/>
-<rect x="36" y="372" width="156" height="40" rx="20" fill="#D97757" fill-opacity=".12" stroke="#D97757" stroke-opacity=".5"/><text x="114" y="400" font-size="22" font-weight="700" fill="#D97757" text-anchor="middle" class="t">Claude</text>
-<text x="226" y="404" font-size="30" font-weight="700" fill="#34D399" text-anchor="middle" class="m">✓</text>
-<text x="258" y="403" font-size="30" font-weight="500" class="t" xml:space="preserve"><tspan class="t" fill="#FAFAFA">実装して、テストを通す</tspan></text>
-</g>
-</g>
-<g class="a3">
-<text x="116" y="40" font-size="26" font-weight="700" fill="#A1A1AA" class="t">PR #43 · 動作確認</text>
-<g class="a15">
-<rect x="36" y="96" width="156" height="40" rx="20" fill="#D97757" fill-opacity=".12" stroke="#D97757" stroke-opacity=".5"/><text x="114" y="124" font-size="22" font-weight="700" fill="#D97757" text-anchor="middle" class="t">Claude</text>
-<text x="226" y="128" font-size="30" font-weight="700" fill="#D97757" text-anchor="middle" class="m">▶</text>
-<text x="258" y="127" font-size="30" font-weight="500" class="t" xml:space="preserve"><tspan class="t" fill="#FAFAFA">アプリを起動する</tspan></text>
-</g>
-<g class="a16">
-<rect x="16" y="174" width="1120" height="68" rx="12" fill="#34D399" fill-opacity=".10"/>
-<rect x="36" y="188" width="156" height="40" rx="20" fill="#D97757" fill-opacity=".12" stroke="#D97757" stroke-opacity=".5"/><text x="114" y="216" font-size="22" font-weight="700" fill="#D97757" text-anchor="middle" class="t">Claude</text>
-<text x="226" y="220" font-size="30" font-weight="700" fill="#34D399" text-anchor="middle" class="m">✓</text>
-<text x="258" y="219" font-size="30" font-weight="500" class="t" xml:space="preserve"><tspan class="t" fill="#FAFAFA">受入条件 1  再設定のメールが届く</tspan></text>
-</g>
-<g class="a17">
-<rect x="16" y="266" width="1120" height="68" rx="12" fill="#34D399" fill-opacity=".10"/>
-<rect x="36" y="280" width="156" height="40" rx="20" fill="#D97757" fill-opacity=".12" stroke="#D97757" stroke-opacity=".5"/><text x="114" y="308" font-size="22" font-weight="700" fill="#D97757" text-anchor="middle" class="t">Claude</text>
-<text x="226" y="312" font-size="30" font-weight="700" fill="#34D399" text-anchor="middle" class="m">✓</text>
-<text x="258" y="311" font-size="30" font-weight="500" class="t" xml:space="preserve"><tspan class="t" fill="#FAFAFA">受入条件 2  新しいパスワードでログインできる</tspan></text>
-</g>
-<g class="a18">
-<rect x="36" y="372" width="156" height="40" rx="20" fill="#D97757" fill-opacity=".12" stroke="#D97757" stroke-opacity=".5"/><text x="114" y="400" font-size="22" font-weight="700" fill="#D97757" text-anchor="middle" class="t">Claude</text>
-<text x="258" y="403" font-size="30" font-weight="500" class="t" xml:space="preserve"><tspan class="t" fill="#FAFAFA">エビデンスを付けて、PR の本文に書く</tspan></text>
-</g>
-</g>
-<g class="a4">
-<text x="116" y="40" font-size="26" font-weight="700" fill="#A1A1AA" class="t">PR #43 · レビュー可能 · 自動マージ有効</text>
-<g class="a19">
-<rect x="16" y="82" width="1120" height="68" rx="12" fill="#FBBF24" fill-opacity=".10"/>
-<rect x="36" y="96" width="156" height="40" rx="20" fill="#A78BFA" fill-opacity=".12" stroke="#A78BFA" stroke-opacity=".5"/><text x="114" y="124" font-size="22" font-weight="700" fill="#A78BFA" text-anchor="middle" class="t">GitHub</text>
-<text x="226" y="128" font-size="30" font-weight="700" fill="#FBBF24" text-anchor="middle" class="m">●</text>
-<text x="258" y="127" font-size="30" font-weight="500" class="t" xml:space="preserve"><tspan class="t" fill="#FAFAFA">Claude のレビュー  </tspan><tspan class="m" fill="#FBBF24">Request changes</tspan></text>
-</g>
-<g class="a20">
-<rect x="36" y="188" width="156" height="40" rx="20" fill="#D97757" fill-opacity=".12" stroke="#D97757" stroke-opacity=".5"/><text x="114" y="216" font-size="22" font-weight="700" fill="#D97757" text-anchor="middle" class="t">Claude</text>
-<text x="226" y="220" font-size="30" font-weight="700" fill="#D97757" text-anchor="middle" class="m">↻</text>
-<text x="258" y="219" font-size="30" font-weight="500" class="t" xml:space="preserve"><tspan class="t" fill="#FAFAFA">指摘を直して push し、返信する</tspan></text>
-</g>
-<g class="a21">
-<rect x="16" y="266" width="1120" height="68" rx="12" fill="#34D399" fill-opacity=".10"/>
-<rect x="36" y="280" width="156" height="40" rx="20" fill="#A78BFA" fill-opacity=".12" stroke="#A78BFA" stroke-opacity=".5"/><text x="114" y="308" font-size="22" font-weight="700" fill="#A78BFA" text-anchor="middle" class="t">GitHub</text>
-<text x="226" y="312" font-size="30" font-weight="700" fill="#34D399" text-anchor="middle" class="m">✓</text>
-<text x="258" y="311" font-size="30" font-weight="500" class="t" xml:space="preserve"><tspan class="t" fill="#FAFAFA">CI  </tspan><tspan class="m" fill="#34D399">passed</tspan></text>
-</g>
-<g class="a22">
-<rect x="16" y="358" width="1120" height="68" rx="12" fill="#34D399" fill-opacity=".10"/>
-<rect x="36" y="372" width="156" height="40" rx="20" fill="#A78BFA" fill-opacity=".12" stroke="#A78BFA" stroke-opacity=".5"/><text x="114" y="400" font-size="22" font-weight="700" fill="#A78BFA" text-anchor="middle" class="t">GitHub</text>
-<text x="226" y="404" font-size="30" font-weight="700" fill="#34D399" text-anchor="middle" class="m">✓</text>
-<text x="258" y="403" font-size="30" font-weight="500" class="t" xml:space="preserve"><tspan class="t" fill="#FAFAFA">Claude のレビュー  </tspan><tspan class="m" fill="#34D399">Approved</tspan></text>
-</g>
-</g>
-<g class="a5">
-<text x="116" y="40" font-size="26" font-weight="700" fill="#A1A1AA" class="t">PR #43 · Merged</text>
-<g class="a23">
-<rect x="16" y="82" width="1120" height="68" rx="12" fill="#34D399" fill-opacity=".10"/>
-<rect x="36" y="96" width="156" height="40" rx="20" fill="#A78BFA" fill-opacity=".12" stroke="#A78BFA" stroke-opacity=".5"/><text x="114" y="124" font-size="22" font-weight="700" fill="#A78BFA" text-anchor="middle" class="t">GitHub</text>
-<text x="226" y="128" font-size="30" font-weight="700" fill="#34D399" text-anchor="middle" class="m">✓</text>
-<text x="258" y="127" font-size="30" font-weight="500" class="t" xml:space="preserve"><tspan class="t" fill="#FAFAFA">必須のチェックとレビューがそろう</tspan></text>
-</g>
-<g class="a24">
-<rect x="16" y="174" width="1120" height="68" rx="12" fill="#A78BFA" fill-opacity=".10"/>
-<rect x="36" y="188" width="156" height="40" rx="20" fill="#A78BFA" fill-opacity=".12" stroke="#A78BFA" stroke-opacity=".5"/><text x="114" y="216" font-size="22" font-weight="700" fill="#A78BFA" text-anchor="middle" class="t">GitHub</text>
-<text x="226" y="220" font-size="30" font-weight="700" fill="#A78BFA" text-anchor="middle" class="m">✓</text>
-<text x="258" y="219" font-size="30" font-weight="500" class="t" xml:space="preserve"><tspan class="t" fill="#FAFAFA">自動でマージする  </tspan><tspan class="m" fill="#A1A1AA">Closes #42</tspan></text>
-</g>
-<g class="a25"><rect x="426.0" y="290" width="300" height="88" rx="44" fill="#A78BFA" fill-opacity=".18" stroke="#A78BFA" stroke-width="2"/><text x="576.0" y="349" font-size="44" font-weight="800" fill="#FAFAFA" text-anchor="middle" class="t">Merged</text></g>
-</g>
-</g>
-</g>
-<g class="static">
-<text x="600.0" y="62" font-size="32" font-weight="700" fill="#FAFAFA" text-anchor="middle" class="t">Issue からマージまで</text>
-<rect x="24" y="94" width="1152" height="92" rx="16" fill="#0E0E17" stroke="#FFFFFF" stroke-opacity=".10"/><circle cx="84" cy="140" r="26" fill="#D97757" fill-opacity=".18" stroke="#D97757" stroke-width="2"/><text x="84" y="151" font-size="30" font-weight="700" fill="#FAFAFA" text-anchor="middle" class="t">1</text><text x="136" y="151" font-size="30" font-weight="700" fill="#FAFAFA" class="t">Issue</text><text x="330" y="150" font-size="28" font-weight="500" class="t" xml:space="preserve"><tspan class="t" fill="#FAFAFA">人が Issue に </tspan><tspan class="m" fill="#34D399">autopilot:ready</tspan><tspan class="t" fill="#FAFAFA"> を付ける</tspan></text>
-<rect x="24" y="206" width="1152" height="92" rx="16" fill="#0E0E17" stroke="#FFFFFF" stroke-opacity=".10"/><circle cx="84" cy="252" r="26" fill="#D97757" fill-opacity=".18" stroke="#D97757" stroke-width="2"/><text x="84" y="263" font-size="30" font-weight="700" fill="#FAFAFA" text-anchor="middle" class="t">2</text><text x="136" y="263" font-size="30" font-weight="700" fill="#FAFAFA" class="t">実装</text><text x="330" y="262" font-size="28" font-weight="500" class="t" xml:space="preserve"><tspan class="t" fill="#FAFAFA">Draft PR を作り、受入条件 → テスト → 実装</tspan></text>
-<rect x="24" y="318" width="1152" height="92" rx="16" fill="#0E0E17" stroke="#FFFFFF" stroke-opacity=".10"/><circle cx="84" cy="364" r="26" fill="#D97757" fill-opacity=".18" stroke="#D97757" stroke-width="2"/><text x="84" y="375" font-size="30" font-weight="700" fill="#FAFAFA" text-anchor="middle" class="t">3</text><text x="136" y="375" font-size="30" font-weight="700" fill="#FAFAFA" class="t">動作確認</text><text x="330" y="374" font-size="28" font-weight="500" class="t" xml:space="preserve"><tspan class="t" fill="#FAFAFA">アプリで受入条件を確かめ、エビデンスを PR に書く</tspan></text>
-<rect x="24" y="430" width="1152" height="92" rx="16" fill="#0E0E17" stroke="#FFFFFF" stroke-opacity=".10"/><circle cx="84" cy="476" r="26" fill="#D97757" fill-opacity=".18" stroke="#D97757" stroke-width="2"/><text x="84" y="487" font-size="30" font-weight="700" fill="#FAFAFA" text-anchor="middle" class="t">4</text><text x="136" y="487" font-size="30" font-weight="700" fill="#FAFAFA" class="t">レビュー</text><text x="330" y="486" font-size="28" font-weight="500" class="t" xml:space="preserve"><tspan class="t" fill="#FAFAFA">Claude のレビューと CI。指摘を直して push</tspan></text>
-<rect x="24" y="542" width="1152" height="92" rx="16" fill="#0E0E17" stroke="#FFFFFF" stroke-opacity=".10"/><circle cx="84" cy="588" r="26" fill="#D97757" fill-opacity=".18" stroke="#D97757" stroke-width="2"/><text x="84" y="599" font-size="30" font-weight="700" fill="#FAFAFA" text-anchor="middle" class="t">5</text><text x="136" y="599" font-size="30" font-weight="700" fill="#FAFAFA" class="t">マージ</text><text x="330" y="598" font-size="28" font-weight="500" class="t" xml:space="preserve"><tspan class="t" fill="#FAFAFA">チェックとレビューがそろうと、自動でマージ</tspan></text>
-</g>
+<rect width="1200" height="700" fill="url(#night)"/>
+<rect x="24" y="24" width="1152" height="652" rx="20" fill="#0D1117" stroke="#30363D"/>
+<text x="56" y="84" font-size="30" font-weight="700" fill="#E6EDF3" class="t">パスワードを再設定できるようにする <tspan fill="#8D96A0" font-weight="400">#43</tspan></text>
+<g class="k1" opacity="0"><rect x="56" y="106" width="92" height="34" rx="17" fill="#3D444D"/><g transform="translate(64 113) scale(.83)" fill="none" stroke="#FFFFFF" stroke-width="2.4" stroke-linecap="round"><circle cx="6" cy="6" r="3"/><circle cx="6" cy="18" r="3"/><path d="M6 9v6"/><circle cx="18" cy="18" r="3"/><path d="M18 15V8a2 2 0 0 0-2-2h-3"/></g><text x="92" y="129" font-size="17" font-weight="700" fill="#FFFFFF" class="t">Draft</text></g>
+<g class="k2" opacity="0"><rect x="56" y="106" width="88" height="34" rx="17" fill="#238636"/><g transform="translate(64 113) scale(.83)" fill="none" stroke="#FFFFFF" stroke-width="2.4" stroke-linecap="round"><circle cx="6" cy="6" r="3"/><circle cx="6" cy="18" r="3"/><path d="M6 9v6"/><circle cx="18" cy="18" r="3"/><path d="M18 15V8a2 2 0 0 0-2-2h-3"/></g><text x="92" y="129" font-size="17" font-weight="700" fill="#FFFFFF" class="t">Open</text></g>
+<g class="k3"><rect x="56" y="106" width="112" height="34" rx="17" fill="#8957E5"/><g transform="translate(64 113) scale(.83)" fill="none" stroke="#FFFFFF" stroke-width="2.4" stroke-linecap="round"><circle cx="18" cy="18" r="3"/><circle cx="6" cy="6" r="3"/><path d="M6 21V9a9 9 0 0 0 9 9"/></g><text x="92" y="129" font-size="17" font-weight="700" fill="#FFFFFF" class="t">Merged</text></g>
+<text x="186" y="130" font-size="18" font-weight="500" fill="#8D96A0" class="t">Claude が <tspan class="m" fill="#58A6FF">autopilot/42-dev</tspan> から <tspan class="m" fill="#58A6FF">main</tspan> へ</text>
+<line x1="24" y1="164" x2="1176" y2="164" stroke="#30363D"/>
+<g class="k4"><circle cx="74" cy="206" r="18" fill="#1F2A44" stroke="#58A6FF" stroke-opacity=".6"/><circle cx="74" cy="201" r="6" fill="#9DB8E8"/><path d="M63 217 a11 9 0 0 1 22 0" fill="#9DB8E8"/><text x="110" y="213" font-size="20" font-weight="400" class="t" xml:space="preserve"><tspan font-weight="700" fill="#E6EDF3">あなた</tspan><tspan fill="#8D96A0"> がスマホから、ラベル </tspan><tspan class="m" fill="#3FB950" font-size="17">autopilot:ready</tspan><tspan fill="#8D96A0"> を付けた</tspan></text></g>
+<g class="k5"><line x1="74" y1="224" x2="74" y2="247" stroke="#30363D" stroke-width="2"/><circle cx="74" cy="265" r="18" fill="#2A1A14" stroke="#D97757" stroke-opacity=".8"/><path transform="translate(62 253) scale(1.0000)" fill="#D97757" d="m4.7144 15.9555 4.7174-2.6471.079-.2307-.079-.1275h-.2307l-.7893-.0486-2.6956-.0729-2.3375-.0971-2.2646-.1214-.5707-.1215-.5343-.7042.0546-.3522.4797-.3218.686.0608 1.5179.1032 2.2767.1578 1.6514.0972 2.4468.255h.3886l.0546-.1579-.1336-.0971-.1032-.0972L6.973 9.8356l-2.55-1.6879-1.3356-.9714-.7225-.4918-.3643-.4614-.1578-1.0078.6557-.7225.8803.0607.2246.0607.8925.686 1.9064 1.4754 2.4893 1.8336.3643.3035.1457-.1032.0182-.0728-.164-.2733-1.3539-2.4467-1.445-2.4893-.6435-1.032-.17-.6194c-.0607-.255-.1032-.4674-.1032-.7285L6.287.1335 6.6997 0l.9957.1336.419.3642.6192 1.4147 1.0018 2.2282 1.5543 3.0296.4553.8985.2429.8318.091.255h.1579v-.1457l.1275-1.706.2368-2.0947.2307-2.6957.0789-.7589.3764-.9107.7468-.4918.5828.2793.4797.686-.0668.4433-.2853 1.8517-.5586 2.9021-.3643 1.9429h.2125l.2429-.2429.9835-1.3053 1.6514-2.0643.7286-.8196.85-.9046.5464-.4311h1.0321l.759 1.1293-.34 1.1657-1.0625 1.3478-.8804 1.1414-1.2628 1.7-.7893 1.36.0729.1093.1882-.0183 2.8535-.607 1.5421-.2794 1.8396-.3157.8318.3886.091.3946-.3278.8075-1.967.4857-2.3072.4614-3.4364.8136-.0425.0304.0486.0607 1.5482.1457.6618.0364h1.621l3.0175.2247.7892.522.4736.6376-.079.4857-1.2142.6193-1.6393-.3886-3.825-.9107-1.3113-.3279h-.1822v.1093l1.0929 1.0686 2.0035 1.8092 2.5075 2.3314.1275.5768-.3218.4554-.34-.0486-2.2039-1.6575-.85-.7468-1.9246-1.621h-.1275v.17l.4432.6496 2.3436 3.5214.1214 1.0807-.17.3521-.6071.2125-.6679-.1214-1.3721-1.9246L14.38 17.959l-1.1414-1.9428-.1397.079-.674 7.2552-.3156.3703-.7286.2793-.6071-.4614-.3218-.7468.3218-1.4753.3886-1.9246.3157-1.53.2853-1.9004.17-.6314-.0121-.0425-.1397.0182-1.4328 1.9672-2.1796 2.9446-1.7243 1.8456-.4128.164-.7164-.3704.0667-.6618.4008-.5889 2.386-3.0357 1.4389-1.882.929-1.0868-.0062-.1579h-.0546l-6.3385 4.1164-1.1293.1457-.4857-.4554.0608-.7467.2307-.2429 1.9064-1.3114Z"/><text x="110" y="272" font-size="20" font-weight="400" class="t" xml:space="preserve"><tspan font-weight="700" fill="#E6EDF3">Claude</tspan><tspan fill="#8D96A0"> が受入条件を、Issue にコメントした</tspan></text></g>
+<g class="k6"><line x1="74" y1="283" x2="74" y2="306" stroke="#30363D" stroke-width="2"/><circle cx="74" cy="324" r="18" fill="#2A1A14" stroke="#D97757" stroke-opacity=".8"/><path transform="translate(62 312) scale(1.0000)" fill="#D97757" d="m4.7144 15.9555 4.7174-2.6471.079-.2307-.079-.1275h-.2307l-.7893-.0486-2.6956-.0729-2.3375-.0971-2.2646-.1214-.5707-.1215-.5343-.7042.0546-.3522.4797-.3218.686.0608 1.5179.1032 2.2767.1578 1.6514.0972 2.4468.255h.3886l.0546-.1579-.1336-.0971-.1032-.0972L6.973 9.8356l-2.55-1.6879-1.3356-.9714-.7225-.4918-.3643-.4614-.1578-1.0078.6557-.7225.8803.0607.2246.0607.8925.686 1.9064 1.4754 2.4893 1.8336.3643.3035.1457-.1032.0182-.0728-.164-.2733-1.3539-2.4467-1.445-2.4893-.6435-1.032-.17-.6194c-.0607-.255-.1032-.4674-.1032-.7285L6.287.1335 6.6997 0l.9957.1336.419.3642.6192 1.4147 1.0018 2.2282 1.5543 3.0296.4553.8985.2429.8318.091.255h.1579v-.1457l.1275-1.706.2368-2.0947.2307-2.6957.0789-.7589.3764-.9107.7468-.4918.5828.2793.4797.686-.0668.4433-.2853 1.8517-.5586 2.9021-.3643 1.9429h.2125l.2429-.2429.9835-1.3053 1.6514-2.0643.7286-.8196.85-.9046.5464-.4311h1.0321l.759 1.1293-.34 1.1657-1.0625 1.3478-.8804 1.1414-1.2628 1.7-.7893 1.36.0729.1093.1882-.0183 2.8535-.607 1.5421-.2794 1.8396-.3157.8318.3886.091.3946-.3278.8075-1.967.4857-2.3072.4614-3.4364.8136-.0425.0304.0486.0607 1.5482.1457.6618.0364h1.621l3.0175.2247.7892.522.4736.6376-.079.4857-1.2142.6193-1.6393-.3886-3.825-.9107-1.3113-.3279h-.1822v.1093l1.0929 1.0686 2.0035 1.8092 2.5075 2.3314.1275.5768-.3218.4554-.34-.0486-2.2039-1.6575-.85-.7468-1.9246-1.621h-.1275v.17l.4432.6496 2.3436 3.5214.1214 1.0807-.17.3521-.6071.2125-.6679-.1214-1.3721-1.9246L14.38 17.959l-1.1414-1.9428-.1397.079-.674 7.2552-.3156.3703-.7286.2793-.6071-.4614-.3218-.7468.3218-1.4753.3886-1.9246.3157-1.53.2853-1.9004.17-.6314-.0121-.0425-.1397.0182-1.4328 1.9672-2.1796 2.9446-1.7243 1.8456-.4128.164-.7164-.3704.0667-.6618.4008-.5889 2.386-3.0357 1.4389-1.882.929-1.0868-.0062-.1579h-.0546l-6.3385 4.1164-1.1293.1457-.4857-.4554.0608-.7467.2307-.2429 1.9064-1.3114Z"/><text x="110" y="331" font-size="20" font-weight="400" class="t" xml:space="preserve"><tspan font-weight="700" fill="#E6EDF3">Claude</tspan><tspan fill="#8D96A0"> が commit した  </tspan><tspan class="m" fill="#8D96A0" font-size="17">テストを足す</tspan><tspan fill="#8D96A0">  →  </tspan><tspan class="m" fill="#8D96A0" font-size="17">実装する</tspan></text></g>
+<g class="k7"><line x1="74" y1="342" x2="74" y2="365" stroke="#30363D" stroke-width="2"/><circle cx="74" cy="383" r="18" fill="#2A1A14" stroke="#D97757" stroke-opacity=".8"/><path transform="translate(62 371) scale(1.0000)" fill="#D97757" d="m4.7144 15.9555 4.7174-2.6471.079-.2307-.079-.1275h-.2307l-.7893-.0486-2.6956-.0729-2.3375-.0971-2.2646-.1214-.5707-.1215-.5343-.7042.0546-.3522.4797-.3218.686.0608 1.5179.1032 2.2767.1578 1.6514.0972 2.4468.255h.3886l.0546-.1579-.1336-.0971-.1032-.0972L6.973 9.8356l-2.55-1.6879-1.3356-.9714-.7225-.4918-.3643-.4614-.1578-1.0078.6557-.7225.8803.0607.2246.0607.8925.686 1.9064 1.4754 2.4893 1.8336.3643.3035.1457-.1032.0182-.0728-.164-.2733-1.3539-2.4467-1.445-2.4893-.6435-1.032-.17-.6194c-.0607-.255-.1032-.4674-.1032-.7285L6.287.1335 6.6997 0l.9957.1336.419.3642.6192 1.4147 1.0018 2.2282 1.5543 3.0296.4553.8985.2429.8318.091.255h.1579v-.1457l.1275-1.706.2368-2.0947.2307-2.6957.0789-.7589.3764-.9107.7468-.4918.5828.2793.4797.686-.0668.4433-.2853 1.8517-.5586 2.9021-.3643 1.9429h.2125l.2429-.2429.9835-1.3053 1.6514-2.0643.7286-.8196.85-.9046.5464-.4311h1.0321l.759 1.1293-.34 1.1657-1.0625 1.3478-.8804 1.1414-1.2628 1.7-.7893 1.36.0729.1093.1882-.0183 2.8535-.607 1.5421-.2794 1.8396-.3157.8318.3886.091.3946-.3278.8075-1.967.4857-2.3072.4614-3.4364.8136-.0425.0304.0486.0607 1.5482.1457.6618.0364h1.621l3.0175.2247.7892.522.4736.6376-.079.4857-1.2142.6193-1.6393-.3886-3.825-.9107-1.3113-.3279h-.1822v.1093l1.0929 1.0686 2.0035 1.8092 2.5075 2.3314.1275.5768-.3218.4554-.34-.0486-2.2039-1.6575-.85-.7468-1.9246-1.621h-.1275v.17l.4432.6496 2.3436 3.5214.1214 1.0807-.17.3521-.6071.2125-.6679-.1214-1.3721-1.9246L14.38 17.959l-1.1414-1.9428-.1397.079-.674 7.2552-.3156.3703-.7286.2793-.6071-.4614-.3218-.7468.3218-1.4753.3886-1.9246.3157-1.53.2853-1.9004.17-.6314-.0121-.0425-.1397.0182-1.4328 1.9672-2.1796 2.9446-1.7243 1.8456-.4128.164-.7164-.3704.0667-.6618.4008-.5889 2.386-3.0357 1.4389-1.882.929-1.0868-.0062-.1579h-.0546l-6.3385 4.1164-1.1293.1457-.4857-.4554.0608-.7467.2307-.2429 1.9064-1.3114Z"/><text x="110" y="390" font-size="20" font-weight="400" class="t" xml:space="preserve"><tspan font-weight="700" fill="#E6EDF3">Claude</tspan><tspan fill="#8D96A0"> が動作確認した  </tspan><tspan fill="#3FB950">✓ 受入条件 1   ✓ 受入条件 2</tspan></text></g>
+<g class="k8"><line x1="74" y1="401" x2="74" y2="424" stroke="#30363D" stroke-width="2"/><circle cx="74" cy="442" r="18" fill="#2A1A14" stroke="#D29922" stroke-opacity=".8"/><path transform="translate(62 430) scale(1.0000)" fill="#D97757" d="m4.7144 15.9555 4.7174-2.6471.079-.2307-.079-.1275h-.2307l-.7893-.0486-2.6956-.0729-2.3375-.0971-2.2646-.1214-.5707-.1215-.5343-.7042.0546-.3522.4797-.3218.686.0608 1.5179.1032 2.2767.1578 1.6514.0972 2.4468.255h.3886l.0546-.1579-.1336-.0971-.1032-.0972L6.973 9.8356l-2.55-1.6879-1.3356-.9714-.7225-.4918-.3643-.4614-.1578-1.0078.6557-.7225.8803.0607.2246.0607.8925.686 1.9064 1.4754 2.4893 1.8336.3643.3035.1457-.1032.0182-.0728-.164-.2733-1.3539-2.4467-1.445-2.4893-.6435-1.032-.17-.6194c-.0607-.255-.1032-.4674-.1032-.7285L6.287.1335 6.6997 0l.9957.1336.419.3642.6192 1.4147 1.0018 2.2282 1.5543 3.0296.4553.8985.2429.8318.091.255h.1579v-.1457l.1275-1.706.2368-2.0947.2307-2.6957.0789-.7589.3764-.9107.7468-.4918.5828.2793.4797.686-.0668.4433-.2853 1.8517-.5586 2.9021-.3643 1.9429h.2125l.2429-.2429.9835-1.3053 1.6514-2.0643.7286-.8196.85-.9046.5464-.4311h1.0321l.759 1.1293-.34 1.1657-1.0625 1.3478-.8804 1.1414-1.2628 1.7-.7893 1.36.0729.1093.1882-.0183 2.8535-.607 1.5421-.2794 1.8396-.3157.8318.3886.091.3946-.3278.8075-1.967.4857-2.3072.4614-3.4364.8136-.0425.0304.0486.0607 1.5482.1457.6618.0364h1.621l3.0175.2247.7892.522.4736.6376-.079.4857-1.2142.6193-1.6393-.3886-3.825-.9107-1.3113-.3279h-.1822v.1093l1.0929 1.0686 2.0035 1.8092 2.5075 2.3314.1275.5768-.3218.4554-.34-.0486-2.2039-1.6575-.85-.7468-1.9246-1.621h-.1275v.17l.4432.6496 2.3436 3.5214.1214 1.0807-.17.3521-.6071.2125-.6679-.1214-1.3721-1.9246L14.38 17.959l-1.1414-1.9428-.1397.079-.674 7.2552-.3156.3703-.7286.2793-.6071-.4614-.3218-.7468.3218-1.4753.3886-1.9246.3157-1.53.2853-1.9004.17-.6314-.0121-.0425-.1397.0182-1.4328 1.9672-2.1796 2.9446-1.7243 1.8456-.4128.164-.7164-.3704.0667-.6618.4008-.5889 2.386-3.0357 1.4389-1.882.929-1.0868-.0062-.1579h-.0546l-6.3385 4.1164-1.1293.1457-.4857-.4554.0608-.7467.2307-.2429 1.9064-1.3114Z"/><text x="110" y="449" font-size="20" font-weight="400" class="t" xml:space="preserve"><tspan font-weight="700" fill="#E6EDF3">claude[bot]</tspan><tspan fill="#8D96A0"> が変更を求めた  </tspan><tspan fill="#D29922">「トークンの期限も確かめて」</tspan></text></g>
+<g class="k9"><line x1="74" y1="460" x2="74" y2="483" stroke="#30363D" stroke-width="2"/><circle cx="74" cy="501" r="18" fill="#2A1A14" stroke="#D97757" stroke-opacity=".8"/><path transform="translate(62 489) scale(1.0000)" fill="#D97757" d="m4.7144 15.9555 4.7174-2.6471.079-.2307-.079-.1275h-.2307l-.7893-.0486-2.6956-.0729-2.3375-.0971-2.2646-.1214-.5707-.1215-.5343-.7042.0546-.3522.4797-.3218.686.0608 1.5179.1032 2.2767.1578 1.6514.0972 2.4468.255h.3886l.0546-.1579-.1336-.0971-.1032-.0972L6.973 9.8356l-2.55-1.6879-1.3356-.9714-.7225-.4918-.3643-.4614-.1578-1.0078.6557-.7225.8803.0607.2246.0607.8925.686 1.9064 1.4754 2.4893 1.8336.3643.3035.1457-.1032.0182-.0728-.164-.2733-1.3539-2.4467-1.445-2.4893-.6435-1.032-.17-.6194c-.0607-.255-.1032-.4674-.1032-.7285L6.287.1335 6.6997 0l.9957.1336.419.3642.6192 1.4147 1.0018 2.2282 1.5543 3.0296.4553.8985.2429.8318.091.255h.1579v-.1457l.1275-1.706.2368-2.0947.2307-2.6957.0789-.7589.3764-.9107.7468-.4918.5828.2793.4797.686-.0668.4433-.2853 1.8517-.5586 2.9021-.3643 1.9429h.2125l.2429-.2429.9835-1.3053 1.6514-2.0643.7286-.8196.85-.9046.5464-.4311h1.0321l.759 1.1293-.34 1.1657-1.0625 1.3478-.8804 1.1414-1.2628 1.7-.7893 1.36.0729.1093.1882-.0183 2.8535-.607 1.5421-.2794 1.8396-.3157.8318.3886.091.3946-.3278.8075-1.967.4857-2.3072.4614-3.4364.8136-.0425.0304.0486.0607 1.5482.1457.6618.0364h1.621l3.0175.2247.7892.522.4736.6376-.079.4857-1.2142.6193-1.6393-.3886-3.825-.9107-1.3113-.3279h-.1822v.1093l1.0929 1.0686 2.0035 1.8092 2.5075 2.3314.1275.5768-.3218.4554-.34-.0486-2.2039-1.6575-.85-.7468-1.9246-1.621h-.1275v.17l.4432.6496 2.3436 3.5214.1214 1.0807-.17.3521-.6071.2125-.6679-.1214-1.3721-1.9246L14.38 17.959l-1.1414-1.9428-.1397.079-.674 7.2552-.3156.3703-.7286.2793-.6071-.4614-.3218-.7468.3218-1.4753.3886-1.9246.3157-1.53.2853-1.9004.17-.6314-.0121-.0425-.1397.0182-1.4328 1.9672-2.1796 2.9446-1.7243 1.8456-.4128.164-.7164-.3704.0667-.6618.4008-.5889 2.386-3.0357 1.4389-1.882.929-1.0868-.0062-.1579h-.0546l-6.3385 4.1164-1.1293.1457-.4857-.4554.0608-.7467.2307-.2429 1.9064-1.3114Z"/><text x="110" y="508" font-size="20" font-weight="400" class="t" xml:space="preserve"><tspan font-weight="700" fill="#E6EDF3">Claude</tspan><tspan fill="#8D96A0"> が直して push し、返信した</tspan></text></g>
+<g class="k10"><line x1="74" y1="519" x2="74" y2="542" stroke="#30363D" stroke-width="2"/><circle cx="74" cy="560" r="18" fill="#2A1A14" stroke="#3FB950" stroke-opacity=".8"/><path transform="translate(62 548) scale(1.0000)" fill="#D97757" d="m4.7144 15.9555 4.7174-2.6471.079-.2307-.079-.1275h-.2307l-.7893-.0486-2.6956-.0729-2.3375-.0971-2.2646-.1214-.5707-.1215-.5343-.7042.0546-.3522.4797-.3218.686.0608 1.5179.1032 2.2767.1578 1.6514.0972 2.4468.255h.3886l.0546-.1579-.1336-.0971-.1032-.0972L6.973 9.8356l-2.55-1.6879-1.3356-.9714-.7225-.4918-.3643-.4614-.1578-1.0078.6557-.7225.8803.0607.2246.0607.8925.686 1.9064 1.4754 2.4893 1.8336.3643.3035.1457-.1032.0182-.0728-.164-.2733-1.3539-2.4467-1.445-2.4893-.6435-1.032-.17-.6194c-.0607-.255-.1032-.4674-.1032-.7285L6.287.1335 6.6997 0l.9957.1336.419.3642.6192 1.4147 1.0018 2.2282 1.5543 3.0296.4553.8985.2429.8318.091.255h.1579v-.1457l.1275-1.706.2368-2.0947.2307-2.6957.0789-.7589.3764-.9107.7468-.4918.5828.2793.4797.686-.0668.4433-.2853 1.8517-.5586 2.9021-.3643 1.9429h.2125l.2429-.2429.9835-1.3053 1.6514-2.0643.7286-.8196.85-.9046.5464-.4311h1.0321l.759 1.1293-.34 1.1657-1.0625 1.3478-.8804 1.1414-1.2628 1.7-.7893 1.36.0729.1093.1882-.0183 2.8535-.607 1.5421-.2794 1.8396-.3157.8318.3886.091.3946-.3278.8075-1.967.4857-2.3072.4614-3.4364.8136-.0425.0304.0486.0607 1.5482.1457.6618.0364h1.621l3.0175.2247.7892.522.4736.6376-.079.4857-1.2142.6193-1.6393-.3886-3.825-.9107-1.3113-.3279h-.1822v.1093l1.0929 1.0686 2.0035 1.8092 2.5075 2.3314.1275.5768-.3218.4554-.34-.0486-2.2039-1.6575-.85-.7468-1.9246-1.621h-.1275v.17l.4432.6496 2.3436 3.5214.1214 1.0807-.17.3521-.6071.2125-.6679-.1214-1.3721-1.9246L14.38 17.959l-1.1414-1.9428-.1397.079-.674 7.2552-.3156.3703-.7286.2793-.6071-.4614-.3218-.7468.3218-1.4753.3886-1.9246.3157-1.53.2853-1.9004.17-.6314-.0121-.0425-.1397.0182-1.4328 1.9672-2.1796 2.9446-1.7243 1.8456-.4128.164-.7164-.3704.0667-.6618.4008-.5889 2.386-3.0357 1.4389-1.882.929-1.0868-.0062-.1579h-.0546l-6.3385 4.1164-1.1293.1457-.4857-.4554.0608-.7467.2307-.2429 1.9064-1.3114Z"/><text x="110" y="567" font-size="20" font-weight="400" class="t" xml:space="preserve"><tspan font-weight="700" fill="#E6EDF3">claude[bot]</tspan><tspan fill="#3FB950"> が Approve した</tspan></text></g>
+<g class="k11"><line x1="74" y1="578" x2="74" y2="601" stroke="#30363D" stroke-width="2"/><circle cx="74" cy="619" r="18" fill="#8957E5"/><g transform="translate(64 609) scale(.84)" fill="none" stroke="#FFFFFF" stroke-width="2.4" stroke-linecap="round"><circle cx="18" cy="18" r="3"/><circle cx="6" cy="6" r="3"/><path d="M6 21V9a9 9 0 0 0 9 9"/></g><text x="110" y="626" font-size="20" font-weight="400" class="t" xml:space="preserve"><tspan font-weight="700" fill="#A371F7">マージされ</tspan><tspan fill="#8D96A0">、Issue #42 が閉じた</tspan></text></g>
+<line x1="816" y1="164" x2="816" y2="676" stroke="#30363D"/>
+<text x="836" y="206" font-size="17" font-weight="700" fill="#8D96A0" class="t">チェック</text>
+<g class="k12" opacity="0"><circle cx="848" cy="246" r="7" fill="#D29922"/></g>
+<g class="k13"><circle cx="848" cy="246" r="11" fill="#238636"/><path d="M843 246 l3.5 3.5 l6.5 -7" fill="none" stroke="#FFFFFF" stroke-width="2.2" stroke-linecap="round" stroke-linejoin="round"/></g>
+<text x="872" y="253" font-size="19" font-weight="500" fill="#E6EDF3" class="m">lint</text>
+<g class="k14" opacity="0"><circle cx="848" cy="290" r="7" fill="#D29922"/></g>
+<g class="k15"><circle cx="848" cy="290" r="11" fill="#238636"/><path d="M843 290 l3.5 3.5 l6.5 -7" fill="none" stroke="#FFFFFF" stroke-width="2.2" stroke-linecap="round" stroke-linejoin="round"/></g>
+<text x="872" y="297" font-size="19" font-weight="500" fill="#E6EDF3" class="m">test</text>
+<g class="k16" opacity="0"><circle cx="848" cy="334" r="7" fill="#D29922"/></g>
+<g class="k17"><circle cx="848" cy="334" r="11" fill="#238636"/><path d="M843 334 l3.5 3.5 l6.5 -7" fill="none" stroke="#FFFFFF" stroke-width="2.2" stroke-linecap="round" stroke-linejoin="round"/></g>
+<text x="872" y="341" font-size="19" font-weight="500" fill="#E6EDF3" class="m">security</text>
+<line x1="836" y1="398" x2="1152" y2="398" stroke="#30363D"/>
+<text x="836" y="440" font-size="17" font-weight="700" fill="#8D96A0" class="t">あなた</text>
+<g transform="translate(836 470)"><rect x="2" y="10" width="36" height="8" rx="3" fill="none" stroke="#A9A8C8" stroke-width="2"/><path d="M0 22h40" stroke="#A9A8C8" stroke-width="2" stroke-linecap="round"/></g>
+<text x="890" y="493" font-size="22" font-weight="700" fill="#F4EFE4" class="t">PC は閉じたまま</text>
+<g transform="translate(846 522)"><rect x="0" y="0" width="20" height="34" rx="4" fill="none" stroke="#A9A8C8" stroke-width="2"/><path d="M7 29h6" stroke="#A9A8C8" stroke-width="2" stroke-linecap="round"/></g>
+<text x="890" y="547" font-size="22" font-weight="700" fill="#F4EFE4" class="t">ラベルを付けただけ</text>
 </g>
 </svg>
