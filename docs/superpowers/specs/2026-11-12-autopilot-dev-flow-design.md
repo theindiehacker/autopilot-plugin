@@ -233,7 +233,7 @@ required_checks:
   - task dev:e2e
 routine_github_user: <ルーティンの持ち主の GitHub のユーザー名>   # コメントの印を受け付ける相手
 qa:
-  start: docker compose up --build -d --wait   # GitHub Actions でアプリを起動するコマンド
+  start: task dev:up   # アプリを起動するコマンド (タスクランナーの dev:up。人・動作確認・QA が使う)
   url: http://localhost:3000
 notify:
   slack_channel: "#alerts"   # Webhook の URL はシークレットに入れる

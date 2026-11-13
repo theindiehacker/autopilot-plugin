@@ -5,7 +5,7 @@
         "hooks": [
           {
             "type": "command",
-            "command": "cd \"$CLAUDE_PROJECT_DIR\" || exit 0; grep -q '\"stop_hook_active\": *true' && exit 0; [ -n \"$(git status --porcelain 2>/dev/null)\" ] || exit 0; command -v {{RUNNER}} >/dev/null || exit 0; o=$({ {{STYLE_FIX}} && {{STYLE_CHECK}}; } 2>&1) && exit 0; printf '%s\\n' \"$o\" | tail -n 80 >&2; exit 2",
+            "command": "cd \"$CLAUDE_PROJECT_DIR\" || exit 0; [ -z \"${GITHUB_ACTIONS:-}\" ] || exit 0; grep -q '\"stop_hook_active\": *true' && exit 0; [ -n \"$(git status --porcelain 2>/dev/null)\" ] || exit 0; command -v {{RUNNER}} >/dev/null || exit 0; o=$({ {{STYLE_FIX}} && {{STYLE_CHECK}}; } 2>&1) && exit 0; printf '%s\\n' \"$o\" | tail -n 80 >&2; exit 2",
             "timeout": 1800
           }
         ]

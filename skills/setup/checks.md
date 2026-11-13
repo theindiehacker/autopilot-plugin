@@ -5,7 +5,7 @@
 |---|---|
 | `style:check` | スタイルの検査 (lint・整形・型・依存)。直さない |
 | `style:fix` | スタイルの自動修正 |
-| `security:check` | セキュリティの検査 (Gitleaks・Semgrep・Trivy など) |
+| `security:check` | セキュリティの検査 (Semgrep・Trivy など) |
 | `dev:up` | アプリの全部を後ろで起動し、準備ができるまで待って終わる (MCP サーバーがあれば、その応答も確かめる)。ログは `dev:logs`、止めるのは `dev:down` |
 
 | 時点 | 動かすもの | どこに書くか |
@@ -64,11 +64,10 @@ ls lefthook.yml lefthook.yaml .lefthook.yml .pre-commit-config.yaml .husky 2>/de
 | | import-linter | `uv run --frozen lint-imports` | 設定 (`.importlinter`、`pyproject.toml`・`setup.cfg` の importlinter) があるときだけ入れる。`import-linter` が dev 依存に無ければ `uv add --dev import-linter` |
 | `style:fix` | Biome | `bun run biome check --write .` | |
 | | Ruff | `uv run --frozen ruff check --fix .` → `uv run --frozen ruff format .` | |
-| `security:check` | Gitleaks | `gitleaks git --redact --verbose --ignore-gitleaks-allow` | commit した履歴を見る。`gitleaks dir` は `.gitignore` を見ず、`.env` などで止まるため使わない。`--ignore-gitleaks-allow` は、`gitleaks:allow` のコメントで検査を避けられないようにする |
-| | Semgrep | `semgrep scan --config p/owasp-top-ten --metrics off --severity ERROR --error --disable-nosem` | 指摘があるとき (exit 1) だけ止める。ルールを取得できないなどの失敗は、通す (後ろに `\|\| [ $? -ne 1 ]` を付ける。Makefile では `$$?`)。`--disable-nosem` は、`nosemgrep` のコメントで検査を避けられないようにする |
+| `security:check` | Semgrep | `semgrep scan --config p/owasp-top-ten --metrics off --severity ERROR --error --disable-nosem` | 指摘があるとき (exit 1) だけ止める。ルールを取得できないなどの失敗は、通す (後ろに `\|\| [ $? -ne 1 ]` を付ける。Makefile では `$$?`)。`--disable-nosem` は、`nosemgrep` のコメントで検査を避けられないようにする |
 | | Trivy | `trivy fs --scanners vuln,misconfig,secret --severity HIGH,CRITICAL --ignore-unfixed --exit-code 1 .` | |
 
-- commit 前の Gitleaks (`--staged`) は、タスクに入れません。lefthook のひな形が直接呼びます (手順 3)
+- Gitleaks は、タスクに入れません。commit 前に、lefthook のひな形が `--staged` (commit に入る差分だけ) で直接呼びます (手順 3)。ファイルのシークレットは、`security:check` の Trivy (`secret`) も見ます。履歴の全体を見る `gitleaks git` は、大きなリポジトリで遅く、setup の前の履歴のシークレットで push が止まるため、使いません
 - フロントエンドやバックエンドが `frontend/`・`backend/` のようにフォルダで分かれていれば、それぞれのフォルダで動かします。Taskfile なら、フォルダごとのタスクに `dir:` を付け、`style:check` などから呼びます (下の例)
 - `.gitleaks.toml`・`.gitleaksignore`・`.semgrepignore`・`trivy.yaml` が既にあれば、そのまま使われます
 - タスクの中のツール (uv・bun・Gitleaks・Semgrep・Trivy) が無いと、そのタスクは失敗します。Web では起動時の処理が入れます。ローカルでは、Mac なら `brew install semgrep gitleaks trivy` で入れるよう、README に書いてください
@@ -106,7 +105,6 @@ tasks:
   security:check:
     desc: セキュリティの検査
     cmds:
-      - gitleaks git --redact --verbose --ignore-gitleaks-allow
       - semgrep scan --config p/owasp-top-ten --metrics off --severity ERROR --error --disable-nosem || [ $? -ne 1 ]
       - trivy fs --scanners vuln,misconfig,secret --severity HIGH,CRITICAL --ignore-unfixed --exit-code 1 .
 
@@ -170,7 +168,7 @@ tasks:
 - pre-commit に足すときは、同じコマンドを `repo: local` の `hooks` (`language: system`・`pass_filenames: false`・`stages: [pre-commit]` か `[pre-push]`) に書きます
 
 ### Claude の Stop の hook
-[templates/claude-settings.json](templates/claude-settings.json) の `hooks` を、リポジトリの `.claude/settings.json` に足します。ファイルが無ければ、そのまま置きます。あれば、既存の設定は消さず、`hooks.Stop` の配列に足します。`{{RUNNER}}`・`{{STYLE_CHECK}}` は lefthook と同じ値に、`{{STYLE_FIX}}` は `style:fix` のコマンド (例: `task style:fix`) に置き換えます。
+[templates/claude-settings.json](templates/claude-settings.json) の `hooks` を、リポジトリの `.claude/settings.json` に足します。ファイルが無ければ、そのまま置きます。あれば、既存の設定は消さず、`hooks.Stop` の配列に足します。`{{RUNNER}}`・`{{STYLE_CHECK}}` は lefthook と同じ値に、`{{STYLE_FIX}}` は `style:fix` のコマンド (例: `task style:fix`) に置き換えます。前の setup が入れた編集後の hook (`hooks.PostToolUse` の、Ruff・Biome を動かす 1 行のもの) があれば、消します。GitHub Actions (QA・対応のジョブ) では、この hook は動きません (`GITHUB_ACTIONS` があれば何もしない)。検査は CI が行います
 
 この hook は、Claude が作業を終えて止まるときに、`style:fix` → `style:check` を動かします。
 
