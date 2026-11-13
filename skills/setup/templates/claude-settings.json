@@ -1,13 +1,12 @@
 {
   "hooks": {
-    "PostToolUse": [
+    "Stop": [
       {
-        "matcher": "Edit|Write|MultiEdit",
         "hooks": [
           {
             "type": "command",
-            "command": "cd \"$CLAUDE_PROJECT_DIR\" || exit 0; f=$(sed -n 's/.*\"file_path\": *\"\\([^\"]*\\)\".*/\\1/p' | head -1); [ -f \"$f\" ] && [ ! -L \"$f\" ] || exit 0; case \"$f\" in \"$CLAUDE_PROJECT_DIR\"/*) ;; *) exit 0;; esac; up() { d=$(dirname \"$f\"); while :; do for n in \"$@\"; do [ -f \"$d/$n\" ] && { echo \"$d\"; return 0; }; done; [ \"$d\" = \"$CLAUDE_PROJECT_DIR\" ] && return 1; d=$(dirname \"$d\"); done; }; case \"$f\" in *.py|*.pyi) r=$(up pyproject.toml) && cd \"$r\" && uv run --frozen -q ruff --version >/dev/null 2>&1 || exit 0; uv run --frozen -q ruff check --force-exclude --fix --unfixable F401 -q -- \"$f\" >/dev/null; uv run --frozen -q ruff format --force-exclude -q -- \"$f\"; uv run --frozen -q ruff check --force-exclude --ignore F401 -q -- \"$f\" >&2 || exit 2;; *) r=$(up biome.json biome.jsonc) && cd \"$r\" && [ -x node_modules/.bin/biome ] || exit 0; node_modules/.bin/biome check --write --no-errors-on-unmatched --files-ignore-unknown=true --colors=off -- \"$f\" >&2 || exit 2;; esac; exit 0",
-            "timeout": 60
+            "command": "cd \"$CLAUDE_PROJECT_DIR\" || exit 0; grep -q '\"stop_hook_active\": *true' && exit 0; [ -n \"$(git status --porcelain 2>/dev/null)\" ] || exit 0; command -v {{RUNNER}} >/dev/null || exit 0; o=$({ {{STYLE_FIX}} && {{STYLE_CHECK}}; } 2>&1) && exit 0; printf '%s\\n' \"$o\" | tail -n 80 >&2; exit 2",
+            "timeout": 1800
           }
         ]
       }
