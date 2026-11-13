@@ -43,8 +43,10 @@ export async function needsHuman(
   n: number,
   reason: string,
 ): Promise<void> {
-  await ctx.gh.createComment(n, `${MARKERS.needsHuman}\n${reason}`);
+  // ラベルを先に、印のコメントを後に (R53)。GitHub の Slack アプリが、ラベルの付いた
+  // Issue・PR へのコメントとして知らせ、コメントで起きたセッションもラベルを読めるため
   await ctx.gh.addLabels(n, [LABELS.needsHuman]);
+  await ctx.gh.createComment(n, `${MARKERS.needsHuman}\n${reason}`);
 }
 
 const CONFIG_PATH = ".github/autopilot.yml";

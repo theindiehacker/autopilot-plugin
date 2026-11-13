@@ -342,6 +342,27 @@ test("sweep は、起こして stale_hours たっても直らない PR を needs
   );
 });
 
+test("sweep の needs-human は、ラベルを先に付け、印のコメントを後に書く (R53)", async () => {
+  const w = newWorld();
+  w.pulls.push({ number: 8, mergeable_state: "dirty" });
+  w.issues.push({
+    number: 8,
+    comments: [
+      {
+        login: "app[bot]",
+        body: "<!-- autopilot:wake -->\n<!-- autopilot:head sha8 -->\nx",
+        created_at: "2026-11-12T08:00:00Z",
+      },
+    ],
+  });
+  await run(w, "sweep", "schedule", {});
+  const label = w.urls.indexOf("POST /repos/o/r/issues/8/labels");
+  const comment = w.urls.indexOf("POST /repos/o/r/issues/8/comments");
+  expect(label).toBeGreaterThanOrEqual(0);
+  expect(comment).toBeGreaterThanOrEqual(0);
+  expect(label).toBeLessThan(comment);
+});
+
 test("sweep は、開始の印のコメントだけがある Issue を、開始とみなさない (付け直す)", async () => {
   const w = newWorld();
   w.issues.push({
