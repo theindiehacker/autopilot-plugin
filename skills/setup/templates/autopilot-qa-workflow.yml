@@ -23,6 +23,8 @@ jobs:
     env:
       LEFTHOOK: "0"
       HUSKY: "0"
+      # リポジトリの .claude/settings.json の Stop の hook (スタイルを直す) を、QA では動かさない。QA はコードを直さない
+      AUTOPILOT_QA: "1"
     concurrency:
       group: autopilot-qa-${{ github.event.pull_request.number }}
       cancel-in-progress: true
