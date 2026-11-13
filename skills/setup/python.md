@@ -25,6 +25,7 @@ CLAUDE_PROJECT_DIR="$PWD" bash "${CLAUDE_PLUGIN_ROOT}/scripts/python/setup.sh"
 
 ## 2. 移行する
 聞いた順に、1 項目ずつ行ってください。各項目の後で、`uv sync --locked` とテスト (あれば) が通ることを確かめてください。
+`mise.toml` が uv の版を固定しているときは、`uv.lock` をその版の uv で書くよう、uv を `mise exec -- uv …` で動かしてください (新しい版の uv は、`uv.lock` の `revision` を上げることがあります)。
 
 ### uv
 1. poetry・pipenv・pip-tools・pip (`requirements.txt`) は `uvx migrate-to-uv` で移す。古い lock ファイルの版を引き継いで `uv.lock` を作り、古い lock ファイル・設定を消します

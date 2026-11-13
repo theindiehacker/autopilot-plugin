@@ -9,7 +9,7 @@ survey.md の結果をもとに、次の項目を聞きます。調べて分か�
 | Claude のレビュー | 既存のものを使うか。起動のしかた (自動・コメント)。判定を出す bot の名前 | `review` |
 | アプリの起動 | Web の環境で起動できるか。起動のコマンドと URL。アプリが出す MCP サーバー (あれば URL)。GPU・クラウドの認証情報が要るときの QA のしかた | `qa.start`・`qa.url`・QA のワークフローの `mcp-servers` |
 | デプロイ | 方式 (none・on_merge・dispatch)。方式を確かめるだけで、autopilot はデプロイに何もしない | GitHub の Slack アプリの購読の案内 (デプロイのワークフローの失敗。autopilot.md の 6-C) |
-| 人の承認が要るパスと、その持ち主 | CODEOWNERS に書くパスと持ち主 (GitHub のユーザー名か team)。初めの値は、autopilot を動かすファイル (`.github/`・`.claude/`・`.mcp.json`・git の hook の設定。AI の PR が、人の承認なしに自分の検査を変えられないように) と、マイグレーション・Terraform。ほかにあれば足す (課金・メール送信のコードのパスなど) | `.github/CODEOWNERS` |
+| 人の承認が要るパスと、その持ち主 | CODEOWNERS に書くパスと持ち主 (GitHub のユーザー名か team)。初めの値は、autopilot を動かすファイル (`.github/`・`.claude/`・`.mcp.json`・git の hook の設定)、検査を定めるファイル (`style:check`・`security:check`・`dev:up` を書いたタスクランナーのファイルと、`.gitleaks.toml`・`.gitleaksignore`・`.semgrepignore`・`trivy.yaml`・`.trivyignore`・`.trivyignore.yaml` のうちリポジトリにあるもの)、マイグレーション・Terraform。前の 2 つは、AI の PR が、人の承認なしに自分の検査を変えられないようにするため。タスクがルートの `package.json` の `scripts` にあれば、`package.json` も持ち主のパスになる (依存を足す PR にも Approve が要る) と伝える。ほかにあれば足す (課金・メール送信のコードのパスなど) | `.github/CODEOWNERS` |
 | Terraform の apply の方針 | apply がマージで動くか (survey の IaC)。動くなら、手動のワークフローか別のリポジトリにする案を勧める (autopilot は作らない。デプロイの仕組みを新しく作らないため) | 提案 |
 | Slack の通知先 | チャンネル | GitHub の Slack アプリの購読 (autopilot.md の 6-C) |
 | claude-code-action の認証 | `CLAUDE_CODE_OAUTH_TOKEN` か `ANTHROPIC_API_KEY` | シークレット |
@@ -40,4 +40,4 @@ claude.ai と GitHub のそれぞれで、自動化専用のアカウントか�
 | 技術スタック | 移行する・しない |
 | Docker・検査・シークレットと脆弱性 | 直す内容 |
 | autopilot | ラベル 2 つ・`.github/autopilot.yml`・`.github/CODEOWNERS`・ワークフロー 2 つ・(無ければ) Claude のレビューと CI・ルールセット・ルーティン |
-| ユーザーがすること | GitHub App・GitHub の Slack アプリの購読・シークレット・Web の環境 |
+| ユーザーがすること | GitHub App・Claude の GitHub App・GitHub の Slack アプリの購読・シークレット・Web の環境 |

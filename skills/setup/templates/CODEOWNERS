@@ -16,6 +16,18 @@
 /.pre-commit-config.yaml {{OWNER}}
 /.husky/ {{OWNER}}
 
+# 検査を定めるファイル (タスクランナーのファイルと、セキュリティの検査の設定・除外のファイル)。
+# CI・git の hook・Claude の hook・動作確認が呼ぶ style:check・security:check・dev:up と、検査が読む除外を、
+# AI の PR が、人の承認なしに変えられないようにする。
+# 設定・除外のファイルは、リポジトリに無いものの行を消す
+{{TASK_FILE}} {{OWNER}}
+/.gitleaks.toml {{OWNER}}
+/.gitleaksignore {{OWNER}}
+/.semgrepignore {{OWNER}}
+/trivy.yaml {{OWNER}}
+/.trivyignore {{OWNER}}
+/.trivyignore.yaml {{OWNER}}
+
 # 取り消せない変更 (マイグレーション・Terraform)
 {{MIGRATION_PATH}} {{OWNER}}
 {{TERRAFORM_PATH}} {{OWNER}}

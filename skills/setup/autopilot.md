@@ -86,14 +86,15 @@ jobs:
           GH_TOKEN: ${{ github.token }}
           PR: ${{ github.event.pull_request.number }}
         run: |
-          files=$(gh api "repos/$GITHUB_REPOSITORY/pulls/$PR/files" --paginate --jq '.[] | .filename, (.previous_filename // empty)')
+          files=$(gh api "repos/$GITHUB_REPOSITORY/pulls/$PR/files?per_page=100" --paginate --jq '.[] | .filename, (.previous_filename // empty)')
           # files API は 3000 ファイルまで。それ以上は、一覧が欠けるので、すべて動かす
           count=$(gh api "repos/$GITHUB_REPOSITORY/pulls/$PR" --jq '.changed_files')
           all=false
           if [ "$count" -ge 3000 ]; then all=true; fi
           # <出力の名前> <正規表現>: 変更されたファイルのどれかが合えば true
+          # パイプ (printf | grep -q) にしない。grep が先に終わると printf が SIGPIPE で落ち、pipefail で「合わない」になる
           filter() {
-            if [ "$all" = true ] || printf '%s\n' "$files" | grep -Eq "$2"; then
+            if [ "$all" = true ] || grep -Eq "$2" <<<"$files"; then
               echo "$1=true" >> "$GITHUB_OUTPUT"
             else
               echo "$1=false" >> "$GITHUB_OUTPUT"
@@ -174,9 +175,13 @@ QA を別のファイルにするのは、別のイベントで起きた実行�
 |---|---|
 | `{{MIGRATION_PATH}}` | マイグレーションのフォルダ。例: `/backend/migration/versions/` |
 | `{{TERRAFORM_PATH}}` | Terraform のフォルダ。例: `/infrastructure/` |
+| `{{TASK_FILE}}` | checks.md で `style:check`・`security:check`・`dev:up` を書いたタスクランナーのファイル。例: `/Taskfile.yml`・`/Makefile`。タスクをルートの `package.json` の `scripts` に書いたときは `/package.json` |
 | `{{OWNER}}` | 持ち主。GitHub のユーザー名 (`@user`) か team (`@org/team`)。複数なら空白で区切る |
 
-- 初めの値は、autopilot を動かすファイル (`.github/`・`.claude/`・`.mcp.json`・git の hook の設定) と、マイグレーション・Terraform です。autopilot を動かすファイルを入れるのは、AI の PR が、人の承認なしに、自分の検査・ワークフロー・設定を変えられないようにするためです (`.github/` に、この CODEOWNERS 自身も入る)
+- 初めの値は、autopilot を動かすファイル (`.github/`・`.claude/`・`.mcp.json`・git の hook の設定)、検査を定めるファイル (タスクランナーのファイルと、セキュリティの検査の設定・除外のファイル)、マイグレーション・Terraform です。autopilot を動かすファイルと検査を定めるファイルを入れるのは、AI の PR が、人の承認なしに、自分の検査・ワークフロー・設定を変えられないようにするためです (`.github/` に、この CODEOWNERS 自身も入る)
+- 検査を定めるファイルは、CI・lefthook・Claude の Stop の hook・動作確認が呼ぶ `style:check`・`security:check`・`dev:up` を書いたタスクランナーのファイル (`{{TASK_FILE}}`) と、Gitleaks・Semgrep・Trivy が読む設定・除外のファイル (`.gitleaks.toml`・`.gitleaksignore`・`.semgrepignore`・`trivy.yaml`・`.trivyignore`・`.trivyignore.yaml`) です。タスクを書いたファイルが複数あれば (Taskfile の `includes:` など)、1 つずつ行を足します
+- 設定・除外のファイルは、git の hook の設定と同じく、リポジトリに無いものの行を消します
+- タスクをルートの `package.json` の `scripts` に書いたときは、`package.json` が持ち主のパスになります。依存を足すだけの PR にも、持ち主の Approve が要るようになることを、ユーザーに伝えます
 - git の hook の設定 (`lefthook.yml`・`.lefthook.yml`・`lefthook.yaml`・`.pre-commit-config.yaml`・`.husky/`) は、リポジトリに無いものの行を消します。分からなければ、すべて残します
 - マイグレーションや Terraform が無ければ、その行を消します。interview でほかのパスが挙がれば、行を足します
 - 持ち主には、リポジトリへの書き込みの権限が要ります (GitHub の決まり)
@@ -190,6 +195,7 @@ QA を別のファイルにするのは、別のイベントで起きた実行�
 | 組織にもうあるかを確かめる | 下の「6-A」。org のときだけ |
 | GitHub App を作る | 6-A で見つからなかったとき、[templates/github-app-manifest.json](templates/github-app-manifest.json) をもとに、ボタンで作る (下の「6-B」)。権限は下の表。webhook は無効 |
 | GitHub App を入れる | **autopilot を使うリポジトリにだけ**入れる |
+| Claude の GitHub App を入れる | https://github.com/apps/claude を、このリポジトリに入れる。Claude のレビュー (claude[bot]) が、PR にレビューを書くために要る。既存の Claude のレビューのワークフローを使うときも、入っているかを確かめてもらう (リポジトリの設定の「GitHub Apps」) |
 | GitHub の Slack アプリの購読 | Slack に GitHub のアプリを入れ、通知先のチャンネルで購読する (下の「6-C」) |
 | シークレットを登録 | 下の表。6-B で登録したものと、6-A で足したものは飛ばす |
 | Web の環境を作る | README の手順 |
@@ -351,7 +357,7 @@ RemoteTrigger で、次の 2 つを順に呼びます。
 ## 入れ済みのリポジトリを新しい形に移す
 `.github/workflows/autopilot.yml` に `automerge`・`label`・`fix`・`ready`・`deploy` の job があれば、前の形の autopilot が入っています。次の順に、新しい形に移します。
 
-1. 開いている autopilot の PR (ブランチが `autopilot/` で始まる) が無いときに行います。あれば、マージか close されるのを待つか、その Issue と PR に `needs-human` を付けて止めます。止めた PR は、移した後に、Issue の `needs-human` を外して `autopilot:ready` を付け直すと、同じ PR で続きから進みます
+1. 開いている autopilot の PR (ブランチが `autopilot/` で始まる) が無いときに行います。あれば、マージか close されるのを待つか、その Issue と PR に `needs-human` を付けて止めます。止めた PR は、移した後に、Issue の `needs-human` を外し、`autopilot:ready` を一度外してから付け直すと、同じ PR で続きから進みます
 2. 新しいワークフローと設定を入れる PR を作り、マージしてもらいます。手順 2 (`.github/autopilot.yml`) と手順 3 (ワークフロー) のひな形から書き直し、手順 7 のとおり PR にします。下の「消すもの」のうち、リポジトリのファイルも、同じ PR で消します
 3. ルーティンの Web の環境の写しを、作り直してもらいます (環境の設定のスクリプトのコメントを 1 行変えると、作り直されます)。ルーティンが、新しいプラグインの開発と対応の手順を読むためです。ルーティンは作り直しません
 
