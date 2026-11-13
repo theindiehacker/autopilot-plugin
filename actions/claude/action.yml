@@ -22,10 +22,6 @@ inputs:
     description: 対象の PR の番号
     required: false
     default: ""
-  reviewer-bots:
-    description: claude-code-action が動かしてよいボットのログイン (カンマ区切り)。App 自身は常に入る
-    required: false
-    default: claude
   mcp-servers:
     description: 'QA の Claude に足す MCP サーバー。Claude Code の mcpServers と同じ形の JSON の object (例: {"app":{"type":"http","url":"http://127.0.0.1:8002/mcp"}})'
     required: false
@@ -87,8 +83,8 @@ runs:
       uses: anthropics/claude-code-action@4fa93a88de49bbef68b10eb15aabedf28ca0e1ed # v1.0.271
       with:
         github_token: ${{ inputs.github-token }}
-        # App が起こした実行 (push・ready・sweep) と、レビュアーのボットを通す
-        allowed_bots: ${{ inputs.app-slug }}[bot],${{ inputs.reviewer-bots }}
+        # App (autopilot のボット) が起こした実行を通す
+        allowed_bots: ${{ inputs.app-slug }}[bot]
         claude_code_oauth_token: ${{ inputs.claude-code-oauth-token }}
         anthropic_api_key: ${{ inputs.anthropic-api-key }}
         prompt: ${{ steps.prompt.outputs.prompt }}
