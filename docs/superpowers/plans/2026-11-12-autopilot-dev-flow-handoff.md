@@ -15,6 +15,10 @@ PC の Claude Code のセッションから、Claude Code on the Web のセッ�
 | ユーザーの判断 U5・U6 | GitHub Actions の QA と見回りをやめる。開発のルーティンの動作確認だけを QA にする。試験 1・2 のリポジトリからも消した (それぞれの PR をマージ済み) |
 | ユーザーの判断 U7 | setup は PC だけで動かす。マージの後のルールセット・ワークフローの権限・ルーティンは、setup が自分で作る |
 | 計画 `2026-11-13-remove-qa-and-sweep.md` | Task 1 (QA と見回りを消す)・Task 2 (setup を PC だけで動かす) 完了 |
+| ルーティンの環境の写し | 作り直した (試験 1・2 のルーティンが、QA のジョブを消した後のプラグインで動く) |
+| #46 | squash でマージした。ブランチ `feat/40-autopilot-dev-flow` はリモートに無い。試験のリポジトリはプラグインの action を使わないので、タグで固定し直すものは無い |
+| #48 | マージした。Slack のデプロイの知らせを、needs-human とは別のチャンネルにする |
+| GitHub App とシークレット | ユーザーが消した (組織の GitHub App と `AUTOPILOT_APP_ID`・`AUTOPILOT_APP_PRIVATE_KEY`・`AUTOPILOT_SLACK_WEBHOOK_URL`)。試験 1 のリポジトリは必須のチェックが無く、承認だけで自動マージされる |
 | 試験 3・4・他社のリポジトリ | 未着手 (他社のリポジトリは PC で行う) |
 
 ### 試験 2 で決めたこと (ユーザー)
@@ -28,11 +32,8 @@ PC の Claude Code のセッションから、Claude Code on the Web のセッ�
 
 ### 次にすること
 
-1. **ルーティンの環境の写しを作り直す:** 試験 1・2 のルーティンは、まだ QA のジョブがあった頃のプラグインの写しで動いている。環境の設定のスクリプトのコメントを 1 行変えてもらう
-2. **#46 のマージ:** squash でマージする (main の履歴に、試験のリポジトリの名前を含む commit を入れないため)。ブランチの履歴を書き換えるかは、ユーザーが決める (`74f9977`・`7b1869f`・`791909d` に名前が残っている)。試験のリポジトリは、もうプラグインの action を使わないので、`v2.0.0` のタグで固定し直すものは無い
-3. **ユーザーの片付け:** 組織の GitHub App と、シークレット `AUTOPILOT_APP_ID`・`AUTOPILOT_APP_PRIVATE_KEY`・`AUTOPILOT_SLACK_WEBHOOK_URL` を消す。試験 1 のリポジトリは、必須のチェックが無くなった (承認だけで自動マージされる)
-4. **試験 3・4:** デプロイを別のリポジトリで行うリポジトリ、他社のリポジトリ 3 つ (PC で setup を動かすだけ)
-5. **試験 2 のリポジトリの小さな残り (任意):** README の「GitHub の設定」に autopilot の設定を足す・Unlighthouse の振り分けを広げる・振り分けの正規表現の共通の部分をまとめる・呼ばれる側の concurrency を消す・Taskfile のコメントの「autopilot の QA」・`.claude/settings.json` の `AUTOPILOT_QA` の分岐。Issue のテンプレートの `claude:analysis` と `claude.yml` の `claude:blocked` (前のプラグインの名残)
+1. **試験 3・4:** デプロイを別のリポジトリで行うリポジトリ、他社のリポジトリ 3 つ (PC で setup を動かすだけ)
+2. **試験 2 のリポジトリの小さな残り (任意):** README の「GitHub の設定」に autopilot の設定を足す・Unlighthouse の振り分けを広げる・振り分けの正規表現の共通の部分をまとめる・呼ばれる側の concurrency を消す・Taskfile のコメントの「autopilot の QA」・`.claude/settings.json` の `AUTOPILOT_QA` の分岐。Issue のテンプレートの `claude:analysis` と `claude.yml` の `claude:blocked` (前のプラグインの名残)
 
 ### 直していない指摘 (今回のレビューで、後回しにしたもの)
 
@@ -184,8 +185,9 @@ Web のセッションで気をつけること:
 
 - 済み: 試験 1 のリポジトリの Issue #195・PR #194・ラベル `autopilot:spike` を片付けた
 - 済み (2026-11-13): 標準の仕組みの確かめのセッションをアーカイブし、その PR を閉じた
-- ユーザーに頼む (2026-11-13): ブランチ `autopilot-spike-std-1` を消す。このセッションが作った試験用のルーティン「autopilot 試験 C (標準の仕組みの確かめ)」(無効にしてある。消すと、それが作ったセッションも消える) を消すか決める。試験 1 のリポジトリのシークレット `AUTOPILOT_SLACK_WEBHOOK_URL` (もう読まれない) を消す (ユーザーが消すと決めた。Web のセッションからは消せない)。試験 1 で誤って止まった PR は、ラベルの付け直しで再開させた (結果は次のセッションで確かめる)
-- ユーザーに頼んだ (済んだかを確かめる): 試験用のルーティン 2 つ (`autopilot 試験 A`・`autopilot 試験 B`。API では消せない)、ブランチ `autopilot-spike-*` (Web のセッションからは消せない)
+- 済み (2026-11-13): 試験 1 のリポジトリのシークレット `AUTOPILOT_SLACK_WEBHOOK_URL` を、ユーザーが消した
+- 済み (2026-11-13): 試験 1 のリポジトリのブランチ `autopilot-spike-*` (`autopilot-spike-std-1` を含む) と、試験用のルーティン「autopilot 試験 A」「autopilot 試験 B」「autopilot 試験 C」を、ユーザーが消した
+- 済み (2026-11-13): 試験 1 で誤って止まった PR は、ラベルの付け直しで再開させ、自動でマージされた
 
 ## 承認の試験
 

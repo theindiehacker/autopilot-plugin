@@ -39,5 +39,5 @@ claude.ai と GitHub のそれぞれで、自動化専用のアカウントか�
 |---|---|
 | 技術スタック | 移行する・しない |
 | Docker・検査・シークレットと脆弱性 | 直す内容 |
-| autopilot | ラベル 2 つ・`.github/autopilot.yml`・`.github/CODEOWNERS`・(無ければ) Claude のレビューと CI・ルールセット・ルーティン |
-| ユーザーがすること | Claude の GitHub App・(Claude のレビューのワークフローを置くとき) シークレット・GitHub の Slack アプリの購読・Web の環境 |
+| autopilot | ラベル 2 つ・Project (持ち主ごとに 1 つ。もうあれば、このリポジトリをつなぐだけ)・`.github/autopilot.yml`・`.github/CODEOWNERS`・(無ければ) Claude のレビューと CI・ルールセット・ルーティン |
+| ユーザーがすること | Claude の GitHub App・(Claude のレビューのワークフローを置くとき) シークレット・GitHub の Slack アプリの購読・Project の Issue の自動の追加・Web の環境 |
