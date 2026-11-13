@@ -1,4 +1,4 @@
-import type { AutopilotConfig, DeployMode, RequiredCheck } from "./types";
+import type { AutopilotConfig, RequiredCheck } from "./types";
 
 export class ConfigError extends Error {
   issues: string[];
@@ -12,7 +12,6 @@ export class ConfigError extends Error {
 type Obj = Record<string, unknown>;
 
 const TRIGGERS = ["ready_for_review", "comment", "none"] as const;
-const MODES: readonly DeployMode[] = ["none", "on_merge", "dispatch"];
 
 const isObj = (v: unknown): v is Obj =>
   typeof v === "object" && v !== null && !Array.isArray(v);
@@ -70,18 +69,6 @@ export function parseConfig(yamlText: string): AutopilotConfig {
     }
     return v;
   };
-  const bool = (o: Obj, path: string, key: string, def: boolean): boolean => {
-    const v = o[key];
-    if (v === undefined || v === null) return def;
-    if (typeof v !== "boolean") {
-      issues.push(`${path} は true か false にしてください`);
-      return def;
-    }
-    return v;
-  };
-
-  const routineGithubUser =
-    str(raw, "routine_github_user", "routine_github_user", true) ?? "";
   const qa = section("qa");
   const qaStart = str(qa, "qa.start", "start");
   const qaUrl = str(qa, "qa.url", "url");
@@ -122,11 +109,6 @@ export function parseConfig(yamlText: string): AutopilotConfig {
     }
   }
 
-  // notify
-  const nt = section("notify");
-  const slackChannel =
-    str(nt, "notify.slack_channel", "slack_channel", true) ?? "";
-
   // limits
   const lm = section("limits");
   const limits = {
@@ -140,52 +122,9 @@ export function parseConfig(yamlText: string): AutopilotConfig {
     ),
   };
 
-  // deploy
-  const dp = section("deploy");
-  const mode = dp.mode ?? "none";
-  if (!MODES.includes(mode as DeployMode)) {
-    issues.push(`deploy.mode は ${MODES.join(" / ")} のどれかにしてください`);
-  }
-  const workflow = str(dp, "deploy.workflow", "workflow");
-  if ((mode === "dispatch" || mode === "on_merge") && !workflow) {
-    issues.push(`deploy.workflow が必要です (mode が ${mode} のとき)`);
-  }
-  const inputs: Record<string, string> = {};
-  if (dp.inputs !== undefined && dp.inputs !== null) {
-    if (!isObj(dp.inputs)) {
-      issues.push("deploy.inputs はオブジェクトにしてください");
-    } else {
-      for (const [k, v] of Object.entries(dp.inputs)) inputs[k] = String(v);
-    }
-  }
-  const environments = strList(dp, "deploy.environments", "environments");
-  if (mode === "dispatch" && environments.length === 0) {
-    issues.push("deploy.environments が必要です (mode が dispatch のとき)");
-  }
-  const verify = str(dp, "deploy.verify", "verify");
-  const rollback = str(dp, "deploy.rollback", "rollback");
-  const timeoutMinutes = num(
-    dp,
-    "deploy.timeout_minutes",
-    "timeout_minutes",
-    60,
-  );
-  const rollbackAfterIrreversible = bool(
-    dp,
-    "deploy.rollback_after_irreversible",
-    "rollback_after_irreversible",
-    false,
-  );
-  const irreversiblePaths = strList(
-    dp,
-    "deploy.irreversible_paths",
-    "irreversible_paths",
-  );
-
   if (issues.length > 0) throw new ConfigError(issues);
 
   return {
-    routineGithubUser,
     qa: {
       ...(qaStart ? { start: qaStart } : {}),
       ...(qaUrl ? { url: qaUrl } : {}),
@@ -196,18 +135,6 @@ export function parseConfig(yamlText: string): AutopilotConfig {
       ...(command ? { command } : {}),
     },
     requiredChecks,
-    notify: { slackChannel },
     limits,
-    deploy: {
-      mode: mode as DeployMode,
-      ...(workflow ? { workflow } : {}),
-      inputs,
-      environments,
-      ...(verify ? { verify } : {}),
-      ...(rollback ? { rollback } : {}),
-      timeoutMinutes,
-      rollbackAfterIrreversible,
-      irreversiblePaths,
-    },
   };
 }

@@ -10,7 +10,7 @@ export interface SweepItem {
   readyLabeledAt?: string;
   /** autopilot:ready が付いた回数 − 1 (呼び出し側が数える) */
   readyRetries: number;
-  /** 開始のコメントの時刻 */
+  /** 開発の Draft PR ができた時刻 */
   startedAt?: string;
   hasPr: boolean;
   updatedAt: string;

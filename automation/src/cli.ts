@@ -1,19 +1,9 @@
-import { automerge } from "./commands/automerge";
 import { type Ctx, createCtx, type Deps } from "./commands/context";
-import { createDeployCtx, deploy } from "./commands/deploy";
-import { fixRound } from "./commands/fixRound";
-import { label } from "./commands/label";
-import { ready } from "./commands/ready";
 import { sweep } from "./commands/sweep";
 import { createGitHubClient } from "./github";
 
 const COMMANDS: Record<string, (ctx: Ctx) => Promise<void>> = {
-  automerge,
-  label,
-  "fix-round": fixRound,
-  ready,
   sweep,
-  deploy,
 };
 
 // AUTOPILOT_APP_SLUG が無いと、App の印を数えられず、対応が終わらなくなる
@@ -51,18 +41,12 @@ export async function main(
       ...(deps.fetchImpl ? { fetchImpl: deps.fetchImpl } : {}),
       ...(env.GITHUB_API_URL ? { apiUrl: env.GITHUB_API_URL } : {}),
     });
-    // deploy だけは、設定を読めなくても人に知らせる (R25)。ほかはすぐ失敗する
-    const ctx =
-      argv[0] === "deploy"
-        ? await createDeployCtx(gh, env, deps)
-        : await createCtx(gh, env, deps);
+    const ctx = await createCtx(gh, env, deps);
     await command(ctx);
     return 0;
   } catch (e) {
     const message = e instanceof Error ? e.message : String(e);
-    console.error(
-      redact(message, [env.GITHUB_TOKEN, env.AUTOPILOT_SLACK_WEBHOOK_URL]),
-    );
+    console.error(redact(message, [env.GITHUB_TOKEN]));
     return 1;
   }
 }

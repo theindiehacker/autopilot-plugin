@@ -1,7 +1,7 @@
 import type { Issue, Pull } from "../github";
 import { planSweep, type SweepItem } from "../sweeper";
-import { LABELS, MARKERS } from "../types";
-import { type Ctx, isAutopilotPull, needsHuman, sameLogin } from "./context";
+import { LABELS } from "../types";
+import { type Ctx, isAutopilotPull, needsHuman } from "./context";
 
 async function issueItem(
   ctx: Ctx,
@@ -12,25 +12,16 @@ async function issueItem(
   const ready = events.filter(
     (e) => e.event === "labeled" && e.label?.name === LABELS.ready,
   );
-  const comments = await ctx.gh.listComments(issue.number);
   // ラベルの event が無ければ (古い Issue など) 作成時刻を使う
   const readyLabeledAt = ready.at(-1)?.created_at ?? issue.created_at;
-  // 付け直す前の開始の印は、前の試みのもの
-  const started = comments.filter(
-    (c) =>
-      c.user !== null &&
-      sameLogin(c.user.login, ctx.config.routineGithubUser) &&
-      c.body.includes(MARKERS.started) &&
-      Date.parse(c.created_at) >= Date.parse(readyLabeledAt),
-  );
   // 開発は、開発の Draft PR を作って始まる。ラベルより前の PR は、前の試みのもの
   const developing = pulls.filter(
     (p) =>
       p.head.ref.startsWith(`autopilot/${issue.number}-`) &&
       Date.parse(p.created_at) >= Date.parse(readyLabeledAt),
   );
-  const startedAt = [...started, ...developing]
-    .map((x) => x.created_at)
+  const startedAt = developing
+    .map((p) => p.created_at)
     .sort((a, b) => Date.parse(a) - Date.parse(b))
     .at(-1);
   return {

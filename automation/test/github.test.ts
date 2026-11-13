@@ -33,8 +33,8 @@ test("設定はデフォルトブランチから読む", async () => {
   );
 });
 
-test("変更したファイルを 2 ページ目まで読む", async () => {
-  const file = (i: number) => ({ filename: `f${i}` });
+test("開いている PR を 2 ページ目まで読む", async () => {
+  const file = (i: number) => ({ number: i });
   const { fetchImpl, calls } = fake((c) =>
     c.url.includes("page=2")
       ? Response.json(Array.from({ length: 50 }, (_, i) => file(100 + i)))
@@ -42,12 +42,12 @@ test("変更したファイルを 2 ページ目まで読む", async () => {
           Array.from({ length: 100 }, (_, i) => file(i)),
           {
             headers: {
-              link: '<https://api.github.com/repos/o/r/pulls/1/files?per_page=100&page=2>; rel="next"',
+              link: '<https://api.github.com/repos/o/r/pulls?state=open&per_page=100&page=2>; rel="next"',
             },
           },
         ),
   );
-  const files = await client(fetchImpl).listPullFiles(1);
+  const files = await client(fetchImpl).listOpenPulls();
   expect(files).toHaveLength(150);
   expect(calls).toHaveLength(2);
 });
@@ -71,19 +71,4 @@ test("エラーにトークンを含めない", async () => {
     expect((e as Error).message).not.toContain("tok-secret");
     expect((e as Error).message).toContain("HTTP 403");
   }
-});
-
-test("enableAutoMerge は squash で GraphQL を呼ぶ", async () => {
-  const { fetchImpl, calls } = fake(() => Response.json({ data: {} }));
-  await client(fetchImpl).enableAutoMerge("PR_node");
-  expect(calls[0]?.url).toBe("https://api.github.com/graphql");
-  expect(calls[0]?.body).toContain("SQUASH");
-  expect(calls[0]?.body).toContain("PR_node");
-});
-
-test("GraphQL の errors は失敗にする", async () => {
-  const { fetchImpl } = fake(() =>
-    Response.json({ errors: [{ message: "nope" }] }),
-  );
-  expect(client(fetchImpl).markReadyForReview("x")).rejects.toThrow("nope");
 });

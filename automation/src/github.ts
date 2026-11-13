@@ -38,63 +38,21 @@ export interface IssueEvent {
   label?: { name: string };
 }
 
-export interface Comment {
-  id: number;
-  body: string;
-  created_at: string;
-  user: { login: string } | null;
-}
-
-export interface WorkflowRun {
-  id: number;
-  status: string;
-  conclusion: string | null;
-  head_sha: string;
-  head_branch: string | null;
-  /** 実行を起こした人 (workflow_dispatch なら、起動した人) */
-  triggering_actor?: { login: string } | null;
-  html_url: string;
-  created_at: string;
-}
-
 export interface GitHubClient {
   getRepo(): Promise<RepoInfo>;
   getPull(n: number): Promise<Pull>;
-  /** admin / write / read / none (maintain は write に入る) */
-  /** SHA の最新の check run の名前と結論 */
-  listCheckRuns(
-    sha: string,
-  ): Promise<{ name: string; conclusion: string | null }[]>;
-  getPermission(login: string): Promise<string>;
-  listPullFiles(n: number): Promise<string[]>;
   listIssueEvents(n: number): Promise<IssueEvent[]>;
-  listComments(n: number): Promise<Comment[]>;
   getRepoFile(path: string, ref: string): Promise<string>;
   addLabels(n: number, labels: string[]): Promise<void>;
   removeLabel(n: number, label: string): Promise<void>;
   createComment(n: number, body: string): Promise<void>;
-  createIssue(input: {
-    title: string;
-    body: string;
-    labels: string[];
-  }): Promise<number>;
   dispatchWorkflow(
     workflow: string,
     ref: string,
     inputs: Record<string, string>,
   ): Promise<void>;
-  listWorkflowRuns(
-    workflow: string,
-    query: Record<string, string>,
-  ): Promise<WorkflowRun[]>;
-  getWorkflowRun(id: number): Promise<WorkflowRun>;
   listOpenIssuesByLabel(label: string): Promise<Issue[]>;
-  listOpenIssues(): Promise<Issue[]>;
   listOpenPulls(): Promise<Pull[]>;
-  getCommitParents(sha: string): Promise<string[]>;
-  mergePull(n: number, sha: string): Promise<void>;
-  enableAutoMerge(pullNodeId: string): Promise<void>;
-  markReadyForReview(pullNodeId: string): Promise<void>;
 }
 
 const nextLink = (header: string | null): string | undefined =>
@@ -169,44 +127,10 @@ export function createGitHubClient(opts: {
     ).filter((i) => i.pull_request === undefined);
   }
 
-  async function graphql(query: string, variables: object): Promise<void> {
-    const res = await json<{ errors?: { message: string }[] }>(
-      "POST",
-      "/graphql",
-      { query, variables },
-    );
-    if (res.errors?.length) {
-      throw new Error(
-        `GitHub の GraphQL が失敗しました: ${res.errors.map((e) => e.message).join("; ")}`,
-      );
-    }
-  }
-
   return {
     getRepo: () => json("GET", repoPath),
     getPull: (n) => json("GET", `${repoPath}/pulls/${n}`),
-    listCheckRuns: async (sha) =>
-      (
-        await paginate<{ name: string; conclusion: string | null }>(
-          `${repoPath}/commits/${sha}/check-runs?filter=latest`,
-          (p) =>
-            (p as { check_runs: { name: string; conclusion: string | null }[] })
-              .check_runs,
-        )
-      ).map(({ name, conclusion }) => ({ name, conclusion })),
-    getPermission: async (login) =>
-      (
-        await json<{ permission: string }>(
-          "GET",
-          `${repoPath}/collaborators/${encodeURIComponent(login)}/permission`,
-        )
-      ).permission,
-    listPullFiles: async (n) =>
-      (
-        await paginate<{ filename: string }>(`${repoPath}/pulls/${n}/files`)
-      ).map((f) => f.filename),
     listIssueEvents: (n) => paginate(`${repoPath}/issues/${n}/events`),
-    listComments: (n) => paginate(`${repoPath}/issues/${n}/comments`),
     getRepoFile: async (path, ref) =>
       (
         await call(
@@ -232,9 +156,6 @@ export function createGitHubClient(opts: {
     createComment: async (n, body) => {
       await call("POST", `${repoPath}/issues/${n}/comments`, { body });
     },
-    createIssue: async (input) =>
-      (await json<{ number: number }>("POST", `${repoPath}/issues`, input))
-        .number,
     dispatchWorkflow: async (workflow, ref, inputs) => {
       await call(
         "POST",
@@ -242,40 +163,8 @@ export function createGitHubClient(opts: {
         { ref, inputs },
       );
     },
-    listWorkflowRuns: async (workflow, query) =>
-      (
-        await json<{ workflow_runs: WorkflowRun[] }>(
-          "GET",
-          `${repoPath}/actions/workflows/${encodeURIComponent(workflow)}/runs?${new URLSearchParams(query)}`,
-        )
-      ).workflow_runs,
-    getWorkflowRun: (id) => json("GET", `${repoPath}/actions/runs/${id}`),
     listOpenIssuesByLabel: (label) =>
       openIssues(`?state=open&labels=${encodeURIComponent(label)}`),
-    listOpenIssues: () => openIssues("?state=open"),
-    getCommitParents: async (sha) =>
-      (
-        await json<{ parents: { sha: string }[] }>(
-          "GET",
-          `${repoPath}/commits/${sha}`,
-        )
-      ).parents.map((p) => p.sha),
-    mergePull: async (n, sha) => {
-      await call("PUT", `${repoPath}/pulls/${n}/merge`, {
-        merge_method: "squash",
-        sha,
-      });
-    },
     listOpenPulls: () => paginate(`${repoPath}/pulls?state=open`),
-    enableAutoMerge: (pullNodeId) =>
-      graphql(
-        "mutation($id: ID!) { enablePullRequestAutoMerge(input: {pullRequestId: $id, mergeMethod: SQUASH}) { clientMutationId } }",
-        { id: pullNodeId },
-      ),
-    markReadyForReview: (pullNodeId) =>
-      graphql(
-        "mutation($id: ID!) { markPullRequestReadyForReview(input: {pullRequestId: $id}) { clientMutationId } }",
-        { id: pullNodeId },
-      ),
   };
 }
