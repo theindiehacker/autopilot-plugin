@@ -70,6 +70,7 @@ gh api 'repos/{owner}/{repo}/issues/<n>/comments?per_page=100' --paginate \
 ```
 <!-- autopilot:needs-human -->
 対応の上限 ({上限} 回) に達しました。
+直してから、Issue の needs-human を外して autopilot:ready を付け直すと、同じ PR で続きから進みます。
 ```
 
 ### 3. 記録を読む
@@ -106,6 +107,7 @@ gh api 'repos/{owner}/{repo}/commits/<head>/check-runs?per_page=100' --paginate 
 ```
 <!-- autopilot:needs-human -->
 同じ失敗が続いています。同じところ: {何が同じか}
+直してから、Issue の needs-human を外して autopilot:ready を付け直すと、同じ PR で続きから進みます。
 ```
 
 ### 6. レビューの指摘の採否を決める
@@ -143,6 +145,7 @@ git merge --ff-only origin/<ブランチ>
 ```
 <!-- autopilot:needs-human -->
 受入条件を確かめられません。通らない条件: {条件}。見たこと: {1〜2 行}
+直してから、Issue の needs-human を外して autopilot:ready を付け直すと、同じ PR で続きから進みます。
 ```
 
 ### 9. 記録する
