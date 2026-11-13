@@ -30,7 +30,8 @@ gh label create needs-human --force --color D93F0B --description "止まった�
 CI のジョブがすべて `paths:` で飛ぶか、Draft の PR を飛ばすときは、毎回は結果を報告しないため、そのまま必須にできません (必須にすると、報告されない PR が永遠に待ちになる)。次のようにします。
 
 1. `autopilot QA` は、これまでどおり必須のままにする
-2. 常に動く集約のジョブを、CI のワークフローに足すことをユーザーに提案する。`needs:` に、絞り込みのあるジョブを並べ、`if: always()` で必ず動かし、1 つでも失敗か取り消しなら失敗にする。`paths:` で飛んだジョブ (skipped) は、失敗に数えない。この集約のジョブ名を、`{{CI_CHECK}}` に入れる
+2. 常に動く集約のジョブを足すことを、ユーザーに提案する。1 つでも失敗か取り消しなら失敗にし、`paths:` などで飛んだジョブ (skipped) は、失敗に数えない。この集約のジョブ名を、`{{CI_CHECK}}` に入れる。足し方は、CI の形で決まる
+   - (A) CI が 1 つのワークフローで、ジョブごとに `if:` で絞っているとき: そのワークフローに集約のジョブを足す。`needs:` に絞り込みのあるジョブを並べ、`if: always()` で必ず動かす
 
 ```yaml
   ci-ok:
@@ -45,7 +46,98 @@ CI のジョブがすべて `paths:` で飛ぶか、Draft の PR を飛ばすと
           fi
 ```
 
-   ワークフロー自体が `on.pull_request.paths:` で絞られていると、集約のジョブも動きません。その場合は、`paths:` をワークフローから外し、各ジョブの手前で変更を見分ける形 (`dorny/paths-filter` など。SHA で固定する) に直す案を見せます。Draft の PR を飛ばすジョブは、集約のジョブには `if: always()` だけを付け (Draft を飛ばさない)、結果を必ず出します
+   Draft の PR を飛ばすジョブは、集約のジョブには `if: always()` だけを付け (Draft を飛ばさない)、結果を必ず出します。
+
+   - (B) CI がいくつかのワークフローに分かれ、`on.pull_request.paths:` で絞っているとき (1 つのワークフロー全体を `paths:` で絞っているときも同じ): `needs:` は、ほかのワークフローのジョブを指せません。ワークフロー全体が `paths:` で絞られていると、集約のジョブも動きません。そこで、次の `ci.yml` を新しく足し、PR のたびに必ず動かします。第三者の Action は要りません
+     - `changes` のジョブが、PR の変更されたファイルを API で読み、呼ぶワークフローごとに `true` か `false` を出す。checkout はしません (PR のコードを動かさないため)
+     - 正規表現は、そのワークフローがもともと `paths:` に持っていたものに、`ci.yml` 自身を足したもの。名前を変えたファイルは、`previous_filename` も入れる
+     - 変更が 3000 ファイル以上のときは、一覧が欠けるので、すべて `true` にする (API の上限)
+     - ワークフローごとに、`uses: ./.github/workflows/<ファイル>.yml` で呼ぶジョブを置く。`if:` で `changes` の出力を見る
+     - 呼ぶジョブの `permissions:` は、呼ばれるワークフローのどのジョブの権限も含めます。足りないと、起動の時点で失敗します
+     - `secrets: inherit` は付けず、呼ばれる側が使うものだけを渡す
+     - 呼ばれる側は、`pull_request:` (`types`・`paths`) を `workflow_call:` に替える。`push:` は残す。`github.event.pull_request.draft` や `github.event_name` を読む `if:` は、呼ぶ側のイベントを見るので、そのまま使えます
+     - `ci-ok` は、`needs:` に `changes` と呼ぶジョブをすべて並べ、`if: always()` で必ず動かす。`failure` と `cancelled` を失敗にし、`skipped` は失敗にしない。結果は `env:` で渡し、失敗したジョブ名を出す
+
+```yaml
+name: CI
+
+on:
+  pull_request:
+    types: [opened, synchronize, reopened, ready_for_review]
+
+permissions: {}
+
+concurrency:
+  group: ci-${{ github.event.pull_request.number }}
+  cancel-in-progress: true
+
+jobs:
+  changes:
+    runs-on: ubuntu-latest
+    timeout-minutes: 5
+    permissions:
+      pull-requests: read
+    outputs:
+      lint: ${{ steps.filter.outputs.lint }}
+      test: ${{ steps.filter.outputs.test }}
+    steps:
+      - id: filter
+        env:
+          GH_TOKEN: ${{ github.token }}
+          PR: ${{ github.event.pull_request.number }}
+        run: |
+          files=$(gh api "repos/$GITHUB_REPOSITORY/pulls/$PR/files" --paginate --jq '.[] | .filename, (.previous_filename // empty)')
+          # files API は 3000 ファイルまで。それ以上は、一覧が欠けるので、すべて動かす
+          count=$(gh api "repos/$GITHUB_REPOSITORY/pulls/$PR" --jq '.changed_files')
+          all=false
+          if [ "$count" -ge 3000 ]; then all=true; fi
+          # <出力の名前> <正規表現>: 変更されたファイルのどれかが合えば true
+          filter() {
+            if [ "$all" = true ] || printf '%s\n' "$files" | grep -Eq "$2"; then
+              echo "$1=true" >> "$GITHUB_OUTPUT"
+            else
+              echo "$1=false" >> "$GITHUB_OUTPUT"
+            fi
+          }
+          filter lint '^src/|^\.github/workflows/lint\.yml$|^\.github/workflows/ci\.yml$'
+          filter test '^src/|^tests/|^\.github/workflows/test\.yml$|^\.github/workflows/ci\.yml$'
+
+  lint:
+    needs: changes
+    if: ${{ needs.changes.outputs.lint == 'true' }}
+    permissions:
+      contents: read
+    uses: ./.github/workflows/lint.yml
+
+  test:
+    needs: changes
+    if: ${{ needs.changes.outputs.test == 'true' }}
+    permissions:
+      contents: read
+    uses: ./.github/workflows/test.yml
+
+  ci-ok:
+    name: ci-ok
+    if: always()
+    needs: [changes, lint, test]
+    runs-on: ubuntu-latest
+    timeout-minutes: 5
+    permissions: {}
+    steps:
+      - env:
+          NEEDS: ${{ toJSON(needs) }}
+        run: |
+          failed=$(printf '%s' "$NEEDS" | jq -r 'to_entries[] | select(.value.result == "failure" or .value.result == "cancelled") | "\(.key): \(.value.result)"')
+          if [ -n "$failed" ]; then
+            echo "::error::CI のジョブが失敗か取り消しになりました"
+            echo "$failed"
+            exit 1
+          fi
+```
+
+     - クラウドに OIDC (Google の WIF・AWS など) で認証し、信頼の条件が、ワークフローのファイル (`workflow_ref`・`job_workflow_ref`) を見ているものは、`ci.yml` から呼ぶと認証に失敗します。`workflow_ref` が、呼ぶ側の `ci.yml` になるためです。そのワークフローは、これまでどおり単独にして (自分の `pull_request` と `paths:`)、`ci-ok` に入れません。必須にはできないことを、ユーザーに伝えます。必須にしたければ、クラウドの信頼の条件を広げることを、管理者に頼みます
+     - これまで `ready_for_review` で飛ばしていたジョブも、Ready にしたときに動くようになります。`ready_for_review` で飛ばさないでください。Draft の run が Ready の run に取り消されると、その SHA では終わらず、`ci-ok` がテストなしで通るためです
+     - zizmor が、`uses: ./.github/workflows/...` に、重大度の低い `self-repository` を出すことがあります。actionlint は zizmor が勧める `$/` の形を受け付けないので、`./` のままにします
 3. ユーザーが集約のジョブを足さないと答えたら、CI のチェックは必須にしません。このとき、`.github/autopilot.yml` の `required_checks` から `- "{{CI_CHECK}}"` の行を**消し** (空の文字列や、プレースホルダーのまま残さない)、`autopilot QA` だけにします。手順 8 のルールセットでも、CI のチェックの行を入れません。CI の失敗は、開発のルーティンが購読で拾います。ただし、CI の結果では自動マージが止まらないので、そのことを PR の本文に書きます
 
 ## 3. ワークフローを 2 つ書く
