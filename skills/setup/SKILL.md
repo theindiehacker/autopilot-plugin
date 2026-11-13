@@ -7,7 +7,7 @@ description: リポジトリを、Claude Code on the Web で開発・テスト�
 最初に、環境変数 `CLAUDE_CODE_REMOTE` を確かめてください。
 
 ```bash
-[ "${CLAUDE_CODE_REMOTE:-}" = "true" ] && echo remote
+if [ "${CLAUDE_CODE_REMOTE:-}" = "true" ]; then echo remote; fi
 ```
 
 `remote` と出たら、クラウドのセッション (Claude Code on the Web) です。何も変えずに、ここで止まります。ユーザーに、次を伝えてください。

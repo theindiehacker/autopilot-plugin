@@ -277,6 +277,11 @@ org のルールセットは変えません。変える必要があれば、ユ�
 ## 8. ルーティンを作る (マージの後)
 ルーティンは、いまログインしている claude.ai アカウントのものになります。作る前に、interview.md で選んだアカウント (自動化専用か個人) でログインしているかを、ユーザーに確かめます。違えば、ここで止まってログインし直してもらいます。
 
+作る前に、次の 2 つを確かめます。
+
+- 既存のルーティン: RemoteTrigger の `list` で、ルーティンの一覧を読みます。このリポジトリについて、`/autopilot:develop` を実行し、GitHub のトリガー (`issues.labeled`) を持つものが既にあれば、もう 1 つは作りません。あることだけをユーザーに伝えて、この手順を終えます
+- Web の環境: ユーザーに、Web の環境が作ってあるかと、どれを使うかを確かめます。まだ無ければ、手順 7 を先に終えます。ユーザーが環境を作ったと答えてから、この手順を行います
+
 RemoteTrigger で、次の 2 つを順に呼びます。
 
 1. `create`: スケジュールなし、`clear_mcp_connections: true`。プロンプトは `/autopilot:develop` を実行すること。環境は、README の手順で作った Web の環境
@@ -301,7 +306,7 @@ RemoteTrigger で、次の 2 つを順に呼びます。
 
 1. 開いている autopilot の PR (ブランチが `autopilot/` で始まる) が無いときに行います。あれば、マージか close されるのを待つか、その Issue と PR に `needs-human` を付けて止めます。止めた PR は、移した後に、Issue の `needs-human` を外し、`autopilot:ready` を一度外してから付け直すと、同じ PR で続きから進みます
 2. ルールセットの必須のチェックに `autopilot QA` があれば、先に外します。今の形には、このチェックを報告するワークフローが無いので、残すと、3 の PR も、この後の autopilot の PR も、待ちのままになります。`gh api repos/{o}/{r}/rulesets` で ID を探し、`gh api repos/{o}/{r}/rulesets/<id>` で読みます。`rules` の `required_status_checks` から `autopilot QA` を除き、`name`・`target`・`enforcement`・`conditions`・`rules`・`bypass_actors` を `gh api -X PUT repos/{o}/{r}/rulesets/<id> --input -` で書き戻します。ほかに必須のチェックが無くなれば、`required_status_checks` のルールごと消します。組織のルールセットにあれば、変えずに、ユーザーに伝えます
-3. 新しい設定を入れる PR を作り、マージしてもらいます。手順 2 (`.github/autopilot.yml`) のひな形から書き直し、手順 6 のとおり PR にします。下の「消すもの」のうち、リポジトリのファイルも、同じ PR で消します。CODEOWNERS に、セキュリティの設定・除外のファイル (`/.gitleaks.toml`・`/.gitleaksignore`・`/.semgrepignore`・`/trivy.yaml`・`/.trivyignore`・`/.trivyignore.yaml`) の行が無ければ、手順 4 のひな形のとおりに足します (リポジトリに無いファイルの行も入れます)
+3. 新しい設定を入れる PR を作り、マージしてもらいます。手順 2 (`.github/autopilot.yml`) のひな形から書き直し、手順 6 のとおり PR にします。マージの後に行うのは、手順 7 (ルールセットの足りない分と、ワークフローの既定の権限) だけです。手順 8 は、今あるルーティンを残すので、行いません。下の「消すもの」のうち、リポジトリのファイルも、同じ PR で消します。CODEOWNERS に、セキュリティの設定・除外のファイル (`/.gitleaks.toml`・`/.gitleaksignore`・`/.semgrepignore`・`/trivy.yaml`・`/.trivyignore`・`/.trivyignore.yaml`) の行が無ければ、手順 4 のひな形のとおりに足します (リポジトリに無いファイルの行も入れます)
 4. ルーティンの Web の環境の写しを、作り直してもらいます (環境の設定のスクリプトのコメントを 1 行変えると、作り直されます)。ルーティンが、新しいプラグインの開発と対応の手順を読むためです。ルーティンは作り直しません
 
 | 消すもの | 消し方 |
