@@ -29,12 +29,11 @@
 | 1 | 人 | Issue を書く。権限のある人 (triage 以上) が `autopilot:ready` を付ける |
 | 2 | ルーティン | 起動して、Issue のラベルを確かめる (`autopilot:ready` が無いか `needs-human` があれば、何もしない)。ブランチ `autopilot/<番号>-dev` と、`Closes #<番号>` を入れた Draft PR を作る |
 | 3 | ルーティン | 受入条件を Issue にコメントする。条件を確かめるテストを書き、失敗するのを確かめてから実装する |
-| 4 | ルーティン | アプリを起動して受入条件を確かめ、PR の本文に動作確認を書く。「レビュー可能」にして自動マージを有効にし、PR を購読する |
-| 5 | GitHub Actions | Claude のレビューと QA が動く。QA は、コードを書いていない別の Claude が、アプリを動かして受入条件を確かめ直す (必須のチェック)。CODEOWNERS のパスを変える PR は、GitHub が持ち主にレビューを頼む |
-| 6 | ルーティン | Request changes・CI の失敗・QA の失敗があると、購読の通知でセッションが起きる。`autopilot:fix` の手順で、指摘ごとに採否を決めて、直して push し、返信する |
+| 4 | ルーティン | アプリを起動して受入条件を確かめ、PR の本文に動作確認とエビデンスを書く (これが QA。別の Claude による確かめ直しはしない)。「レビュー可能」にして自動マージを有効にし、PR を購読する |
+| 5 | GitHub Actions | Claude のレビューが動く。CODEOWNERS のパスを変える PR は、GitHub が持ち主にレビューを頼む |
+| 6 | ルーティン | Request changes・CI の失敗があると、購読の通知でセッションが起きる。`autopilot:fix` の手順で、指摘ごとに採否を決めて、直して push し、返信する |
 | 7 | GitHub の標準の仕組み | 必須のチェックと必須のレビューがそろうと、自動マージでマージされる |
 | 8 | リポジトリ | マージの後は、リポジトリのデプロイの仕組みが動く (デプロイがあるリポジトリだけ)。autopilot は、デプロイを動かさず、確かめません |
-| 随時 | GitHub Actions (AI なし) | 1 時間ごとの見回り。起動しなかった Issue のラベルを付け直す。コンフリクトや動きの無い PR に、GitHub App がコメントしてセッションを起こす |
 
 ルーティンの持ち主が PR に書いたコメントでは、セッションは起きません (同じアカウントの書き込みは通知されないため)。直してほしいときは、ルーティンの commit の `Claude-Session:` の行のリンクから、そのセッションに直接書いてください。
 
@@ -42,8 +41,8 @@
 
 | ラベル | 付く先 | 付ける人 | 意味 |
 |---|---|---|---|
-| `autopilot:ready` | Issue | triage 以上の権限がある人・見回り (付け直し) | 開発を始めてよい。ルーティンが起動する |
-| `needs-human` | Issue・PR | ルーティン・見回り | 止まった。人の判断が要る |
+| `autopilot:ready` | Issue | triage 以上の権限がある人 | 開発を始めてよい。ルーティンが起動する |
+| `needs-human` | Issue・PR | ルーティン | 止まった。人の判断が要る |
 
 ### 止まる条件と、再開のしかた
 
@@ -52,9 +51,11 @@
 - 対応を 3 回行った後に、また失敗した (回数は `.github/autopilot.yml` の `limits.max_fix_rounds`)
 - 同じ失敗が 2 回続いた
 - Issue があいまいで受入条件が書けないなど、ルーティンが進めない (質問と案を書く)
-- 見回りで、付け直しても始まらない Issue か、起こしても直らない PR が見つかった
+- 同じ head で、PR が 2 回 Draft に戻された (1 回目は、直すことが無いので「レビュー可能」に戻した)
 
-`needs-human` の付いた Issue・PR では、ルーティンも見回りも動きません。再開するには、答えを Issue にコメントし (読まれるのは、権限が triage 以上の人のコメントだけです)、Issue の `needs-human` を外します。続けて、Issue の `autopilot:ready` を一度外してから、付け直します。`autopilot:ready` を付けたままでは、ルーティンは起動しません。
+`needs-human` の付いた Issue・PR では、ルーティンは動きません。再開するには、答えを Issue にコメントし (読まれるのは、権限が triage 以上の人のコメントだけです)、Issue の `needs-human` を外します。続けて、Issue の `autopilot:ready` を一度外してから、付け直します。`autopilot:ready` を付けたままでは、ルーティンは起動しません。
+
+起動しなかった Issue と、通知が来ないまま止まった PR は、自動では拾いません。気づいたら、Issue は `autopilot:ready` を一度外してから付け直します。PR は、ルーティンの commit の `Claude-Session:` の行のリンクから、そのセッションに直接書きます。
 
 ### 人がすること
 
@@ -63,24 +64,24 @@
 | CODEOWNERS のパスを変える PR の Approve | `/autopilot:setup` が CODEOWNERS を入れたリポジトリだけ。GitHub のレビューの依頼で届く |
 | `needs-human` への答え | 止まったとき。Issue にコメントして、再開する |
 | Slack の通知を見る | GitHub の Slack アプリを購読したチャンネルに届く。例: `/github subscribe <owner>/<repo> issues pulls comments +label:"needs-human"` |
+| 起動しなかった Issue・止まった PR に気づく | 自動では拾わない。上の「止まる条件と、再開のしかた」のとおり、付け直すか、セッションに直接書く |
 
 ### 入れたら setup の後にすること
 
-`/autopilot:setup` は、ラベル・`.github/autopilot.yml`・ワークフロー・CODEOWNERS を入れた PR を作ります。次は、画面でしかできないので、手順を案内されてユーザーがします。
+`/autopilot:setup` は、ラベル・`.github/autopilot.yml`・CODEOWNERS (無ければ、Claude のレビューと CI のワークフローも) を入れた PR を作ります。autopilot のためのワークフローは置きません。次は、画面でしかできないので、手順を案内されてユーザーがします。
 
 | こと | 中身 |
 |---|---|
-| GitHub App | 組織で 1 つ。manifest で作る (組織にもうあれば、新しく作らない)。**autopilot を使うリポジトリにだけ**入れる。権限は、Contents・Pull requests・Issues が Read and write、Checks・Metadata が Read |
 | Claude の GitHub App | https://github.com/apps/claude をリポジトリに入れる。Claude のレビューが、PR にレビューを書くために要る。既存の Claude のレビューを使うときも、入っているかを確かめる |
-| シークレット | `AUTOPILOT_APP_ID`・`AUTOPILOT_APP_PRIVATE_KEY`・`CLAUDE_CODE_OAUTH_TOKEN` か `ANTHROPIC_API_KEY` |
+| シークレット | setup が Claude のレビューのワークフローを置いたときだけ。`CLAUDE_CODE_OAUTH_TOKEN` か `ANTHROPIC_API_KEY` |
 | GitHub の Slack アプリ | Slack で `/github signin` を打つ。GitHub の側に Slack のアプリを入れてリポジトリを選ぶ。通知先のチャンネルで `/github subscribe …` を打つ |
 | Web の環境 | 下の「入れ方」の手順 |
 
-PR がマージされたら、setup が続きを行います。ワークフローがデフォルトブランチに入るまで、必須のチェックが報告されないためです。
+PR がマージされたら、setup が続きを行います。ルールセットを先に作ると、この PR も必須のレビューを待つことになり、ルーティンは、デフォルトブランチの `.github/autopilot.yml` を読むためです。
 
 | こと | 中身 |
 |---|---|
-| ルールセット | 必須のチェック (CI のジョブと `autopilot QA`)・必須のレビュー 1 件・push で古い Approve を取り消す・コードオーナーのレビューを必須にする。自動マージを許可する。ワークフローの既定の権限を読み取りだけにし、Actions が PR を Approve することを禁じる |
+| ルールセット | 必須のチェック (CI のジョブ。必須にできる CI が無ければ無し)・必須のレビュー 1 件・push で古い Approve を取り消す・コードオーナーのレビューを必須にする。自動マージを許可する。ワークフローの既定の権限を読み取りだけにし、Actions が PR を Approve することを禁じる |
 | ルーティン | プロンプトは `/autopilot:develop`、トリガーは `issues.labeled`。ルーティンは、ログインしている claude.ai のアカウントのものになる |
 
 ## ⚙️ 自動で動くもの
@@ -296,17 +297,19 @@ claude plugin install autopilot@indiehacker
 | 5 | Web で Docker を起動できるようにする | 毎回 | compose ファイルを用意し、Dockerfile の通信する `RUN` でプロキシの CA を読む。`.env` が無くても起動できるようにし、Mac 専用の設定や終了するサービスを直す。遮断されたドメインは、環境の「許可されたドメイン」への追加を頼む |
 | 6 | 検査を入れる | 毎回 | タスクランナーに `style:check`・`style:fix`・`security:check`・`dev:up` を作る (あるものは消さず、足りないものだけ足す)。`lefthook.yml` (commit 前・push 前) と `.claude/settings.json` の `Stop` の hook (作業の終わり) から、そのタスクを呼ぶ。すでに lefthook や pre-commit があれば、足りない検査だけを足す。`lefthook install` を動かし、シークレットを入れた commit が止まることを確かめる |
 | 7 | 既存のシークレット・脆弱性を直す | 毎回 | Gitleaks・Semgrep・Trivy の指摘を直す。誤検出などでユーザーが選んだものだけ、理由を書いて除外する |
-| 8 | autopilot を入れる | 毎回 | ラベル 2 つ (`autopilot:ready`・`needs-human`)・`.github/autopilot.yml`・ワークフロー 2 つ (見回りと QA)・`.github/CODEOWNERS` を入れる。Claude のレビューと CI が無ければ用意する。GitHub App (autopilot 用と Claude)・シークレット・Slack の購読・Web の環境は、ユーザーに頼む |
+| 8 | autopilot を入れる | 毎回 | ラベル 2 つ (`autopilot:ready`・`needs-human`)・`.github/autopilot.yml`・`.github/CODEOWNERS` を入れる。Claude のレビューと CI が無ければ用意する。Claude の GitHub App・シークレット (Claude のレビューを置いたとき)・Slack の購読・Web の環境は、ユーザーに頼む |
 
 技術スタックの移行を先に行うのは、5 で動かす `docker compose up --build` が、移行した後の lock ファイルでビルドするためです。検査を入れるのは、7 で、入れた検査と同じコマンドを動かして、既存の指摘を直すためです。セキュリティを autopilot の前に行うのは、移行で変わった依存も検査するためです。
 
 8 のラベルは、同意の後すぐに GitHub のリポジトリに作ります (ラベルは、PR をマージしなくても残ります)。
 
-ワークフローなどを入れ終えたら、PR を作るかを聞き、作ると答えたら PR を 1 つ作ります。手順の途中では commit しません。ルールセットとルーティンは、この PR のマージの後に作ります (「🤖 autopilot」を参照)。
+入れ終えたら、PR を作るかを聞き、作ると答えたら PR を 1 つ作ります。手順の途中では commit しません。ルールセットとルーティンは、この PR のマージの後に作ります (「🤖 autopilot」を参照)。
 
 ## ⚠️ 注意
 
 - これらのツールで検出できない脆弱性もあります。
+- 受入条件の確かめ (QA) は、ルーティンが PR の本文に書く動作確認だけです (自己申告。受入条件ごとのエビデンスが付きます)。別の Claude が確かめ直すことはありません。
+- 必須にできる CI が無いリポジトリでは、必須のチェックが無いので、CI の結果を待たずに、Claude のレビューの承認だけで自動マージされます。
 - 公開リポジトリでは、だれのコメントも、自動モードのルーティンのセッションに入ります。autopilot のリポジトリだけに届く、自動化専用の GitHub アカウントを使うことを勧めます。
 - Terraform の apply がマージで動くリポジトリでは、CODEOWNERS の Approve の後に、取り消せない操作が自動で走ります。apply を、手動のワークフローか別のリポジトリにすることを勧めます (setup は案を出すだけで、作りません)。
 - デプロイは、autopilot ではなく、リポジトリのデプロイの仕組みが動きます。autopilot は、デプロイを動かさず、確かめません。デプロイの失敗は、GitHub の Slack アプリの購読 (`/github subscribe <owner>/<repo> workflows:{name:"<デプロイのワークフローの名前>"}`) で知らせられます。
