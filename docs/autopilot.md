@@ -50,13 +50,14 @@
 
 ## setup の後にすること
 
-`/autopilot:setup` は、`.github/autopilot.yml`・CODEOWNERS (無ければ、Claude のレビューと CI のワークフローも) を入れた PR を作ります。ラベル 2 つは、PR とは別に、同意の後すぐにリポジトリに作ります。autopilot のためのワークフローは置きません。次は、画面でしかできないので、手順を案内されてユーザーがします。setup は、PR を作るときに、1 つの一覧にして頼みます。
+`/autopilot:setup` は、`.github/autopilot.yml`・CODEOWNERS (無ければ、Claude のレビューと CI のワークフローも) を入れた PR を作ります。ラベル 2 つと Project は、PR とは別に、同意の後すぐに作ります。autopilot のためのワークフローは置きません。次は、画面でしかできないので、手順を案内されてユーザーがします。setup は、PR を作るときに、1 つの一覧にして頼みます。
 
 | こと | 中身 |
 |---|---|
 | Claude の GitHub App | https://github.com/apps/claude をリポジトリに入れる。Claude のレビューが、PR にレビューを書くために要る。既存の Claude のレビューを使うときも、入っているかを確かめる |
 | シークレット | setup が Claude のレビューのワークフローを置いたときだけ。`CLAUDE_CODE_OAUTH_TOKEN` か `ANTHROPIC_API_KEY` |
 | GitHub の Slack アプリ | Slack で `/github signin` を打つ。GitHub の側に Slack のアプリを入れてリポジトリを選ぶ。通知先のチャンネルで `/github subscribe …` を打つ |
+| Project の Issue の自動の追加 | Project の Workflows の「Auto-add to project」で、リポジトリを選び、条件を `is:issue is:open` にしてオンにする |
 | Web の環境 | README の「プラグインを入れる」の手順 |
 
 PR がマージされたら、setup が続きを行います。ユーザーが「マージした」と答えるか、PR の状態が `MERGED` になると、setup が `gh` と RemoteTrigger で作ります。ルールセットを先に作ると、この PR も必須のレビューを待つことになります。ルーティンは、デフォルトブランチの `.github/autopilot.yml` を読みます。
@@ -65,6 +66,25 @@ PR がマージされたら、setup が続きを行います。ユーザーが�
 |---|---|
 | ルールセット | 必須のチェック (CI のジョブ。必須にできる CI が無ければ無し)・必須のレビュー 1 件・push で古い Approve を取り消す・コードオーナーのレビューを必須にする。自動マージを許可する。ワークフローの既定の権限を読み取りだけにし、Actions が PR を Approve することを禁じる |
 | ルーティン | プロンプトは `/autopilot:develop`、トリガーは `issues.labeled`。ルーティンは、ログインしている claude.ai のアカウントのものになる |
+
+## Project
+
+setup は、Issue の状態を見る GitHub の Project `autopilot` を、リポジトリの持ち主 (org か個人) ごとに 1 つ作り、リポジトリをつなぎます。持ち主にもうあれば、つなぐだけです。テンプレートは、theindiehacker の公開の Project [autopilot のテンプレート](https://github.com/orgs/theindiehacker/projects/12) で、`gh project copy` でコピーします。
+
+| ビュー | 出るもの |
+|---|---|
+| ボード | Issue を Status の列で並べる。カードにラベル (`needs-human` など) が出る |
+| すべて | すべての Issue・PR の表 |
+
+Status は、GitHub の標準の自動化で動きます。autopilot は Project に書きません。
+
+| Status | いつ |
+|---|---|
+| Todo | Issue が Project に入った |
+| In Progress | 開発のルーティンが Draft PR (`Closes #<番号>`) を作った |
+| Done | PR がマージされた・Issue が閉じた |
+
+閉じて 2 週間たった Issue は、自動でアーカイブされます。
 
 ## 注意
 

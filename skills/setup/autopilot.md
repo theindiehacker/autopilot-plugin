@@ -3,14 +3,49 @@ Issue からマージまでの自動の流れを、リポジトリに入れま�
 
 autopilot のための GitHub Actions のワークフローは置きません。受入条件の確かめ (QA) は、開発のルーティンが「レビュー可能」にする前に行う動作確認 (`skills/qa/self-check.md`) だけです。別の Claude が確かめ直すことはありません。GitHub Actions で動くのは、リポジトリの CI と Claude のレビューだけです。
 
-## 1. ラベルを 2 つ作る
-手順 1 は、PR を作る前に、リモートのリポジトリを変えます (ラベルは、PR をマージしなくても残ります)。SKILL.md の「同意するまでリポジトリは変えない」の例外なので、提案 (interview.md) の一覧に入れ、同意の後に行います。
+## 1. ラベルと Project を作る
+手順 1 は、PR を作る前に、リモートのリポジトリを変えます (ラベルと Project は、PR をマージしなくても残ります)。SKILL.md の「同意するまでリポジトリは変えない」の例外なので、提案 (interview.md) の一覧に入れ、同意の後に行います。
+
+### ラベル
 
 ```bash
 gh label create autopilot:ready --force --color 0E8A16 --description "開発を始めてよい"
 gh label create needs-human --force --color D93F0B --description "止まった。人の判断が要る"
 ```
 `.github/ISSUE_TEMPLATE/` のテンプレートの `labels:` に `autopilot:ready` があれば、消すようユーザーに提案します。`autopilot:ready` は、権限のある人が付けるものだからです。
+
+### Project
+Issue の状態を見る GitHub の Project を、リポジトリの持ち主 (org か個人) ごとに 1 つ作り、このリポジトリをつなぎます。テンプレートは、theindiehacker の公開の Project [autopilot のテンプレート](https://github.com/orgs/theindiehacker/projects/12) です。
+
+| ビュー | 出るもの |
+|---|---|
+| ボード | Issue を Status (Todo・In Progress・Done) の列で並べる。カードにラベル (`needs-human` など) が出る |
+| すべて | すべての Issue・PR の表 |
+
+Status は、GitHub の標準の自動化 (新しい Project で最初から有効) で動きます。Project に入ると Todo、開発のルーティンが Draft PR (`Closes #<番号>`) を作ると In Progress、マージか close で Done になります。閉じて 2 週間たった Issue は、自動でアーカイブされます。開発のルーティンは、Project に何も書きません。
+
+1. `gh auth status` の `Token scopes` に `project` があるかを確かめます。無ければ、ユーザーに、別のターミナルで `gh auth refresh -h github.com -s project` を打ってもらいます (ブラウザでの確認が要るので、`!` からは動きません)
+2. 持ち主に、もう autopilot の Project があるかを見ます (ほかのリポジトリの setup で作ったもの)
+
+```bash
+gh project list --owner <owner> --format json --jq '.projects[] | select(.title == "autopilot") | .number'
+```
+
+3. 無ければ、テンプレートをコピーします。ビューと Status の自動化は引き継がれます。Issue の自動の追加は引き継がれないので、手順 5 の一覧で頼みます (5-C)
+
+```bash
+gh project copy 12 --source-owner theindiehacker --target-owner <owner> --title autopilot --format json --jq .number
+```
+
+4. このリポジトリにつなぎます。リポジトリの Projects のタブに出ます
+
+```bash
+gh project link <番号> --owner <owner> --repo <owner>/<repo>
+```
+
+- 個人のリポジトリでは、`<owner>` は個人のアカウントです
+- Project の URL は、org なら `https://github.com/orgs/<owner>/projects/<番号>`、個人なら `https://github.com/users/<owner>/projects/<番号>` です。5-C と PR の本文で使います
+- コピーやリンクが断られたら (org で Project を作る権限が無いなど)、org の owner に頼むよう、ユーザーに伝えます。Project が無くても、autopilot は動きます
 
 ## 2. `.github/autopilot.yml` を書く
 [templates/autopilot.yml](templates/autopilot.yml) から、聞いた答えで書きます。`qa.start`・`qa.url` を必ず入れます。置き換える文字列は、次の答えから取ります。
@@ -176,6 +211,7 @@ jobs:
 | Claude の GitHub App を入れる | https://github.com/apps/claude を、このリポジトリに入れる。Claude のレビュー (claude[bot]) が、PR にレビューを書くために要る。既存の Claude のレビューのワークフローを使うときも、入っているかを確かめてもらう (リポジトリの設定の「GitHub Apps」) |
 | Claude のレビューの認証 | 手順 3 で Claude のレビューのワークフローを置いたときだけ。下の「5-A」 |
 | GitHub の Slack アプリの購読 | Slack に GitHub のアプリを入れ、通知先のチャンネルで購読する (下の「5-B」) |
+| Project に Issue を自動で入れる | 手順 1 で Project をつないだときだけ。下の「5-C」 |
 | Web の環境を作る | README の手順。手順 8 のルーティンが使う |
 
 ### 5-A. Claude のレビューの認証
@@ -217,10 +253,21 @@ Slack への通知は、GitHub の Slack アプリの購読で届けます (Webh
 
 コマンドの細かな形は、Slack で `/github help` を見て合わせてもらいます。ラベルで絞る 1 つ目の購読で、止まった知らせと質問のコメントが届くことは、確かめ済みです。送った後に `/github subscribe list features` を打ってもらい、購読が思ったとおりかを確かめます。
 
+### 5-C. Project に Issue を自動で入れる
+Issue の自動の追加 (Auto-add to project) は、画面でしか設定できません。テンプレートのコピーでも引き継がれません。手順 1 の Project の URL を開いて、次を頼みます。
+
+1. 右上のメニューから「Workflows」を開く
+2. 「Auto-add to project」を選び、右上の「Edit」を押す。この Project の Auto-add が、もうほかのリポジトリで使われていれば、「Auto-add to project」の横の「…」から「Duplicate workflow」で複製し、複製したほうを「Edit」する
+3. 「Filters」で、このリポジトリを選び、条件を `is:issue is:open` にする
+4. 「Save and turn on workflow」を押す
+
+- Issue が作られたときと、更新されたときに入ります。オンにする前からある Issue は、更新されるまで入りません
+- 1 つの Project で使える Auto-add の数は、プランで決まります (Free 1・Pro と Team 5・Enterprise 20)。上限に達していれば、そのことを伝えます。そのリポジトリの Issue は、手で Project に足すことになります
+
 ## 6. PR にまとめて、マージしてもらう
 SKILL.md の「PR を作る」の節のとおりに、ここまでの変更を 1 つの PR にまとめます。本文には、次も書きます。
 
-- 入れたもの (`.github/autopilot.yml` の内容・CODEOWNERS・手順 2 と 3 で置いたワークフロー)
+- 入れたもの (`.github/autopilot.yml` の内容・CODEOWNERS・手順 2 と 3 で置いたワークフロー・手順 1 でつないだ Project の URL)
 - 必須のチェックが無いときは、そのこと (CI の結果では自動マージが止まらず、レビューの承認だけでマージされる。手順 2 の「CI の必須のチェック」)
 - ユーザーがすること (手順 5 の一覧のうち、まだ終えていないもの)
 - マージした後に、setup がルールセット・ワークフローの既定の権限・ルーティンを作ること
