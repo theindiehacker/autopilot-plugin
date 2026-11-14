@@ -2,6 +2,6 @@
 # プロジェクトの tsc で LSP を動かす。tsc --lsp は TypeScript 7 からなので、6 以前は typescript-language-server を使う
 t=$(ls node_modules/.bin/tsc */node_modules/.bin/tsc 2>/dev/null | head -1)
 case "$("$t" --version 2>/dev/null)" in
-  "Version "[1-6].*) exec bunx typescript-language-server@6.0.2 --stdio ;;
+  "Version "[1-6].*) exec bunx typescript-language-server@6.0.3 --stdio ;;
 esac
 exec "$t" --lsp --stdio
