@@ -149,7 +149,6 @@ PC の Claude Code のセッションから、Claude Code on the Web のセッ�
 
 Web のセッションで気をつけること:
 - 作業フォルダが複数のリポジトリの親 (`/home/user`) だと、SessionStart の hook がそのリポジトリの Docker の準備 (プロキシの CA) をしない。そのリポジトリで `docker compose` を動かすときは、`scripts/cloud/setup.sh` と同じく `.claude/session/compose.proxy-ca.yaml` を作り、`COMPOSE_FILE` に足す
-- セッションの機械が作り直されると、dockerd が止まっていることがある。`containerd` と `dockerd --registry-mirror=https://mirror.gcr.io` を起動し直す
 - commit 前の lefthook がタスクを呼ぶリポジトリでは、`mise exec -- git commit` で、mise のツールを PATH に入れて commit する
 
 ## プラグインの残りの指摘 (直していないもの。ブランチ全体のレビューで、直すかを決める)

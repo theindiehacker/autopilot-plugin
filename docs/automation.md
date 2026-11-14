@@ -6,7 +6,7 @@
 
 | タイミング | 処理 | 動く条件 |
 |---|---|---|
-| 起動時 | `dockerd --registry-mirror=https://mirror.gcr.io` | Web のみ |
+| 起動時 | `dockerd --registry-mirror=https://mirror.gcr.io` (動いていなければ。起動できなければ Claude に警告) | Web のみ |
 | 起動時 | `mise install` | Web で、`mise.toml` がある |
 | 起動時 | `lefthook install` (`pre-commit` を使うリポジトリでは `pre-commit install`) | Web で、`lefthook.yml` (か `.pre-commit-config.yaml`) がある |
 | 起動時 | `docker compose up --build -d --wait` (プロキシの CA をビルドと起動後のコンテナに渡す) | Web で、compose ファイルがある |

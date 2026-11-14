@@ -6,8 +6,11 @@ set -uo pipefail
 [ "${CLAUDE_CODE_REMOTE:-}" = "true" ] || exit 0
 cd "${CLAUDE_PROJECT_DIR:-.}" || exit 0
 
-# 🐳 Docker デーモンを起動
-dockerd --registry-mirror=https://mirror.gcr.io >> /tmp/dockerd.log 2>&1 &
+# 🐳 Docker デーモンを起動する。再開時に残った pid ファイルがあると、dockerd が containerd を待って止まるため消す
+if ! docker info > /dev/null 2>&1 && ! pgrep -x dockerd > /dev/null; then
+  rm -f /var/run/docker/containerd/containerd.pid /var/run/docker.pid
+  dockerd --registry-mirror=https://mirror.gcr.io >> /tmp/dockerd.log 2>&1 &
+fi
 
 # 🧰 mise.toml があれば、インストールする
 if [ -f mise.toml ]; then
@@ -42,6 +45,10 @@ elif [ -f .pre-commit-config.yaml ]; then
   { [ -n "$PC" ] && $PC install > /dev/null 2>&1; } || echo "⚠️ pre-commit install を行えませんでした。commit・push の検査が動きません。ユーザーに伝えてください" >&2
 fi
 
+# 🐳 Docker が起動したかを確かめる。起動できなければ compose のサービスも起動しない
+for _ in $(seq 30); do docker info > /dev/null 2>&1 && break; sleep 1; done
+docker info > /dev/null 2>&1 || { echo "⚠️ Docker を起動できませんでした。/tmp/dockerd.log を確かめてください"; exit 0; }
+
 # 🐳 compose のサービスを起動する。ビルドが入れている途中のツールを読まないよう、最後に行う
 COMPOSE=""
 for f in compose.yaml compose.yml docker-compose.yaml docker-compose.yml; do
@@ -65,7 +72,6 @@ else
   echo "⚠️ ビルドにプロキシの CA を渡せませんでした" >&2
 fi
 
-for _ in $(seq 30); do docker info > /dev/null 2>&1 && break; sleep 1; done
 timeout -k 10 300 docker compose up --build -d --wait --wait-timeout 290 >&2 ||
   echo "${COMPOSE} のサービスを起動できませんでした (時間切れを含む)。docker compose up --build -d --wait を実行し、エラーを確かめてください。リポジトリ側の問題なら、/autopilot:setup で直せるとユーザーに伝えてください。頼まれるまで直さないでください。"
 
