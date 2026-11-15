@@ -16,7 +16,7 @@ cd "${CLAUDE_PROJECT_DIR:-.}" || exit 0
 # 🐍 uv が無ければ入れる。シェルの設定ファイルは書き換えない
 if ! uv --version > /dev/null 2>&1; then
   curl -sSfL --connect-timeout 10 --max-time 120 \
-    https://github.com/astral-sh/uv/releases/download/0.13.7/uv-installer.sh |
+    https://github.com/astral-sh/uv/releases/download/0.13.8/uv-installer.sh |
     env UV_NO_MODIFY_PATH=1 sh >&2
 fi
 
