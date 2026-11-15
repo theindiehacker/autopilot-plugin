@@ -63,6 +63,15 @@ PR が Draft (`draft` が `true`) のときも、下の「何もしない通知�
 - `review.command` だけのコメント (レビューのボットへの合図です。手順 11 で書いたものも)
 - 信頼できない書き手のコメント・レビュー (決まりのとおり)
 
+ただし、上のどれかでも、今の head に失敗したチェックがあれば、手順 2 へ進みます。失敗の通知を読み違えたり、取りこぼしたりしても、次の通知で拾うためです。まだ動いているチェックは、失敗に数えません (終われば、また通知が届きます)。
+
+```bash
+for p in 1 2 3 4 5; do gh api "repos/{owner}/{repo}/commits/<head>/check-runs?per_page=100&page=$p"; done \
+  | jq -s '[.[].check_runs[] | select(.conclusion=="failure" or .conclusion=="timed_out")] | length'
+```
+
+`<head>` は上の `head` です。`1` 以上なら、失敗したチェックがあります。`--paginate` は使いません。check run が 100 件を超えると、次のページの URL (`repositories/<数字の ID>/...`) がプロキシに断られるためです。
+
 ### 2. 記録を読む
 
 ```bash
