@@ -29,7 +29,7 @@ description: autopilot の開発のルーティンが、PR を購読した直後
   gh api 'repos/{owner}/{repo}/contents/.github/autopilot.yml?ref=<デフォルトブランチ>' --jq .content | base64 -d
   ```
 
-- GitHub に書くのは、`git push`・コメント・返信と、GitHub の MCP の `update_pull_request`・`enable_pr_auto_merge`・`disable_pr_auto_merge`・`issue_write` だけです。REST (`gh api`) でラベルやステータスを書くと、自動モードに拒否されます
+- GitHub に書くのは、`git push`・コメント・返信と、GitHub の MCP の `update_pull_request`・`enable_pr_auto_merge`・`disable_pr_auto_merge`・`issue_write`・`actions_run_trigger` (`rerun_failed_jobs` だけ) だけです。REST (`gh api`) でラベルやステータスを書くと、自動モードに拒否されます
 - GraphQL は使えません。`gh pr`・`gh issue` は動かないので、`gh api` (REST) を使います
 - 止まるときは、開発の「止まるとき」([../develop/SKILL.md](../develop/SKILL.md)) の順に、Issue と PR に行います。最後に購読をやめます。`git push`・コメント・PR の更新ができないときは、開発の手順 12 のコメントで止まります
 - トークンは扱いません。push は `git push` だけです。シークレットや個人情報は、コメントにもエビデンスにも載せません
@@ -89,6 +89,8 @@ gh api 'repos/{owner}/{repo}/commits/<head>/check-runs?per_page=100' --paginate 
 
 集めたものが無ければ (任意の指摘だけだったときや、購読した直後に見直して、困りごとが無かったときなど)、何も直しません。PR が Draft でなければ、手順 11 へ進みます。Draft なら、次の「直すことの無い Draft を戻す」を行います。
 
+集めたものが失敗したチェックだけで、どれも PR の変更によらない一時的な失敗なら、下の「一時的な失敗を再実行する」を行います。
+
 #### 直すことの無い Draft を戻す
 
 今の head に直すことが無いのに、PR が Draft のときに行います。この手順は、開発の手順 9 で「レビュー可能」にした後 (開発の手順 10・11) にだけ従います。そのため、Draft の PR は、一度「レビュー可能」にした後に、レビューが Draft に戻したものです。
@@ -133,6 +135,30 @@ Draft に戻した理由を確かめてから、Issue の needs-human を外し�
 
 1〜3 を行ったら、終わります。手順 11 には進みません。「レビュー可能」に戻したので、レビューがこれから動くためです。この回は、手順 4 の回数に数えません (`<!-- autopilot:fix-round -->` は書きません)。head ごとに 1 回までで、2 回目は止まるので、終わりがあります。
 
+#### 一時的な失敗を再実行する
+
+PR の変更によらない一時的な失敗は、ジョブを再実行して通します。例: 外のサービスの回数の上限 (`429 Too Many Requests`) や障害 (`5xx`)、ネットワークの切断・タイムアウト、ランナーの不調。ログで原因を確かめてから決めます。一時的でない失敗は、PR の変更によらなくても (デフォルトブランチで壊れているなど)、手順 4 からのとおり直します。
+
+失敗したチェックが必須かどうか (`required_checks`) では、見分けません。組織のルールセットが必須にしたワークフローなど、`.github/autopilot.yml` に無いチェックの失敗でも、自動マージは止まります。失敗を残すと、次の通知が来ないまま PR が止まります。
+
+失敗したチェックごとに、ジョブの実行を読みます。`<id>` は、手順 3 で読んだ check run の ID です (GitHub Actions のジョブの ID と同じです)。
+
+```bash
+gh api repos/{owner}/{repo}/actions/jobs/<id> --jq '{run_id, run_attempt}'
+```
+
+- 読めなければ (GitHub Actions のジョブでない)、再実行できません。下のコメントで止まります
+- `run_attempt` が 3 以上なら (もう 2 回再実行した)、再実行せずに、下のコメントで止まります
+- それ以外なら、GitHub の MCP の `actions_run_trigger` を、`method: rerun_failed_jobs` と `run_id` で呼びます。同じ `run_id` は 1 回だけ呼びます。断られたら、開発の手順 12 のコメントで止まります
+
+```
+<!-- autopilot:needs-human -->
+PR の変更によらない失敗を、再実行で通せません。チェック: {名前}。理由: {2 回再実行しても失敗した・GitHub Actions のジョブでない}。見たこと: {ログの 1〜2 行}
+通してから、Issue の needs-human を外してください。続けて、Issue の autopilot:ready を一度外してから付け直すと、同じ PR で続きから進みます。
+```
+
+再実行したら、PR が Draft なら、続けて「直すことの無い Draft を戻す」を行います。Draft でなければ、終わります。再実行の結果は、次の通知で見ます。PR にはコメントを書きません。この回は、手順 4 の回数に数えません (`<!-- autopilot:fix-round -->` は書きません)。`run_attempt` で 2 回までに限るので、終わりがあります。
+
 ### 4. 回数を数える
 
 これまでの対応の回数は、Issue に最後に `autopilot:ready` が付いた時刻より後に、PR の作者が書いた `<!-- autopilot:fix-round -->` のコメントの数です。付け直すと、数え直しになります。
@@ -146,7 +172,7 @@ gh api 'repos/{owner}/{repo}/issues/<n>/comments?per_page=100' --paginate \
 
 `<作者>` は手順 1 の `author`、`<時刻>` は 1 つ目の出力です。
 
-手順 3 で、今の head に直すこと (Request changes の指摘・失敗したチェック・コンフリクト) が見つかったときだけ、ここに来ます。任意の指摘だけでは、ここに来ません。回数が上限 (`limits.max_fix_rounds`) 以上なら、直さずに、次のコメントで止まります。
+手順 3 で、今の head に直すこと (Request changes の指摘・失敗したチェック・コンフリクト) が見つかったときだけ、ここに来ます。任意の指摘だけ、一時的な失敗だけでは、ここに来ません。回数が上限 (`limits.max_fix_rounds`) 以上なら、直さずに、次のコメントで止まります。
 
 ```
 <!-- autopilot:needs-human -->
