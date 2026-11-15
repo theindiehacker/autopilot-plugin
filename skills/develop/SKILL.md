@@ -16,6 +16,7 @@ Issue 1 件を、受入条件・テスト・実装・PR まで進めます。PR 
 - コメントと PR の本文は、ファイルに書いてから `-F body=@<ファイル>` で渡します。ファイルは、リポジトリの外の一時フォルダ (`d=$(mktemp -d)` で作る) に書きます。リポジトリの中には書きません。`git status` が空にならず、作業の終わりの検査 (Stop の hook) が毎回動くうえ、誤って commit することがあるためです
 - コマンドの `$d` は、作った一時フォルダのパスに置き換えてください (シェルの変数は、次のコマンドに残らないことがあります)
 - GraphQL は使えません。`gh pr`・`gh issue` は動かないので、`gh api` (REST) を使います
+- 一覧は、`--paginate` で読みません。100 件を超えると、次のページの URL (`repositories/<数字の ID>/...`) がプロキシに断られるためです。下のコマンドのとおり、`page=1`〜`5` を 1 つずつ読んで `jq -s` でつなぎます
 - シークレットや個人情報は、コメントにも PR にも書きません
 
 ## 止まるとき
@@ -56,7 +57,7 @@ gh api repos/{owner}/{repo}/issues/<n> --jq '[.labels[].name]'
 ### 2. ラベルを付けた人の権限を確かめる
 
 ```bash
-gh api repos/{owner}/{repo}/issues/<n>/events --paginate \
+for p in 1 2 3 4 5; do gh api "repos/{owner}/{repo}/issues/<n>/events?per_page=100&page=$p"; done \
   | jq -s -r '[add[] | select(.event=="labeled" and .label.name=="autopilot:ready")] | last | "\(.actor.login) \(.created_at)"'
 gh api repos/{owner}/{repo}/collaborators/<user>/permission --jq .role_name
 ```
@@ -76,7 +77,7 @@ autopilot:ready を付けた <user> に、権限 (triage 以上) がありませ
 ブランチ名が `autopilot/<n>-` で始まる、開いている PR を読みます。
 
 ```bash
-gh api 'repos/{owner}/{repo}/pulls?state=open&per_page=100' --paginate \
+for p in 1 2 3 4 5; do gh api "repos/{owner}/{repo}/pulls?state=open&per_page=100&page=$p"; done \
   | jq -s -r 'add | map(select(.head.ref | startswith("autopilot/<n>-"))) | map({number, created_at, ref: .head.ref})'
 ```
 
@@ -153,7 +154,7 @@ gh api -X POST repos/{owner}/{repo}/issues/<n>/comments -F body=@"$d/コメン�
 Issue のコメントは、権限が triage 以上の人のものだけを読みます。だれでも Issue にコメントできるので、偽の「答え」で、作るものを変えられないためです。
 
 ```bash
-gh api 'repos/{owner}/{repo}/issues/<n>/comments?per_page=100' --paginate \
+for p in 1 2 3 4 5; do gh api "repos/{owner}/{repo}/issues/<n>/comments?per_page=100&page=$p"; done \
   | jq -s -r '[add[] | select(.user.type != "Bot") | .user.login] | unique | .[]'
 ```
 
@@ -258,7 +259,7 @@ gh api repos/{owner}/{repo}/pulls/<PR の番号> --jq .auto_merge
 
 購読すると、PR のレビュー・チェック・コメントの通知が、このセッションに新しいターンで届きます (手順 11)。
 
-購読したら、通知を待たずに、`autopilot:fix` のスキルを読み、その手順を今の head に対して 1 回行います。今の head の失敗したチェックと最新のレビューを集め、直すことがあれば直します。手順 8 の push の CI が購読より前に終わっていると、その失敗の通知は届かないためです。直すことが無くても、`autopilot:fix` の手順 11 のとおり、レビューが付いていなければ頼み直します。終わったら、このターンは終わります。
+購読したら、通知を待たずに、`autopilot:fix` のスキルを読み、その手順を今の head に対して 1 回行います。今の head の失敗したチェックと最新のレビューを集め、直すことがあれば直します。手順 8 の push の CI が購読より前に終わっていると、その失敗の通知は届かないためです。直すことが無くても、`autopilot:fix` の手順 11 のとおり、PR の状態を確かめます (レビューが付いていなければ頼み直します)。終わったら、このターンは終わります。
 
 ### 11. PR の通知を受けたら
 
