@@ -72,7 +72,7 @@
 
 `ready-for-agent` を `autopilot:ready` にすると、to-tickets が子の Issue を作った直後、順番が付く前に、ルーティンが動き出すことがあります。
 
-待っている Issue を、マージでなく手で閉じたときは、ルーティンは次の Issue に気づきません。次の Issue の `autopilot:ready` を付けるか、一度外してから付け直してください。
+待っている Issue を、マージでなく手で閉じたときは、ルーティンは次の Issue に気づきません。次の Issue の `autopilot:ready` を付けるか、一度外してから付け直してください。子を手で閉じたときは、元の Issue も手で閉じてください。
 
 ## setup の後にすること
 
