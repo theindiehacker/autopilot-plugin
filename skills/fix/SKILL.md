@@ -16,12 +16,13 @@ PR を購読すると、標準の規則 (CI の失敗を直す・コンフリク
 | 標準の規則 | この手順 |
 |---|---|
 | 決められないことは、ユーザーに聞く。進めない理由は、PR に 1 回書く | ルーティンのチャットは、だれも見ません。自分で決めます。人が要るときは「止まるとき」のとおり止まります (`needs-human` のラベルで知らせる) |
-| セキュリティの指摘は、ユーザーが決めるまで開けておく | ほかの指摘と同じく、採否を決めて、直すか返信します |
+| セキュリティの指摘は、ユーザーが決めるまで開けておく | ほかの指摘と同じく、採否を決めて、直すか返信します。ただし、セキュリティの穴を残したまま進めるときは、止まって人に聞きます (手順 5 の 3) |
+| レビューの指摘には、届いたら対応する | `review.reviewer` の判定 (承認か Request changes) が出てから対応します (手順 3)。直す前に、別のサブエージェントに、本当に直すべきか・このまま進んでいいかを判断させます (手順 5 の 3) |
 | PR によらない失敗は、既にある直しを持ってくるか、案を書く | このリポジトリを直せば通るなら、この PR で直します |
 | 再実行は 1 回まで | 時間をおけば通る失敗は、すぐに 3 回まで再実行します |
 | 変更を求めたレビュアーを、もう一度頼む | `review.reviewer` のボットには、頼む代わりに `review.command` をコメントします (Claude のレビューは、コメントで動きます) |
 | 承認とマージはしない | 承認はしません。自動マージは、開発の手順 10 で有効にしたものを保ちます (外れたら有効にし直します) |
-| 直す回数に上限は無い | `limits.max_fix_rounds` 回で止まります。同じ失敗が続いても止まります |
+| 直す回数に上限は無い | Request changes に応えた回が `limits.max_fix_rounds` 回に達したら止まります (CI の失敗とデフォルトブランチとの差の対応は数えません)。同じ失敗や、同じ仕組みへの Request changes が続いても止まります |
 | push の前に、速い検査を通す | テストをすべて通し、push の後に受入条件を確かめ直して、PR の本文に書きます |
 
 ## 決まり
@@ -48,10 +49,12 @@ PR を購読すると、標準の規則 (CI の失敗を直す・コンフリク
 
 ## 止まるとき
 
-次のときに止まります。開発の「止まるとき」([../develop/SKILL.md](../develop/SKILL.md)) の順に、Issue と PR にラベルとコメントを付け、自動マージを止め、購読をやめます。GitHub に書けないとき (push・コメント・PR の更新・自動マージ・再実行) は、開発の手順 12 のコメントで止まります。
+次のときに止まります。開発の「止まるとき」([../develop/SKILL.md](../develop/SKILL.md)) の順に、Issue と PR にラベルとコメントを付け、自動マージを止め、購読をやめます。GitHub に書けないとき (push・コメント・PR の更新・自動マージ・再実行) は、開発の手順 12 のコメントで止まります。止まるときは、その回の指摘の返信・Issue の作成・直すことを、せずに止まります。再開の後に、同じ指摘を集め直して決めるので、先に行うと二重になるためです。
 
-- 対応の回数が上限 (`limits.max_fix_rounds`) に達したのに、まだ直すことがある
+- Request changes に応えた回数が上限 (`limits.max_fix_rounds`) に達したのに、まだ Request changes の指摘がある
 - 今回の失敗が、`## 対応の記録` の前回の失敗と同じ
+- 直すたびに、同じ仕組みに Request changes が出る (手順 5 の 2)
+- セキュリティの穴を残すか、前提を変えるかを、人が決める必要がある (手順 5 の 3)
 - 受入条件を確かめられない
 - ルーティンには通せない失敗がある (手順 3・6)。3 回再実行しても通らない (手順 6)
 - レビューを頼み直してから 60 分を過ぎても、レビューが付かない (手順 9)
@@ -62,6 +65,19 @@ PR を購読すると、標準の規則 (CI の失敗を直す・コンフリク
 <!-- autopilot:needs-human -->
 {止まった理由を 1 行}。見たこと: {1〜2 行}。{直す先・要るものがあれば 1 行}
 直してから、Issue の needs-human を外してください。続けて、Issue の autopilot:ready を一度外してから付け直すと、同じ PR で続きから進みます。
+```
+
+人に決めてほしいことがあるとき (手順 5 の 2・3) は、次のコメントにします。案には、受入条件を満たす、いちばん単純な案を必ず入れます。
+
+```
+<!-- autopilot:needs-human -->
+{止まった理由を 1 行 (例: 直すたびに、同じ仕組み (個人トークンのキャッシュ) に指摘が出ています。直し続けると仕組みが増えるだけなので、直さずに止まりました)}
+
+1. {決めること (例: メンバーかの確かめ直しを、毎回の要求の中で行うか、外の定期の仕事にするか)}
+   - 案 A: {案} (おすすめ: {理由。減る仕組みと、変わる前提})
+   - 案 B: {案}
+
+権限 (triage 以上) のある人が、答えを Issue #<Issue の番号> にコメントしてから、Issue の needs-human を外してください。続けて、Issue の autopilot:ready を一度外してから付け直すと、同じ PR で続きから進みます。
 ```
 
 ## 手順
@@ -80,7 +96,7 @@ Issue か PR に `needs-human` があれば (人が付けたときも)、PR に�
 
 ### 2. 記録を読む
 
-PR の本文 (`gh api repos/{owner}/{repo}/pulls/<n> --jq .body`) の `## 判断の記録`・`## 試してだめだった方法`・`## 対応の記録` を読みます。試してだめだった方法は、繰り返しません。
+PR の本文 (`gh api repos/{owner}/{repo}/pulls/<n> --jq .body`) の `## 前提`・`## 判断の記録`・`## 試してだめだった方法`・`## 対応の記録` を読みます。試してだめだった方法は、繰り返しません。
 
 ### 3. 困りごとを集める
 
@@ -88,14 +104,21 @@ PR の本文 (`gh api repos/{owner}/{repo}/pulls/<n> --jq .body`) の `## 判断
 
 | もの | 取り方 |
 |---|---|
-| レビューの指摘 | 信頼できる書き手の、今の head (`commit_id`) への最新のレビューの、Request changes の指摘と指摘のコメント。任意の指摘は除きます。`gh api repos/{owner}/{repo}/pulls/<n>/reviews`・`.../pulls/<n>/comments` |
-| コメントの指摘 | 通知で届いた、信頼できる書き手のコメント。ボットのコメントの書き直し (`edited`) と、`review.command` だけのコメントは除きます |
+| レビューの指摘 | 信頼できる書き手の、今の head (`commit_id`) への最新の判定 (`APPROVED` か `CHANGES_REQUESTED`) と、その判定までに書かれた、今の head への指摘のコメントすべて (判定のレビューの ID によらない。指摘のコメントは、判定とは別のレビューに付くため)。任意の指摘は除きます。`gh api repos/{owner}/{repo}/pulls/<n>/reviews`・`.../pulls/<n>/comments` |
+| コメントの指摘 | 通知で届いた、信頼できる書き手のコメント。ボットのコメントの書き直し (`edited`) と、`review.command` だけのコメントと、`review.reviewer` の指摘のコメント (上の行で、判定と一緒に集める) は除きます |
 | 失敗したチェック | 終わっていて、`conclusion` が `success`・`neutral`・`skipped` のどれでもないもの (`cancelled`・`startup_failure` も)。下のコマンドで読み、ログは `gh api repos/{owner}/{repo}/actions/jobs/<id>/logs` |
 | デフォルトブランチとの差 | `mergeable_state` が `dirty` (コンフリクト) か `behind` |
 
 ```bash
 for p in 1 2 3 4 5; do gh api "repos/{owner}/{repo}/commits/<head>/check-runs?per_page=100&page=$p"; done \
   | jq -s '[.[].check_runs[] | select(.status == "completed" and ((.conclusion | IN("success", "neutral", "skipped")) | not)) | {id, name, conclusion}]'
+```
+
+`review.reviewer` の、今の head への判定がまだ無ければ (下の出力が `0`)、そのボットの指摘のコメントは集めません。レビューは、指摘のコメントを先に書き、判定を後に出します。判定を待たずに直すと、承認で任意とされた指摘まで直してしまうためです。判定の通知で、まとめて集めます。
+
+```bash
+for p in 1 2 3 4 5; do gh api "repos/{owner}/{repo}/pulls/<n>/reviews?per_page=100&page=$p"; done \
+  | jq -s '[add[] | select(.user.login == "<reviewer>" and .commit_id == "<head>" and (.state == "APPROVED" or .state == "CHANGES_REQUESTED"))] | length'
 ```
 
 失敗したチェックは、ログを読んで、何をすれば通るかで分けます。原因が PR の差分かどうか、必須かどうかでは分けません。PR をマージまで進めるのが仕事なので、PR の差分によらない失敗も、直せるものは直します。
@@ -120,7 +143,7 @@ for p in 1 2 3 4 5; do gh api "repos/{owner}/{repo}/commits/<head>/check-runs?pe
 
 ### 5. 直す
 
-1. **回数**: 対応の回数は、Issue に最後に `autopilot:ready` が付いた時刻 (1 つ目の出力) より後に、PR の作者が書いた `<!-- autopilot:fix-round -->` のコメントの数です。上限以上なら止まります
+1. **回数**: 数えるのは、Request changes に応えた回だけです。今回、Request changes の指摘が無ければ (失敗したチェックとデフォルトブランチとの差だけ)、回数は見ずに 2 へ進みます。回数は、Issue に最後に `autopilot:ready` が付いた時刻 (1 つ目の出力) より後に、PR の作者が書いた `<!-- autopilot:fix-round -->` のコメントの数です。上限以上なら止まります
 
    ```bash
    for p in 1 2 3 4 5; do gh api "repos/{owner}/{repo}/issues/<Issue の番号>/events?per_page=100&page=$p"; done \
@@ -129,8 +152,38 @@ for p in 1 2 3 4 5; do gh api "repos/{owner}/{repo}/commits/<head>/check-runs?pe
      | jq -s '[add[] | select(.user.login=="<作者>" and .created_at > "<時刻>" and (.body | contains("<!-- autopilot:fix-round -->")))] | length'
    ```
 
-2. **同じ失敗**: 今回の失敗が、`## 対応の記録` の前回の失敗と同じなら止まります
-3. **指摘の採否**: superpowers:receiving-code-review で、指摘ごとに採るかを決めます。採らない指摘には、理由を返信します (`gh api -X POST repos/{owner}/{repo}/pulls/<n>/comments/<id>/replies -F body=@<ファイル>`)
+2. **同じ失敗**: 今回の失敗が、`## 対応の記録` の前回の失敗と同じなら止まります。
+
+   Request changes の指摘があり、前に Request changes に応えた回があれば、直前のその回 (`## 対応の記録` で探します。間の CI の直し・デフォルトブランチの取り込みの回は飛ばします) と比べて、次も確かめます。どちらかなら、直さずに止まります (「止まるとき」の、人に決めてほしいときのコメント)。直し続けても、仕組みが増え、その仕組みがまた指摘されるだけだからです。仕様か設計を、もっと単純にする合図です
+
+   - 今回の指摘の半分以上が、その回で変えた行 (前後 5 行) にある。その回の commit は、`## 対応の記録` に書いた SHA です (`git diff <直す前の SHA>..<直した SHA>` で見ます)。行の番号がずれていれば、中身で比べます
+   - 今回の指摘が、その回の Request changes の指摘と同じ仕組み (同じファイルの同じ働き。例: キャッシュ・同時の要求の扱い・失敗したときの扱い) に向いている
+
+3. **直すべきか、このまま進んでいいか**: Request changes の指摘があるときに行います。直す前に、新しいサブエージェント (Agent のツール) に判断させます。このセッションは実装の経緯を持っていて、「直す」に寄るためです。サブエージェントには、superpowers:receiving-code-review が使えれば、それを使わせます。Agent のツールが使えなければ、このセッションが、同じ材料で同じ 2 つを考えます
+
+   渡すもの: Issue の本文、PR の本文の `## 前提`・`## 受入条件`・`## 対応の記録`、今回の指摘 (コメントの ID・ファイルと行・本文)、PR の差分 (`git diff origin/<デフォルトブランチ>...HEAD`)
+
+   頼むこと:
+
+   1. 指摘ごとに、次のどれかに分け、理由を 1 行で書く。どの分け方でも、指摘がセキュリティの境界 (権限・秘密・認証) にかかわるかを、あわせて書く
+      - 直す: 前提か受入条件に反する、または本当に壊れる
+      - 誤り: 指摘が、コードの事実と違う (根拠を添える)
+      - 前提で許している: `## 前提` の「人が決めたこと」のどこで許しているか (「ルーティンが決めたこと」だけが根拠なら、ここには分けない)
+      - 範囲の外: この Issue でしなくてよい (残したときの害も書く)
+   2. このまま進んでいいか: 指摘が 1 つの仕組みに集まっていないか、直すと仕組みが増えないか。増えるなら、受入条件を満たす、もっと単純な設計と、それが前提を変えるかどうか
+
+   結果で、次のとおりにします。
+
+   | 結果 | すること |
+   |---|---|
+   | 直す | 4 で直します |
+   | 誤り・前提で許している | 理由を返信します (`gh api -X POST repos/{owner}/{repo}/pulls/<n>/comments/<id>/replies -F body=@<ファイル>`)。セキュリティの指摘でも同じです |
+   | セキュリティの境界にかかわり、許す根拠が「ルーティンが決めたこと」だけ | 人が決めます。止まります |
+   | 範囲の外で、セキュリティの境界にかかわらない | Issue を作り、その番号を添えて返信します。push の後のレビューが同じ指摘をまた書くので、作る前に、本文に `<!-- autopilot:out-of-scope #<n> -->` の印がある開いた Issue から、同じ指摘のものを探します。あれば作らずに、その番号で返信します。無ければ、GitHub の MCP の `issue_write` (`method: create`) で、本文の先頭に印を入れて作ります (`autopilot:ready` は付けない) |
+   | 範囲の外で、セキュリティの境界にかかわる | 直すか残すかを、人が決めます。止まります |
+   | もっと単純な設計があり、前提を変えない | その設計で作り直します (4)。作り直した理由を、`## 判断の記録` に書きます |
+   | もっと単純な設計があり、前提を変える | 止まります |
+
 4. **直す**: 先に PR のブランチの最新に合わせます (機械が入れ替わった後や、ほかの人が push した後でも続けるため)
 
    ```bash
@@ -138,10 +191,10 @@ for p in 1 2 3 4 5; do gh api "repos/{owner}/{repo}/commits/<head>/check-runs?pe
    ```
 
    デフォルトブランチとの差と、PR の差分によらない失敗は、先にデフォルトブランチを取り込みます (`git fetch origin && git merge origin/<デフォルトブランチ>`)。ほかの PR がもう直していれば、取り込むだけで通ります
-5. **push と動作確認**: テストをすべて通し (コマンドは `CLAUDE.md`・`README`・`Taskfile.yml` から探す)、変えたファイルだけを `git add <ファイル>` して commit・push します (変更が無ければ push せず、今の head で確かめます)。新しい head で、PR の本文の `## 受入条件` を確かめ直し、エビデンスを置いて `## 動作確認 (<sha7>)` を書きます ([../qa/self-check.md](../qa/self-check.md))。前の commit のエビデンスは消しません。確かめられない条件があれば止まります
-6. **記録**: PR の本文の `## 動作確認` を 5 で書いたものに置き換え、`## 対応の記録` に、この回の失敗と直したことを足します (前回までは消しません)。PR の差分によらない失敗を直したときは、Issue の外の直しであることと理由を `## 判断の記録` にも足します。`update_pull_request` で `body` を渡します
+5. **push と動作確認**: テストをすべて通し (コマンドは `CLAUDE.md`・`README`・`Taskfile.yml` から探す)、変えたファイルだけを `git add <ファイル>` して commit します。push の直前に、PR がまだ開いているかを確かめます (`gh api repos/{owner}/{repo}/pulls/<n> --jq .state`)。直している間に、自動マージでマージされていることがあるためです。`closed` なら、push せずに、`unsubscribe_pr_activity` で購読をやめて終わります (PR には何も書きません)。開いていれば push します (変更が無ければ push せず、今の head で確かめます)。新しい head で、PR の本文の `## 受入条件` を確かめ直し、エビデンスを置いて `## 動作確認 (<sha7>)` を書きます ([../qa/self-check.md](../qa/self-check.md))。前の commit のエビデンスは消しません。確かめられない条件があれば止まります
+6. **記録**: PR の本文の `## 動作確認` を 5 で書いたものに置き換え、`## 対応の記録` に、この回の失敗と直したことと、直す前と直した後の head の SHA を足します (前回までは消しません。2 で使います)。PR の差分によらない失敗を直したときは、Issue の外の直しであることと理由を `## 判断の記録` にも足します。`update_pull_request` で `body` を渡します
 7. **知らせる**: push したとき、または PR が Draft のとき (返信だけでも) は、次を行って終わります。どちらでもなければ (Draft でない PR で、返信だけをした)、手順 9 へ進みます。返信を読んで、レビューを見直してもらうためです
-   - PR に、`<!-- autopilot:fix-round -->` と、直したこと (返信だけなら、返信したこと) を 1 行書いたコメントを書きます。1 で数える印です
+   - PR に、印と、直したこと (返信だけなら、返信したこと) を 1 行書いたコメントを書きます。この回に Request changes の指摘があれば、印は `<!-- autopilot:fix-round -->` (1 で数える印) です。失敗したチェックとデフォルトブランチとの差だけの回なら、`<!-- autopilot:fix-check -->` (数えない印) にします
    - PR が Draft なら、`update_pull_request` で `draft: false` にします
    - 自動マージ (`gh api repos/{owner}/{repo}/pulls/<n> --jq .auto_merge`) が `null` なら (Draft に戻すと外れます)、`enable_pr_auto_merge` (`mergeMethod: SQUASH`) で有効にし直します。読み直しても `null` なら、開発の手順 12 で止まります
 
@@ -187,7 +240,7 @@ gh api repos/{owner}/{repo}/pulls/<n> --jq '{state, mergeable_state, requested: 
 for p in 1 2 3 4 5; do gh api "repos/{owner}/{repo}/commits/<head>/check-runs?per_page=100&page=$p"; done \
   | jq -s -c '[.[].check_runs[]] | {all: length, running: map(select(.status != "completed")) | length}'
 for p in 1 2 3 4 5; do gh api "repos/{owner}/{repo}/pulls/<n>/reviews?per_page=100&page=$p"; done \
-  | jq -s '[add[] | select(.user.login == "<reviewer>" and .commit_id == "<head>")] | length'
+  | jq -s -c '[add[] | select(.user.login == "<reviewer>" and .commit_id == "<head>")] | {verdicts: (map(select(.state == "APPROVED" or .state == "CHANGES_REQUESTED")) | length), comments: (map(select(.state == "COMMENTED")) | length), minutes: (if length > 0 then ((now - (map(.submitted_at | fromdateiso8601) | max)) / 60 | floor) else null end)}'
 gh api repos/{owner}/{repo}/rules/branches/<デフォルトブランチ> --jq '[.[].type] | unique | join(", ")'
 ```
 
@@ -199,7 +252,8 @@ gh api repos/{owner}/{repo}/rules/branches/<デフォルトブランチ> --jq '[
 | `mergeable_state` が `unknown`・`null` (GitHub が計算中) | 1 回だけ読み直して、この表を見直します。まだなら終わります |
 | `mergeable_state` が `dirty`・`behind` | 手順 3 へ戻ります。このターンでもう戻っていれば、次の行へ進みます |
 | `all` が `0`、または `running` が 1 以上 | 終わります (CI が終われば、通知が届きます) |
-| 3 つ目の出力が `0` (`review.reviewer` の、今の head へのレビューが無い) | 手順 9 |
+| 3 つ目の `verdicts` が `0` で、`comments` が 1 以上、`minutes` が 60 より小さい (指摘のコメントだけがあり、判定がまだ) | 終わります (判定の通知を待ちます。ここで頼み直すと、レビューが二重に動くため)。setup のレビューのワークフローは、判定を送れずに終わるとジョブが失敗するので、その失敗の通知で、手順 3 から見直します |
+| 3 つ目の `verdicts` が `0` (`review.reviewer` の、今の head への判定が無い。指摘のコメントから 60 分を過ぎても判定が無いときも) | 手順 9 |
 | `requested` が空でない (人のレビュー待ち。CODEOWNERS など) | 終わります |
 | どれでもない (`blocked` なのに、待つものも失敗も無い) | 1 回だけ読み直します。まだ `blocked` なら、止まります |
 
