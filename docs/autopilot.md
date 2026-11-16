@@ -10,10 +10,10 @@
 |---|---|---|
 | 1 | 人 | Issue を書く。権限のある人 (triage 以上) が `autopilot:ready` を付ける |
 | 2 | ルーティン | 起動して、Issue のラベルを確かめる (`autopilot:ready` が無いか `needs-human` があれば、何もしない)。ブランチ `autopilot/<番号>-dev` と、`Closes #<番号>` を入れた Draft PR を作る |
-| 3 | ルーティン | 受入条件を Issue にコメントする。条件を確かめるテストを書き、失敗するのを確かめてから実装する |
+| 3 | ルーティン | 親の Issue の前提を読み、設計の選択と大きさを確かめる (決まっていない選択や、大きすぎる見込みなら止まって聞く)。受入条件を Issue にコメントする。マージの後にしか測れない目標は、効果を測る子の Issue にする。条件を確かめるテストを書き、失敗するのを確かめてから実装する |
 | 4 | ルーティン | アプリを起動して受入条件を確かめ、PR の本文に動作確認とエビデンスを書く (これが QA。別の Claude による確かめ直しはしない)。「レビュー可能」にして自動マージを有効にし、PR を購読する |
 | 5 | GitHub Actions | Claude のレビューが動く。CODEOWNERS のパスを変える PR は、GitHub が持ち主にレビューを頼む |
-| 6 | ルーティン | Request changes・CI の失敗があると、購読の通知でセッションが起きる。`autopilot:fix` の手順で、指摘ごとに採否を決めて、直して push し、返信する |
+| 6 | ルーティン | Request changes・CI の失敗があると、購読の通知でセッションが起きる。`autopilot:fix` の手順で、レビューの判定を待ってから、別のサブエージェントに「本当に直すべきか・このまま進んでいいか」を判断させ、直して push し、返信する |
 | 7 | GitHub の標準の仕組み | 必須のチェックと必須のレビューがそろうと、自動マージでマージされる |
 | 8 | リポジトリ | マージの後は、リポジトリのデプロイの仕組みが動く (デプロイがあるリポジトリだけ)。autopilot は、デプロイを動かさず、確かめません |
 
@@ -30,9 +30,12 @@
 
 主に次のときに、`needs-human` を付けて止まり、理由を `<!-- autopilot:needs-human -->` 付きのコメントに書きます。
 
-- 対応を 3 回行った後に、また失敗した (回数は `.github/autopilot.yml` の `limits.max_fix_rounds`)
+- Request changes に 3 回応えた後に、また Request changes になった (回数は `.github/autopilot.yml` の `limits.max_fix_rounds`。CI の失敗・コンフリクトの対応は数えない)
 - 同じ失敗が 2 回続いた
-- Issue があいまいで受入条件が書けないなど、ルーティンが進めない (質問と案を書く)
+- 直すたびに、同じ仕組みに Request changes が出る (仕様か設計を単純にする案を書く)
+- Request changes の指摘を残すと、セキュリティの穴が残る。または、指摘を直すには前提を変える必要がある (案を書く)
+- Issue があいまいで受入条件が書けない、親の Issue と食い違う、設計の選択 (権限・秘密の置き場・毎回の要求で呼ぶ外のサービス・失敗したときに許すこと) が決まっていないなど、ルーティンが進めない (質問と案を書く)
+- Issue が 1 つの PR には大きい見込み (`limits.max_files`・`limits.max_lines`。分け方の案を書く)
 - 同じ head で、PR が 2 回 Draft に戻された (1 回目は、直すことが無いので「レビュー可能」に戻した)
 
 `needs-human` の付いた Issue・PR では、ルーティンは動きません。再開するには、答えを Issue にコメントし (読まれるのは、権限が triage 以上の人のコメントだけです)、Issue の `needs-human` を外します。続けて、Issue の `autopilot:ready` を一度外してから、付け直します。ルーティンは Issue にラベルが付いたときに起動するので、`needs-human` を外すだけでは起動しません。
@@ -45,6 +48,7 @@
 |---|---|
 | CODEOWNERS のパスを変える PR の Approve | `/autopilot:setup` が CODEOWNERS を入れたリポジトリだけ。GitHub のレビューの依頼で届く |
 | `needs-human` への答え | 止まったとき。Issue にコメントして、再開する |
+| 効果を測る子の Issue | マージの後にしか測れない目標があるとき。デプロイの後に、子の Issue の測り方で測って閉じる |
 | Slack の通知を見る | GitHub の Slack アプリを購読したチャンネルに届く。例: `/github subscribe <owner>/<repo> issues pulls comments +label:"needs-human"` |
 | 起動しなかった Issue・止まった PR に気づく | 自動では拾わない。上の「止まる条件と、再開のしかた」のとおり、付け直すか、セッションに直接書く |
 
