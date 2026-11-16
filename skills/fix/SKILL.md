@@ -191,7 +191,7 @@ for p in 1 2 3 4 5; do gh api "repos/{owner}/{repo}/pulls/<n>/reviews?per_page=1
    ```
 
    デフォルトブランチとの差と、PR の差分によらない失敗は、先にデフォルトブランチを取り込みます (`git fetch origin && git merge origin/<デフォルトブランチ>`)。ほかの PR がもう直していれば、取り込むだけで通ります
-5. **push と動作確認**: テストをすべて通し (コマンドは `CLAUDE.md`・`README`・`Taskfile.yml` から探す)、変えたファイルだけを `git add <ファイル>` して commit します。push の直前に、PR がまだ開いているかを確かめます (`gh api repos/{owner}/{repo}/pulls/<n> --jq '{state, merged}'`)。直している間に、自動マージでマージされていることがあるためです。`closed` なら、push せずに、`unsubscribe_pr_activity` で購読をやめます (PR には何も書きません)。マージされていれば (`merged` が `true`)、続けて `autopilot:refine` の「分けた Issue の次を始める」を行ってから終わります。開いていれば push します (変更が無ければ push せず、今の head で確かめます)。新しい head で、PR の本文の `## 受入条件` を確かめ直し、エビデンスを置いて `## 動作確認 (<sha7>)` を書きます ([../qa/self-check.md](../qa/self-check.md))。前の commit のエビデンスは消しません。確かめられない条件があれば止まります
+5. **push と動作確認**: テストをすべて通し (コマンドは `CLAUDE.md`・`README`・`Taskfile.yml` から探す)、変えたファイルだけを `git add <ファイル>` して commit します。push の直前に、PR がまだ開いているかを確かめます (`gh api repos/{owner}/{repo}/pulls/<n> --jq '{state, merged}'`)。直している間に、自動マージでマージされていることがあるためです。`closed` なら、push せずに、`unsubscribe_pr_activity` で購読をやめます (PR には何も書きません)。マージされていれば (`merged` が `true`)、続けて、開発の「次の Issue を始める」([../develop/SKILL.md](../develop/SKILL.md))を行ってから終わります。開いていれば push します (変更が無ければ push せず、今の head で確かめます)。新しい head で、PR の本文の `## 受入条件` を確かめ直し、エビデンスを置いて `## 動作確認 (<sha7>)` を書きます ([../qa/self-check.md](../qa/self-check.md))。前の commit のエビデンスは消しません。確かめられない条件があれば止まります
 6. **記録**: PR の本文の `## 動作確認` を 5 で書いたものに置き換え、`## 対応の記録` に、この回の失敗と直したことと、直す前と直した後の head の SHA を足します (前回までは消しません。2 で使います)。PR の差分によらない失敗を直したときは、Issue の外の直しであることと理由を `## 判断の記録` にも足します。`update_pull_request` で `body` を渡します
 7. **知らせる**: push したとき、または PR が Draft のとき (返信だけでも) は、次を行って終わります。どちらでもなければ (Draft でない PR で、返信だけをした)、手順 9 へ進みます。返信を読んで、レビューを見直してもらうためです
    - PR に、印と、直したこと (返信だけなら、返信したこと) を 1 行書いたコメントを書きます。この回に Request changes の指摘があれば、印は `<!-- autopilot:fix-round -->` (1 で数える印) です。失敗したチェックとデフォルトブランチとの差だけの回なら、`<!-- autopilot:fix-check -->` (数えない印) にします
@@ -248,7 +248,7 @@ gh api repos/{owner}/{repo}/rules/branches/<デフォルトブランチ> --jq '[
 
 | PR の状態 | すること |
 |---|---|
-| `state` が `closed` | 終わります。マージされていれば (`gh api repos/{owner}/{repo}/pulls/<n> --jq .merged` が `true`)、先に `autopilot:refine` の「分けた Issue の次を始める」を行います |
+| `state` が `closed` | 終わります。マージされていれば (`gh api repos/{owner}/{repo}/pulls/<n> --jq .merged` が `true`)、先に、開発の「次の Issue を始める」([../develop/SKILL.md](../develop/SKILL.md))を行います |
 | `mergeable_state` が `clean`・`unstable`・`has_hooks` | 終わります (自動マージがマージします) |
 | `mergeable_state` が `unknown`・`null` (GitHub が計算中) | 1 回だけ読み直して、この表を見直します。まだなら終わります |
 | `mergeable_state` が `dirty`・`behind` | 手順 3 へ戻ります。このターンでもう戻っていれば、次の行へ進みます |

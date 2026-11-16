@@ -76,6 +76,7 @@ Claude は、自分以外が下書きに戻した PR を、ユーザーに頼ま
 | プラグイン | 内容 |
 |---|---|
 | superpowers | 設計・実装計画・TDD・サブエージェント開発 |
+| mattpocock-skills | ラベルを付ける前の、決めることの聞き取り (grilling)・子の Issue への分け方 (to-tickets) |
 | frontend-design | UI の見た目とタイポグラフィの方針 |
 | playwright | ブラウザ操作と E2E テストの MCP サーバー |
 | shadcn | shadcn/ui コンポーネントの追加・検索・修正 |

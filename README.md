@@ -88,7 +88,7 @@ PC を使うのは、この 1 回だけです。setup が、リポジトリを�
 
 権限のある人 (triage 以上) が `autopilot:ready` を付けると、Claude のルーティンが動き出し、マージまで進みます。進めないときは、`needs-human` を付けて止まります ([再開のしかた](docs/autopilot.md#止まる条件と再開のしかた))。
 
-ルーティンは、着手の前に Issue を整えます (親の Issue の前提を読み、設計の選択を確かめ、大きければ子の Issue に分けて順に進める)。ラベルを付ける前に、Claude Code で `/autopilot:refine <Issue の番号>` を実行すると、整えた結果を先に見られます。
+設計 (権限・秘密の置き場など) が決まっていない Issue と、1 つの PR には大きい Issue では、ルーティンは止まって聞きます。ラベルを付ける前に Claude Code で整えておくと、止まらずに進みます ([Issue を整える](docs/autopilot.md#ラベルを付ける前に-issue-を整える))。
 
 ## ⚠️ 注意
 
