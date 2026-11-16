@@ -49,7 +49,7 @@ PR を購読すると、標準の規則 (CI の失敗を直す・コンフリク
 
 ## 止まるとき
 
-次のときに止まります。開発の「止まるとき」([../develop/SKILL.md](../develop/SKILL.md)) の順に、Issue と PR にラベルとコメントを付け、自動マージを止め、購読をやめます。GitHub に書けないとき (push・コメント・PR の更新・自動マージ・再実行) は、開発の手順 12 のコメントで止まります。
+次のときに止まります。開発の「止まるとき」([../develop/SKILL.md](../develop/SKILL.md)) の順に、Issue と PR にラベルとコメントを付け、自動マージを止め、購読をやめます。GitHub に書けないとき (push・コメント・PR の更新・自動マージ・再実行) は、開発の手順 12 のコメントで止まります。止まるときは、その回の指摘の返信・Issue の作成・直すことを、せずに止まります。再開の後に、同じ指摘を集め直して決めるので、先に行うと二重になるためです。
 
 - Request changes に応えた回数が上限 (`limits.max_fix_rounds`) に達したのに、まだ Request changes の指摘がある
 - 今回の失敗が、`## 対応の記録` の前回の失敗と同じ
@@ -169,7 +169,7 @@ for p in 1 2 3 4 5; do gh api "repos/{owner}/{repo}/pulls/<n>/reviews?per_page=1
       - 直す: 前提か受入条件に反する、または本当に壊れる
       - 誤り: 指摘が、コードの事実と違う (根拠を添える)
       - 前提で許している: 前提のどこで許しているか
-      - 範囲の外: この Issue でしなくてよく、残しても害が小さい
+      - 範囲の外: この Issue でしなくてよい (残したときの害も書く)
    2. このまま進んでいいか: 指摘が 1 つの仕組みに集まっていないか、直すと仕組みが増えないか。増えるなら、受入条件を満たす、もっと単純な設計と、それが前提を変えるかどうか
 
    結果で、次のとおりにします。
@@ -178,12 +178,11 @@ for p in 1 2 3 4 5; do gh api "repos/{owner}/{repo}/pulls/<n>/reviews?per_page=1
    |---|---|
    | 直す | 4 で直します |
    | 誤り・前提で許している | 理由を返信します (`gh api -X POST repos/{owner}/{repo}/pulls/<n>/comments/<id>/replies -F body=@<ファイル>`)。セキュリティの指摘でも同じです |
-   | 範囲の外 | GitHub の MCP の `issue_write` (`method: create`) で Issue を作り (`autopilot:ready` は付けない)、その番号を添えて返信します |
-   | 範囲の外で、セキュリティの境界にかかわる (穴が残る) | 直すか残すかを、人が決めます。止まります |
+   | 範囲の外で、セキュリティの境界にかかわらない | GitHub の MCP の `issue_write` (`method: create`) で Issue を作り (`autopilot:ready` は付けない)、その番号を添えて返信します |
+   | 範囲の外で、セキュリティの境界にかかわる | 直すか残すかを、人が決めます。止まります |
    | もっと単純な設計があり、前提を変えない | その設計で作り直します (4)。作り直した理由を、`## 判断の記録` に書きます |
    | もっと単純な設計があり、前提を変える | 止まります |
 
-   止まるときは、ほかの指摘の返信・Issue の作成・直すことも、せずに止まります。再開の後に、同じ指摘を集め直して決めるので、先に行うと二重になるためです
 4. **直す**: 先に PR のブランチの最新に合わせます (機械が入れ替わった後や、ほかの人が push した後でも続けるため)
 
    ```bash
@@ -240,7 +239,7 @@ gh api repos/{owner}/{repo}/pulls/<n> --jq '{state, mergeable_state, requested: 
 for p in 1 2 3 4 5; do gh api "repos/{owner}/{repo}/commits/<head>/check-runs?per_page=100&page=$p"; done \
   | jq -s -c '[.[].check_runs[]] | {all: length, running: map(select(.status != "completed")) | length}'
 for p in 1 2 3 4 5; do gh api "repos/{owner}/{repo}/pulls/<n>/reviews?per_page=100&page=$p"; done \
-  | jq -s '[add[] | select(.user.login == "<reviewer>" and .commit_id == "<head>")] | length'
+  | jq -s '[add[] | select(.user.login == "<reviewer>" and .commit_id == "<head>" and (.state == "APPROVED" or .state == "CHANGES_REQUESTED"))] | length'
 gh api repos/{owner}/{repo}/rules/branches/<デフォルトブランチ> --jq '[.[].type] | unique | join(", ")'
 ```
 
@@ -252,7 +251,7 @@ gh api repos/{owner}/{repo}/rules/branches/<デフォルトブランチ> --jq '[
 | `mergeable_state` が `unknown`・`null` (GitHub が計算中) | 1 回だけ読み直して、この表を見直します。まだなら終わります |
 | `mergeable_state` が `dirty`・`behind` | 手順 3 へ戻ります。このターンでもう戻っていれば、次の行へ進みます |
 | `all` が `0`、または `running` が 1 以上 | 終わります (CI が終われば、通知が届きます) |
-| 3 つ目の出力が `0` (`review.reviewer` の、今の head へのレビューが無い) | 手順 9 |
+| 3 つ目の出力が `0` (`review.reviewer` の、今の head への判定が無い。指摘のコメントだけで判定が無いときも) | 手順 9 |
 | `requested` が空でない (人のレビュー待ち。CODEOWNERS など) | 終わります |
 | どれでもない (`blocked` なのに、待つものも失敗も無い) | 1 回だけ読み直します。まだ `blocked` なら、止まります |
 
