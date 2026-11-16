@@ -24,7 +24,7 @@ fi
 (
   cd "$HOME" || exit 0
   uv tool install ruff==0.17.4 >&2
-  uv tool install ty==0.0.99 >&2
+  uv tool install ty==0.0.100 >&2
 )
 
 for t in uv ruff ty; do
