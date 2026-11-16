@@ -68,6 +68,8 @@
 | 3 | 大きければ、`/mattpocock-skills:to-tickets <Issue の番号>` で子の Issue に分ける。子の Issue は元の Issue の子になり、順番 (blocked by) が付く |
 | 4 | 分けなければ元の Issue に、分けたら待つ Issue の無い子に、`autopilot:ready` を付ける。子の PR がマージされると、ルーティンが次の子に `autopilot:ready` を付ける。子がすべて閉じると、元の Issue を閉じる |
 
+大きくても分けずに 1 つの PR で進めたいときは、そう Issue にコメントしてから、`autopilot:ready` を付けます。
+
 `ready-for-agent` を `autopilot:ready` にすると、to-tickets が子の Issue を作った直後、順番が付く前に、ルーティンが動き出すことがあります。
 
 待っている Issue を、マージでなく手で閉じたときは、ルーティンは次の Issue に気づきません。次の Issue の `autopilot:ready` を付けるか、一度外してから付け直してください。

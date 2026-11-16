@@ -184,7 +184,7 @@ for p in 1 2 3 4 5; do gh api "repos/{owner}/{repo}/issues/<n>/comments?per_page
    - どのサービスが、どの秘密を読むか
    - 毎回の要求の中で、外のサービス (GitHub・データベースなど) を呼ぶか
    - 失敗したとき (外のサービスの障害・同時の要求・乱用) に、何を許すか
-3. **大きさ**: 描いた設計で、変えるファイルの数と行の数 (足す行と消す行の合計。自動で生成したファイルとロックファイルは数えない) を見積もります。上限は、デフォルトブランチの `.github/autopilot.yml` の `limits.max_files`・`limits.max_lines` です。ファイルか項目が無ければ、既定の値 (10 ファイル・500 行) を使います
+3. **大きさ**: 描いた設計で、変えるファイルの数と行の数 (足す行と消す行の合計。自動で生成したファイルとロックファイルは数えない) を見積もります。上限は、デフォルトブランチの `.github/autopilot.yml` の `limits.max_files`・`limits.max_lines` です。ファイルか項目が無ければ、既定の値 (10 ファイル・500 行) を使います。権限のある人が、この Issue を 1 つの PR で進めるとコメントしていれば、超えても止まりません
 
    ```bash
    gh api 'repos/{owner}/{repo}/contents/.github/autopilot.yml?ref=<デフォルトブランチ>' --jq .content | base64 -d
@@ -200,7 +200,7 @@ for p in 1 2 3 4 5; do gh api "repos/{owner}/{repo}/issues/<n>/comments?per_page
 - 2 の設計の選択のどれかが、人が決めたことに無い
 - 3 の見込みが、上限を超える。自分では分けません。分け方は、人が確かめて決めるためです
 
-案には、受入条件を満たす、いちばん単純な設計を必ず入れます。大きさで止まるときは、使う人から見える働きで切った、分け方の案を添えます。最後の段落は、大きさで止まるときだけ書きます。
+案には、受入条件を満たす、いちばん単純な設計を必ず入れます。大きさで止まるときは、使う人から見える働きで切った、分け方の案を添えます。最後の段落は、大きさで止まるときだけ書きます。大きさだけで止まるときは、`1. {質問}` の段落を書きません。
 
 ```
 <!-- autopilot:needs-human -->
@@ -212,7 +212,9 @@ for p in 1 2 3 4 5; do gh api "repos/{owner}/{repo}/issues/<n>/comments?per_page
 
 権限 (triage 以上) のある人が、答えを Issue #<n> にコメントしてから、Issue の needs-human を外してください。続けて、Issue の autopilot:ready を一度外してから、付け直してください。
 
-1 つの PR には大きい見込みです (見込み: {ファイル数} ファイル・{行数} 行。上限: {max_files} ファイル・{max_lines} 行)。Claude Code で /mattpocock-skills:to-tickets <n> を使うと、子の Issue に分けられます。分けたら、待つ Issue の無い子に autopilot:ready を付けてください。
+1 つの PR には大きい見込みです (見込み: {ファイル数} ファイル・{行数} 行。上限: {max_files} ファイル・{max_lines} 行)。次のどちらかにしてください。
+- 分ける (おすすめ): Claude Code で /mattpocock-skills:to-tickets <n> を使い、子の Issue に分けます。分けたら、待つ Issue の無い子に autopilot:ready を付けてください。この Issue は、子がすべて閉じると閉じます
+- 1 つの PR で進める: そうコメントしてから、上と同じように再開してください
 ```
 
 **自分で決めて進めるとき**: 小さな選択で、ふつうの選び方があるものは、自分で決めます (2 の 4 つは除きます)。これが「ルーティンが決めたこと」です。
@@ -361,27 +363,33 @@ GitHub に書けません。できなかったこと: {push・PR の更新など
 
 ## 次の Issue を始める
 
-この Issue の PR がマージされたときに行います (手順 11 と、`autopilot:fix` で PR のマージに気づいたとき)。この Issue を待っていた Issue (blocked by) を始め、分けた Issue の子がすべて閉じたら、親の Issue を閉じます。この Issue は、マージで閉じるので、まだ開いていても閉じたものとして数えます。
+この Issue の PR がマージされたときに行います (手順 11 と、`autopilot:fix` で PR のマージに気づいたとき)。この Issue を待っていた Issue (blocked by) を始め、分けた Issue の子がすべて閉じたら、親の Issue を閉じます。
 
-1. この Issue を待っている、開いている Issue と、この Issue の親の番号を読みます (2 つ目が 404 なら、親はありません)
+`<n>` はこの Issue の番号、`<PR の番号>` はマージされた PR の番号です。`autopilot:fix` から行うときは、fix の `<Issue の番号>` を `<n>` に、fix の `<n>` を `<PR の番号>` にします。
+
+1. この Issue がまだ開いていれば (マージで閉じる前)、先に `issue_write` (`method: update`・`state: closed`・`state_reason: completed`) で閉じます。待っていた Issue のルーティンが、閉じる前のこの Issue を見て、何もせずに終わらないためです。続けて、この Issue を待っている、開いている Issue と、この Issue の親の番号を読みます (2 つ目が 404 なら、親はありません)
 
    ```bash
    gh api 'repos/{owner}/{repo}/issues/<n>/dependencies/blocking?per_page=100' --jq '[.[] | select(.state == "open") | {number, labels: [.labels[].name]}]'
    gh api repos/{owner}/{repo}/issues/<n>/parent --jq .number
    ```
 
-2. 出た Issue `<m>` ごとに、ほかに待っている Issue が開いていないかと、`<m>` の親の番号を読み、次の表の、上から最初に当てはまるものを行います
+2. 出た Issue `<m>` ごとに、ほかに待っている Issue が開いていないか・`<m>` の親の番号・`<m>` に最後に `autopilot:ready` が付いた時刻・この PR がマージされた時刻を読み、次の表の、上から最初に当てはまるものを行います
 
    ```bash
    gh api 'repos/{owner}/{repo}/issues/<m>/dependencies/blocked_by?per_page=100' --jq '[.[] | select(.state == "open" and .number != <n>)] | length'
    gh api repos/{owner}/{repo}/issues/<m>/parent --jq .number
+   for p in 1 2 3 4 5; do gh api "repos/{owner}/{repo}/issues/<m>/events?per_page=100&page=$p"; done \
+     | jq -s -r '[add[] | select(.event=="labeled" and .label.name=="autopilot:ready")] | last | .created_at'
+   gh api repos/{owner}/{repo}/pulls/<PR の番号> --jq .merged_at
    ```
 
    | 見たこと | すること |
    |---|---|
    | 1 つ目の出力が `0` でないか、`needs-human` がある | 何もしません (ほかの待っている Issue がマージされたときに、またここに来ます) |
-   | `autopilot:ready` がある (待っている間に起動し、何もせずに終わった) | `autopilot:ready` を外してから、付け直します。ルーティンは、ラベルが付いたときに起動するためです |
-   | `<m>` の親が、この Issue の親と同じ (同じ Issue を分けた子) | `autopilot:ready` を付けます |
+   | `autopilot:ready` があり、3 つ目の時刻が 4 つ目より前 (待っている間に起動し、何もせずに終わった) | `autopilot:ready` を外してから、付け直します。ルーティンは、ラベルが付いたときに起動するためです |
+   | `autopilot:ready` があり、3 つ目の時刻が 4 つ目より後 | 何もしません。もう始まっています (この節を 2 回行ったときも、ここに来ます) |
+   | `<m>` の親が、この Issue の親と同じ (同じ Issue を分けた子。どちらも親が無いときは、同じとしません) | `autopilot:ready` を付けます |
    | どれでもない | 何もしません。人が、autopilot に任せると決めていないためです |
 
    ラベルは、GitHub の MCP の `issue_read` (`method: get`) で今のラベルを読み、変えた一覧を `issue_write` (`method: update`・`labels`) に渡します (今のラベルを 1 つも落とさない)。断られたら、`<m>` に「#<n> がマージされました。autopilot:ready を付けると始まります」とコメントして進みます
@@ -390,4 +398,6 @@ GitHub に書けません。できなかったこと: {push・PR の更新など
 
    ```bash
    gh api 'repos/{owner}/{repo}/issues/<親>/sub_issues?per_page=100' --jq '[.[] | select(.state == "open" and .number != <n> and ((.body // "") | contains("<!-- autopilot:measure #") | not))] | length'
+   for p in 1 2 3 4 5; do gh api "repos/{owner}/{repo}/pulls?state=open&per_page=100&page=$p"; done \
+     | jq -s -r 'add | map(select(.head.ref | startswith("autopilot/<親>-"))) | map(.number)'
    ```
