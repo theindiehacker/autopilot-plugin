@@ -171,14 +171,16 @@ gh api 'repos/{owner}/{repo}/issues/<n>/sub_issues?per_page=100' --jq '[.[] | se
 2. もう分けてあるかを確かめます (付け直しの後に、2 回分けないため)
 
    ```bash
-   gh api 'repos/{owner}/{repo}/issues/<n>/sub_issues?per_page=100' --jq '[.[] | select(.body // "" | contains("<!-- autopilot:split #<n> "))] | length'
+   gh api 'repos/{owner}/{repo}/issues/<n>/sub_issues?per_page=100' --jq '[.[] | select((.body // "" | contains("<!-- autopilot:split #<n> ")) and .state_reason != "not_planned") | {number, split: (.body | capture("<!-- autopilot:split #[0-9]+ [0-9]+/(?<m>[0-9]+) -->").m)}]'
    ```
+
+   作り直しで閉じた子 (`not_planned`) は数えません。マージで閉じた子は数えます。
 
    | 出力 | すること |
    |---|---|
-   | `0` | 3 へ進みます |
-   | 分けた子の数 (`<m>`) と同じ | 子の Issue は作らずに、5 へ進みます (5 のコメントがもうあれば、6 へ) |
-   | それ以外 (途中まで作った) | 子の Issue は作らずに、手順 5 のとおり聞きます (途中まで作った子の Issue の番号を書き、続きを作るか、作った子を閉じてやり直すかを聞く) |
+   | 空 | 3 へ進みます |
+   | 数が、本文の `<m>` と同じ | 子の Issue は作らずに、5 へ進みます (5 のコメントがもうあれば、6 へ) |
+   | それ以外 (前に途中まで作った) | 出た子の Issue を、`issue_write` (`method: update`・`state: closed`・`state_reason: not_planned`) で閉じてから、3 で作り直します。途中まで作った子には、まだ `autopilot:ready` が付いていません (6 で付けるため) |
 
 3. 子の Issue を、順番どおりに 1 つずつ作ります。`issue_write` (`method: create`・`parent_issue_number: <n>`) で作り、ラベルは付けません。`<k>` は順番、`<m>` は子の数です。1 つでも作れなければ、残りは作らずに、手順 5 のとおり聞きます (作れたものの番号と、エラーの 1 行目を書く)
 
@@ -227,7 +229,7 @@ gh api 'repos/{owner}/{repo}/issues/<n>/sub_issues?per_page=100' --jq '[.[] | se
 
 ```bash
 gh api repos/{owner}/{repo}/issues/<n> --jq .body | grep -o '<!-- autopilot:split #[0-9]* [0-9]*/[0-9]* -->'
-gh api 'repos/{owner}/{repo}/issues/<親>/sub_issues?per_page=100' --jq '[.[] | {number, state, labels: [.labels[].name], split: (.body // "" | capture("<!-- autopilot:split #[0-9]+ (?<k>[0-9]+)/[0-9]+ -->").k)}]'
+gh api 'repos/{owner}/{repo}/issues/<親>/sub_issues?per_page=100' --jq '[.[] | select(.state_reason != "not_planned") | {number, state, labels: [.labels[].name], split: (.body // "" | capture("<!-- autopilot:split #[0-9]+ (?<k>[0-9]+)/[0-9]+ -->").k)}]'
 ```
 
 この Issue (`<n>`) は、マージで閉じるので、まだ開いていても閉じたものとして数えます。
@@ -240,10 +242,20 @@ gh api 'repos/{owner}/{repo}/issues/<親>/sub_issues?per_page=100' --jq '[.[] | 
 | `<k>` が `<m>` と同じで、印のある子の Issue がすべて閉じている | 親の Issue を、`issue_write` (`method: update`・`state: closed`・`state_reason: completed`) で閉じます |
 | `<k>` が `<m>` と同じで、開いている子の Issue がある | 閉じずに、親の Issue に知らせます (下のコメント) |
 
-知らせるときは、親の Issue に `needs-human` を付けて (開発の「止まるとき」の 1・2 と同じ付け方)、次のコメントを書きます。
+知らせるときは、親の Issue に `needs-human` を付けて (開発の「止まるとき」の 1・2 と同じ付け方)、次のどちらかのコメントを書きます。
+
+次の子に進めないとき (`<k>` が `<m>` より小さい):
 
 ```
 <!-- autopilot:needs-human -->
-分けた Issue の次に進めません。見たこと: {例: #<子> が閉じている}
-進めるなら、次の子の Issue に autopilot:ready を付けてください。この Issue の needs-human は、確かめたら外してください。
+分けた Issue の次に進めません。見たこと: {例: #<次の子> が閉じている・needs-human がある}
+進めるなら、#<次の子> (閉じていれば、その次の子) に autopilot:ready を付けてください。この Issue の needs-human は、確かめたら外してください。
+```
+
+最後の子がマージされたのに、開いている子が残るとき (`<k>` が `<m>` と同じ):
+
+```
+<!-- autopilot:needs-human -->
+最後の子の Issue がマージされましたが、開いている子の Issue が残っています: #<子>
+残りを進めるか閉じてから、この Issue を閉じてください。この Issue の needs-human は、確かめたら外してください。
 ```
