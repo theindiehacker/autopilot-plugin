@@ -14,4 +14,4 @@ required_checks:
   - "{{CI_CHECK}}"   # CI のジョブ名。1 つずつ書く。paths: で飛ぶものは書かない
 
 limits:
-  max_fix_rounds: 3   # 開発のルーティンが読む (PR の指摘・CI の失敗を直す回数の上限)
+  max_fix_rounds: 3   # 開発のルーティンが読む (Request changes に応えて直す回数の上限。CI の失敗・コンフリクトは数えない)
