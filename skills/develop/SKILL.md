@@ -54,7 +54,7 @@ gh api repos/{owner}/{repo}/issues/<n> --jq '[.labels[].name]'
 
 `autopilot:ready` が無いか、`needs-human` があれば、何もせずに終わります。コメントも書きません。
 
-続けて、子の Issue と、待っている Issue (blocked by) を数えます。
+続けて、子の Issue と、待っている Issue (blocked by) を数え、次の表の、上から最初に当てはまるものを行います。
 
 ```bash
 gh api 'repos/{owner}/{repo}/issues/<n>/sub_issues?per_page=100' --jq '[.[] | select(.state == "open" and ((.body // "") | contains("<!-- autopilot:measure #") | not))] | length'
@@ -63,8 +63,8 @@ gh api 'repos/{owner}/{repo}/issues/<n>/dependencies/blocked_by?per_page=100' --
 
 | 見たこと | すること |
 |---|---|
-| 1 つ目が `0` でない (開いている子の Issue がある。効果を測る子の Issue は数えない) | 子の Issue に分けた Issue です。この Issue は開発しません。手順 2 で権限を確かめてから、「分けた Issue の子を始める」を行って終わります |
 | 2 つ目が `0` でない (待っている Issue が開いている) | 何もせずに終わります。コメントも書きません。待っている Issue の PR がマージされると、ルーティンが `autopilot:ready` を付け直します (「次の Issue を始める」) |
+| 1 つ目が `0` でない (開いている子の Issue がある。効果を測る子の Issue は数えない) | 子の Issue に分けた Issue です。この Issue は開発しません。手順 2 で権限を確かめてから、「分けた Issue の子を始める」を行って終わります |
 | どちらも `0` | 手順 2 へ進みます |
 
 ### 2. ラベルを付けた人の権限を確かめる
@@ -216,7 +216,7 @@ for p in 1 2 3 4 5; do gh api "repos/{owner}/{repo}/issues/<n>/comments?per_page
 
 1 つの PR には大きい見込みです (見込み: {ファイル数} ファイル・{行数} 行。上限: {max_files} ファイル・{max_lines} 行)。分け方の案: {使う人から見える働きで切った子の Issue と、その順番}
 次のどちらかにしてください。
-- 分ける (おすすめ): Claude Code で /mattpocock-skills:to-tickets <n> を使い、子の Issue に分けます。分けたら、この Issue の needs-human を外し、autopilot:ready を一度外してから付け直してください。待つ Issue の無い子から順に始まります。この Issue は、子の PR がすべてマージされると閉じます (子を手で閉じたときは、この Issue とその Draft PR も手で閉じ、この Issue を待っている Issue に autopilot:ready を付けてください)
+- 分ける (おすすめ): Claude Code で /mattpocock-skills:to-tickets <n> を使い、子の Issue に分けます。分けたら、この Issue の needs-human を外し、autopilot:ready を一度外してから付け直してください。待つ Issue の無い子から順に始まります。この Issue は、子の PR がすべてマージされると閉じます (途中の子を手で閉じたときは、この Issue の autopilot:ready を一度外してから付け直すと、続きの子が始まります。最後の子を手で閉じたときは、この Issue とその Draft PR も手で閉じ、この Issue を待っている Issue に autopilot:ready を付けてください)
 - 1 つの PR で進める: そうコメントしてから、Issue の needs-human を外してください。続けて、Issue の autopilot:ready を一度外してから、付け直してください
 ```
 
@@ -378,13 +378,16 @@ GitHub に書けません。できなかったこと: {push・PR の更新など
 
    ```bash
    gh api 'repos/{owner}/{repo}/issues/<m>/dependencies/blocked_by?per_page=100' --jq '[.[] | select(.state == "open")] | length'
+   for p in 1 2 3 4 5; do gh api "repos/{owner}/{repo}/pulls?state=open&per_page=100&page=$p"; done \
+     | jq -s -r 'add | map(select(.head.ref | startswith("autopilot/<m>-"))) | length'
    ```
 
    | 見たこと | すること |
    |---|---|
-   | 出力が `0` でない (前の子を待っている) | 何もしません。前の子の PR がマージされると、ルーティンが付けます |
+   | 1 つ目の出力が `0` でない (前の子を待っている) | 何もしません。前の子の PR がマージされると、ルーティンが付けます |
    | `needs-human` がある | 何もしません。人の判断を待っています |
-   | `autopilot:ready` がある | 何もしません。もう始まっています |
+   | `autopilot:ready` があり、2 つ目の出力が `0` でない (開いている PR がある) | 何もしません。もう始まっています |
+   | `autopilot:ready` があり、2 つ目の出力が `0` (待っている間に起動し、何もせずに終わった。待っていた Issue が、autopilot の PR のマージ以外で閉じた) | `autopilot:ready` を外してから、付け直します |
    | どれでもない | `autopilot:ready` を付けます (「次の Issue を始める」の 2 と同じ付け方) |
 
 3. この Issue に、次のコメントを書きます
