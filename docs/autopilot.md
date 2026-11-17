@@ -9,7 +9,7 @@
 | 順 | だれが | すること |
 |---|---|---|
 | 1 | 人 | Issue を書く。権限のある人 (triage 以上) が `autopilot:ready` を付ける |
-| 2 | ルーティン | 起動して、Issue のラベルを確かめる (`autopilot:ready` が無いか `needs-human` があれば、何もしない。子の Issue に分けた Issue と、待っている Issue (blocked by) が開いている Issue でも、何もしない)。ブランチ `autopilot/<番号>-dev` と、`Closes #<番号>` を入れた Draft PR を作る |
+| 2 | ルーティン | 起動して、Issue のラベルを確かめる (`autopilot:ready` が無いか `needs-human` があれば、何もしない。待っている Issue (blocked by) が開いている Issue でも、何もしない。子の Issue に分けた Issue では、開発せずに、待つ Issue の無い子に `autopilot:ready` を付けて終わる)。ブランチ `autopilot/<番号>-dev` と、`Closes #<番号>` を入れた Draft PR を作る |
 | 3 | ルーティン | 前提を確かめる: 親の Issue の前提を読み、設計の選択と大きさを確かめる (決まっていない選択があるか、1 つの PR には大きい見込みなら、止まって聞く。自分では分けない)。受入条件を Issue にコメントする。マージの後にしか測れない目標は、効果を測る子の Issue にする。条件を確かめるテストを書き、失敗するのを確かめてから実装する |
 | 4 | ルーティン | アプリを起動して受入条件を確かめ、PR の本文に動作確認とエビデンスを書く (これが QA。別の Claude による確かめ直しはしない)。「レビュー可能」にして自動マージを有効にし、PR を購読する |
 | 5 | GitHub Actions | Claude のレビューが動く。CODEOWNERS のパスを変える PR は、GitHub が持ち主にレビューを頼む |
@@ -66,7 +66,7 @@
 | 1 | 初めてのリポジトリでは、`/mattpocock-skills:setup-matt-pocock-skills` を 1 回行う。課題の置き場は GitHub にし、ラベルは既定のまま (`ready-for-agent` を `autopilot:ready` にしない) にする。書いたファイル (`docs/agents/` など) は commit する |
 | 2 | `/mattpocock-skills:grilling` で、Issue の決めることを決める。決まったら、決めたことを Issue にコメントしてもらう。ルーティンは、権限のある人のコメントを、人が決めたこととして読む |
 | 3 | 大きければ、`/mattpocock-skills:to-tickets <Issue の番号>` で子の Issue に分ける。子の Issue は元の Issue の子になり、順番 (blocked by) が付く |
-| 4 | 分けなければ元の Issue に、分けたら待つ Issue の無い子に、`autopilot:ready` を付ける。子の PR がマージされると、ルーティンが次の子に `autopilot:ready` を付ける。子がすべて閉じると、元の Issue を閉じる |
+| 4 | 元の Issue に `autopilot:ready` を付ける。分けたときは、ルーティンが待つ Issue の無い子に `autopilot:ready` を付ける。子の PR がマージされると、ルーティンが次の子に付ける。子がすべて閉じると、元の Issue を閉じる |
 
 大きくても分けずに 1 つの PR で進めたいときは、そう Issue にコメントしてから、`autopilot:ready` を付けます。
 
