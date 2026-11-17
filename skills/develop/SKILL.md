@@ -216,7 +216,7 @@ for p in 1 2 3 4 5; do gh api "repos/{owner}/{repo}/issues/<n>/comments?per_page
 
 1 つの PR には大きい見込みです (見込み: {ファイル数} ファイル・{行数} 行。上限: {max_files} ファイル・{max_lines} 行)。分け方の案: {使う人から見える働きで切った子の Issue と、その順番}
 次のどちらかにしてください。
-- 分ける (おすすめ): Claude Code で /mattpocock-skills:to-tickets <n> を使い、子の Issue に分けます。分けたら、この Issue の needs-human を外し、autopilot:ready を一度外してから付け直してください。待つ Issue の無い子から順に始まります。この Issue は、子の PR がすべてマージされると閉じます (途中の子を手で閉じたときは、この Issue の autopilot:ready を一度外してから付け直すと、続きの子が始まります。最後の子を手で閉じたときは、この Issue とその Draft PR も手で閉じ、この Issue を待っている Issue に autopilot:ready を付けてください)
+- 分ける (おすすめ): Claude Code で /mattpocock-skills:to-tickets <n> を使い、子の Issue に分けます。分けたら、この Issue の needs-human を外し、autopilot:ready を一度外してから付け直してください。待つ Issue の無い子から順に始まります。この Issue は、子の PR がすべてマージされると閉じます (途中の子を手で閉じたときは、その子の autopilot の PR も閉じてから、この Issue の autopilot:ready を一度外して付け直すと、続きの子が始まります。最後の子を手で閉じたときは、その子の PR と、この Issue とその Draft PR も手で閉じ、この Issue を待っている Issue に autopilot:ready を付けてください (付いていれば、一度外してから付けてください))
 - 1 つの PR で進める: そうコメントしてから、Issue の needs-human を外してください。続けて、Issue の autopilot:ready を一度外してから、付け直してください
 ```
 
@@ -421,6 +421,8 @@ GitHub に書けません。できなかったこと: {push・PR の更新など
    for p in 1 2 3 4 5; do gh api "repos/{owner}/{repo}/issues/<m>/events?per_page=100&page=$p"; done \
      | jq -s -r '[add[] | select(.event=="labeled" and .label.name=="autopilot:ready")] | last | .created_at'
    gh api repos/{owner}/{repo}/pulls/<PR の番号> --jq .merged_at
+   for p in 1 2 3 4 5; do gh api "repos/{owner}/{repo}/pulls?state=open&per_page=100&page=$p"; done \
+     | jq -s -r 'add | map(select(.head.ref | startswith("autopilot/<m>-"))) | length'
    ```
 
    `<m>` の親が 404 なら、親は無いとします。
@@ -428,8 +430,8 @@ GitHub に書けません。できなかったこと: {push・PR の更新など
    | 見たこと | すること |
    |---|---|
    | 1 つ目の出力が `0` でないか、`needs-human` がある | 何もしません (ほかの待っている Issue がマージされたときに、またここに来ます) |
-   | `autopilot:ready` があり、3 つ目の時刻が 4 つ目より前 (待っている間に起動し、何もせずに終わった) | `autopilot:ready` を外してから、付け直します。ルーティンは、ラベルが付いたときに起動するためです |
-   | `autopilot:ready` があり、3 つ目の時刻が 4 つ目より後 | 何もしません。もう始まっています (この節を 2 回行ったときも、ここに来ます) |
+   | `autopilot:ready` があり、3 つ目の時刻が 4 つ目より前で、5 つ目の出力が `0` (待っている間に起動し、何もせずに終わった) | `autopilot:ready` を外してから、付け直します。ルーティンは、ラベルが付いたときに起動するためです |
+   | `autopilot:ready` がある (上に当てはまらない) | 何もしません。もう始まっています (開いている PR がある。この節を 2 回行ったときも、ここに来ます) |
    | `<m>` の親が、この Issue の親と同じ (同じ Issue を分けた子。どちらも親が無いときは、同じとしません) | `autopilot:ready` を付けます |
    | どれでもない | 何もしません。人が、autopilot に任せると決めていないためです |
 
