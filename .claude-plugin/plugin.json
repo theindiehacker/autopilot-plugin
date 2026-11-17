@@ -8,7 +8,6 @@
   "dependencies": [
     "security-guidance@claude-plugins-official",
     "superpowers@claude-plugins-official",
-    "mattpocock-skills@claude-plugins-official",
     "frontend-design@claude-plugins-official",
     "playwright@claude-plugins-official",
     "claude-security@claude-plugins-official",
